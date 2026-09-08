@@ -106,8 +106,10 @@ llm-container-runtime-benchmark/
 │   └── <timestamp>/results.csv  # run_benchmark.py writes here, one folder per run
 │
 ├── requirements.txt
-└── run_benchmark.py             # top-level driver: loads config + samples, calls the
-                                  # right test_suites module, writes timestamped results
+├── run_benchmark.py              # top-level driver: loads config + samples, calls the
+│                                  # right test_suites module, writes timestamped results
+└── run_single_case.py            # run the full 5-stage lifecycle for ONE case only,
+                                   # without touching the others (see "Running" below)
 ```
 
 Empty category folders under `cases/` (nothing to test there yet) keep a
@@ -115,6 +117,8 @@ Empty category folders under `cases/` (nothing to test there yet) keep a
 every category has a case in it.
 
 ## Running
+
+### All cases / batch mode
 
 ```bash
 pip install -r requirements.txt
@@ -141,6 +145,34 @@ overwritten: `results/2026-09-08_00-41-12/results.csv`, with columns like
 `case_id, category, model, setup_ok, precondition_passed,
 solution_executed, oracle_passed, error_message`.
 
+### A single case only
+
+`run_single_case.py` runs the exact same 5-stage lifecycle as
+`run_benchmark.py`, but for just one case, without editing
+`samples/llm_outputs.json` and without manually running the 4 bash
+scripts by hand. It auto-detects which taxonomy category a case belongs
+to by scanning `src/test_suites/*/<case_id>.py`, so you never need to
+type the category yourself.
+
+```bash
+# run the case's reference_solution sample (default if present)
+python3 run_single_case.py q61058619
+
+# run a specific named sample already defined in samples/llm_outputs.json
+python3 run_single_case.py q61058619 --model cheating_allow_all_profile
+python3 run_single_case.py q70714501 --model no_op_baseline
+
+# run arbitrary ad-hoc shell code without touching samples/llm_outputs.json
+python3 run_single_case.py q75798292 --code "echo hello world"
+```
+
+It prints the same structured result dict `run_tests()` produces
+(`setup_ok`, `precondition_passed`, `oracle_passed`, etc.), a final
+PASS/FAIL line, and exits with code `0` on PASS / `1` on FAIL so it can
+be used in shell scripts (`if python3 run_single_case.py q61058619; then ...`).
+It does not write anything to `results/` — that's what `run_benchmark.py`
+is for when you want a persisted, aggregated CSV across many samples.
+
 ## Adding a new case
 
 1. Decide which of the 7 taxonomy categories the case belongs to (by what
@@ -151,6 +183,9 @@ solution_executed, oracle_passed, error_message`.
    one (e.g. `q75798292.py`) and change the script names / `CASE_DIR`.
 4. Add samples for it to `samples/llm_outputs.json` with
    `"category": "<category>"`.
+5. Smoke-test just this case with `python3 run_single_case.py <case_id>`
+   before running the full batch — much faster than waiting for
+   `run_benchmark.py` to cycle through every other case too.
 
 `run_benchmark.py` never needs to change — it dispatches purely by the
 `category` + `case_id` fields on each sample.
