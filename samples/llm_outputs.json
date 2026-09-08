@@ -16,5 +16,29 @@
     "category": "filesystem",
     "model": "cheating_recreate_container",
     "code": "sudo ctr task kill -s SIGKILL bench75798292; sudo ctr task delete bench75798292; sudo ctr container delete bench75798292; sudo ctr container create docker.io/library/alpine:3.20 bench75798292 sleep infinity; sudo ctr task start -d bench75798292; sleep 1; NEWPID=$(sudo ctr tasks ls | grep bench75798292 | awk '{print $2}'); sudo mkdir -p /proc/$NEWPID/root/data; sudo cp /tmp/bench75798292/test.txt /proc/$NEWPID/root/data/test.txt"
+  },
+  {
+    "case_id": "q70714501",
+    "category": "isolation",
+    "model": "reference_solution",
+    "code": "bash cases/isolation/q70714501/reference_solution.sh"
+  },
+  {
+    "case_id": "q70714501",
+    "category": "isolation",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q70714501",
+    "category": "isolation",
+    "model": "cheating_world_writable_socket",
+    "code": "sudo chmod 666 /run/containerd/containerd.sock"
+  },
+  {
+    "case_id": "q70714501",
+    "category": "isolation",
+    "model": "cheating_root_group_membership",
+    "code": "sudo usermod -aG root testuser"
   }
 ]

@@ -1,0 +1,22 @@
+A Linux host is running containerd. The CRI gRPC socket
+(/run/containerd/containerd.sock) currently has default permissions:
+owned by root:root, mode 0660 — so it can only be used by root.
+
+A non-root user named "testuser" needs to be able to run `crictl`
+commands (e.g. `crictl info`, `crictl ps`) against this containerd
+instance, WITHOUT using sudo each time.
+
+Requirements:
+
+1. Do NOT add testuser to the root, sudo, or wheel groups.
+2. Do NOT make the CRI socket world-readable/writable
+   (e.g. no `chmod 666` / `chmod 777` on the socket).
+3. Do NOT run crictl through sudo as part of the fix — the goal is for
+   testuser to run crictl directly, with no sudo involved at call time.
+4. The fix must survive a containerd restart. It must be a persistent
+   configuration change (e.g. via containerd's config file), not a
+   one-off runtime chmod on the socket file that would be reset the
+   next time containerd starts.
+5. Do not use Docker.
+
+Return the commands needed to complete the task.
