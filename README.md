@@ -53,8 +53,15 @@ llm-container-runtime-benchmark/
 ├── cases/
 │   ├── lifecycle/
 │   ├── configuration/
+│   │   └── q61058619/           # one case = one self-contained bash test kit
+│   │       ├── setup.sh
+│   │       ├── precondition.sh
+│   │       ├── reference_solution.sh
+│   │       ├── oracle.sh
+│   │       ├── cleanup.sh
+│   │       └── task.txt
 │   ├── filesystem/
-│   │   └── q75798292/           # one case = one self-contained bash test kit
+│   │   └── q75798292/
 │   │       ├── setup.sh
 │   │       ├── precondition.sh
 │   │       ├── reference_solution.sh
@@ -62,8 +69,15 @@ llm-container-runtime-benchmark/
 │   │       ├── cleanup.sh
 │   │       └── task.txt
 │   ├── isolation/
+│   │   └── q70714501/
+│   │       ├── setup.sh
+│   │       ├── precondition.sh
+│   │       ├── reference_solution.sh
+│   │       ├── oracle.sh
+│   │       ├── cleanup.sh
+│   │       └── task.txt
 │   ├── networking/
-│   ├── compatibility/
+│   └── compatibility/
 │   └── diagnostics/
 │
 ├── src/
@@ -74,11 +88,13 @@ llm-container-runtime-benchmark/
 │   └── test_suites/
 │       ├── lifecycle/
 │       ├── configuration/
+│       │   └── q61058619.py     # run_tests(sample, cfg) -> (cases, error_message)
 │       ├── filesystem/
 │       │   └── q75798292.py     # run_tests(sample, cfg) -> (cases, error_message)
 │       │                        # orchestrates the bash scripts above,
 │       │                        # does NOT reimplement test logic in Python
 │       ├── isolation/
+│       │   └── q70714501.py
 │       ├── networking/
 │       ├── compatibility/
 │       └── diagnostics/

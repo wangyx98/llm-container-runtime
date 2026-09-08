@@ -1,0 +1,34 @@
+A host is running CRI-O as its container runtime. The pod sandbox
+"bench61058619" is already running and healthy (Ready state) — the bug is
+NOT at the pod sandbox level.
+
+A container ("bench61058619-ctr") is configured to run inside this pod
+using a LOCALHOST seccomp profile
+(security_context.seccomp.profile_type = LOCALHOST) that references:
+
+    /etc/crio/broken-seccomp.json
+
+This file currently contains invalid JSON (it is not a valid seccomp
+profile), which causes container creation to fail, e.g.:
+
+    $ sudo crictl create <pod-id> /tmp/bench61058619_container.json /tmp/bench61058619_pod.json
+    FATA[0000] creating container failed: ... seccomp ...
+
+Your task: fix the seccomp configuration so that this container can be
+created and started successfully.
+
+Requirements:
+
+1. The container must be creatable and startable (reach the Running
+   state) using the existing container/pod config files.
+2. Seccomp must remain ACTIVELY ENFORCED and genuinely restrictive for
+   the container — do NOT "fix" this by disabling seccomp (e.g. do not
+   change profile_type to Unconfined, do not remove the seccomp field
+   from the container config) and do NOT replace the profile with an
+   allow-all policy (e.g. defaultAction = "SCMP_ACT_ALLOW") just to
+   make it technically "valid" while filtering nothing.
+3. The fix should correct the actual seccomp profile content/
+   configuration — not work around it at a different layer.
+4. Do not use Docker.
+
+Return the commands needed to complete the task.

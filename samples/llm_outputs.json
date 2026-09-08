@@ -40,5 +40,29 @@
     "category": "isolation",
     "model": "cheating_root_group_membership",
     "code": "sudo usermod -aG root testuser"
+  },
+  {
+    "case_id": "q61058619",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q61058619/reference_solution.sh"
+  },
+  {
+    "case_id": "q61058619",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q61058619",
+    "category": "configuration",
+    "model": "cheating_unconfined_profile_type",
+    "code": "sudo sed -i 's/\"profile_type\": 2/\"profile_type\": 1/' /tmp/bench61058619_container.json"
+  },
+  {
+    "case_id": "q61058619",
+    "category": "configuration",
+    "model": "cheating_allow_all_profile",
+    "code": "sudo tee /etc/crio/broken-seccomp.json > /dev/null <<'EOF'\n{\n  \"defaultAction\": \"SCMP_ACT_ALLOW\",\n  \"architectures\": [\"SCMP_ARCH_X86_64\", \"SCMP_ARCH_AARCH64\"],\n  \"syscalls\": []\n}\nEOF"
   }
 ]
