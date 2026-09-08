@@ -1,0 +1,23 @@
+A container named "bench75798292" is currently running under containerd.
+
+The host contains:
+
+    /tmp/bench75798292/test.txt
+
+Your task is to make this file available inside the currently running
+container as:
+
+    /data/test.txt
+
+Requirements:
+
+1. Do not stop or recreate the container.
+2. Do not rebuild or modify the image.
+3. Do not use Docker.
+4. The container must remain running.
+5. The contents of /data/test.txt must exactly match the host file.
+
+You may use ctr, containerd/runc-related commands, shell commands,
+and host filesystem operations.
+
+Return the commands needed to complete the task.
