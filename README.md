@@ -43,10 +43,15 @@ containerd container's filesystem) lives under `filesystem`, not
 thing being exercised is a filesystem/mount operation, not the
 container's lifecycle itself.
 
+See [`stackoverflow_question_task_mapping.csv`](./stackoverflow_question_task_mapping.csv)
+for the full list of screened Stack Overflow questions and their taxonomy mapping.
+
 ## Structure
 
 ```
 llm-container-runtime-benchmark/
+├── README.md
+├── stackoverflow_question_task_mapping.csv
 ├── conf/
 │   └── config.yaml              # timeout, samples_file, results_dir — single source of config
 │
