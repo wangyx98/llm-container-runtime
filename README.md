@@ -28,23 +28,21 @@ they exercise:
 
 | # | Category (full name) | Directory keyword |
 |---|---|---|
-| 1 | Runtime Lifecycle & Execution | `lifecycle` |
-| 2 | Runtime Configuration & Policy | `configuration` |
+| 1 | Runtime Lifecycle, Execution & Compatibility | `compatibility` |
+| 2 | Configuration Management | `configuration` |
 | 3 | Filesystem, Mount & Storage | `filesystem` |
 | 4 | Identity, Privilege & Isolation | `isolation` |
 | 5 | Networking & Connectivity | `networking` |
-| 6 | Runtime Compatibility & Integration | `compatibility` |
-| 7 | Diagnostics & Observability | `diagnostics` |
+| 6 | Diagnostics & Observability | `diagnostics` |
 
 A case is placed in whichever category best matches what it's actually
 testing — e.g. SO-75798292 (copying a host file into a running
 containerd container's filesystem) lives under `filesystem`, not
-`lifecycle`, even though it involves a running container, because the
-thing being exercised is a filesystem/mount operation, not the
+`compatibility`, even though it involves a running container, because the thing being exercised is a filesystem/mount operation, not the
 container's lifecycle itself.
 
-See [`stackoverflow_question_task_mapping.csv`](./stackoverflow_question_task_mapping.csv)
-for the full list of screened Stack Overflow questions and their taxonomy mapping.
+See [`stackoverflow_question_task_mapping.csv`](./SO_questions_tasks_mapping_updated.csv)
+for the updated full list of screened Stack Overflow questions and their 6 updated tasks taxonomy mapping.
 
 ## Structure
 
@@ -56,7 +54,7 @@ llm-container-runtime-benchmark/
 │   └── config.yaml              # timeout, samples_file, results_dir — single source of config
 │
 ├── cases/
-│   ├── lifecycle/
+│   ├── compatibility/
 │   ├── configuration/
 │   │   └── q61058619/           # one case = one self-contained bash test kit
 │   │       ├── setup.sh
@@ -82,7 +80,6 @@ llm-container-runtime-benchmark/
 │   │       ├── cleanup.sh
 │   │       └── task.txt
 │   ├── networking/
-│   └── compatibility/
 │   └── diagnostics/
 │
 ├── src/
@@ -91,7 +88,7 @@ llm-container-runtime-benchmark/
 │   ├── utils/
 │   │   └── shell.py             # subprocess wrapper shared by all cases
 │   └── test_suites/
-│       ├── lifecycle/
+│       ├── compatibility/
 │       ├── configuration/
 │       │   └── q61058619.py     # run_tests(sample, cfg) -> (cases, error_message)
 │       ├── filesystem/
@@ -101,7 +98,6 @@ llm-container-runtime-benchmark/
 │       ├── isolation/
 │       │   └── q70714501.py
 │       ├── networking/
-│       ├── compatibility/
 │       └── diagnostics/
 │
 ├── samples/
@@ -180,7 +176,7 @@ is for when you want a persisted, aggregated CSV across many samples.
 
 ## Adding a new case
 
-1. Decide which of the 7 taxonomy categories the case belongs to (by what
+1. Decide which of the 6 taxonomy categories the case belongs to (by what
    it actually exercises, not just "it involves a container").
 2. Add `cases/<category>/<case_id>/` with the 4 scripts + `task.txt`.
 3. Add `src/test_suites/<category>/<case_id>.py` implementing
