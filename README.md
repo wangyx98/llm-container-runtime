@@ -28,7 +28,7 @@ they exercise:
 
 | # | Category (full name) | Directory keyword |
 |---|---|---|
-| 1 | Runtime Lifecycle, Execution & Compatibility | `compatibility` |
+| 1 | Runtime Compatibility | `compatibility` |
 | 2 | Configuration Management | `configuration` |
 | 3 | Filesystem, Mount & Storage | `filesystem` |
 | 4 | Identity, Privilege & Isolation | `isolation` |
@@ -41,7 +41,7 @@ containerd container's filesystem) lives under `filesystem`, not
 `compatibility`, even though it involves a running container, because the thing being exercised is a filesystem/mount operation, not the
 container's lifecycle itself.
 
-See [`stackoverflow_question_task_mapping.csv`](./SO_questions_tasks_mapping_updated.csv)
+See [`SO_questions_tasks_mapping.csv`](./SO_questions_tasks_mapping.csv)
 for the updated full list of screened Stack Overflow questions and their 6 updated tasks taxonomy mapping.
 
 ## Structure
@@ -49,7 +49,7 @@ for the updated full list of screened Stack Overflow questions and their 6 updat
 ```
 llm-container-runtime-benchmark/
 ├── README.md
-├── stackoverflow_question_task_mapping.csv
+├── SO_questions_tasks_mapping.csv
 ├── conf/
 │   └── config.yaml              # timeout, samples_file, results_dir — single source of config
 │

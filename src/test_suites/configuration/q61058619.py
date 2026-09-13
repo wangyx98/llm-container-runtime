@@ -8,7 +8,7 @@ This module does NOT reimplement the test logic in Python. It just
 orchestrates the existing bash scripts under cases/configuration/q61058619/
 and converts their exit codes / output into a structured `cases` dict.
 
-Taxonomy category: Runtime Configuration & Policy
+Taxonomy category: Configuration Management
 """
 
 from pathlib import Path

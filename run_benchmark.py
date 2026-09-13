@@ -45,8 +45,8 @@ def run_all(samples_path: str, cfg: dict) -> list[dict]:
                 "category": None,
                 "model": model,
                 "error_message": "sample missing required 'category' field "
-                                  "(must be one of: lifecycle, config_policy, "
-                                  "filesystem, identity, networking, compatibility, diagnostics)",
+                                  "(must be one of: compatibility, configuration, "
+                                  "filesystem, isolation, networking, diagnostics)",
             })
             continue
 
