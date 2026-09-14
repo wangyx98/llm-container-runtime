@@ -33,8 +33,11 @@ with open(path, "w") as f:
     json.dump(cfg, f, indent=2)
 PYEOF
 
+echo "[setup] removing any leftover container with the same id (idempotency)..."
+sudo runc delete -f "$CONTAINER" 2>/dev/null || true
+
 echo "[setup] starting container detached (runc run --detach)..."
-sudo runc run --bundle "$BUNDLE_DIR" --detach "$CONTAINER"
+sudo runc run --bundle "$BUNDLE_DIR" --detach "$CONTAINER" < /dev/null > /dev/null 2>&1
 
 sleep 1
 echo "[setup] confirming container is RUNNING..."
@@ -53,7 +56,7 @@ fi
 echo "  -> OK"
 
 echo "[setup] killing the container (mirrors the SO scenario: 'runc kill')..."
-sudo runc kill "$CONTAINER"
+sudo runc kill "$CONTAINER" KILL
 
 sleep 1
 echo "[setup] confirming container transitioned to STOPPED..."

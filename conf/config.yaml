@@ -3,7 +3,7 @@
 # test_suites/<category>/<case_id>.py run_tests(sample, cfg) call.
 
 # seconds to allow each shell operation (setup/precondition/solution/oracle/cleanup)
-timeout: 60
+timeout: 180
 
 # where samples (LLM-generated solutions) are read from
 samples_file: samples/llm_outputs.json

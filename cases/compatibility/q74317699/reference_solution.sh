@@ -11,6 +11,6 @@ echo "[solution] touch the bundle/rootfs on disk)..."
 sudo runc delete "$CONTAINER"
 
 echo "[solution] re-creating and starting the container from the SAME bundle..."
-sudo runc run --bundle "$BUNDLE_DIR" --detach "$CONTAINER"
+sudo runc run --bundle "$BUNDLE_DIR" --detach "$CONTAINER" < /dev/null > /dev/null 2>&1
 
 echo "[solution] done."
