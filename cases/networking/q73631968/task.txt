@@ -1,0 +1,33 @@
+A container named "bench73631968" was started under containerd via nerdctl,
+publishing its port 80 to the host:
+
+    # nerdctl run -d --name bench73631968 -p 18973:80 busybox httpd -f -p 80 -h /www
+
+`nerdctl ps` shows the mapping as if everything is fine:
+
+    CONTAINER ID   IMAGE     ...   PORTS                    NAMES
+    ...            busybox   ...   0.0.0.0:18973->80/tcp    bench73631968
+
+But a request to the host on port 18973 does NOT reach the container -- it
+hits a completely unrelated, pre-existing service that was already
+listening on that port before the container was ever started (in the
+original bug report this was "limactl"; here it's a small host-side
+service you must NOT stop -- treat it as if it were some other important
+process you don't control).
+
+Your task is to make bench73631968's actual web content reachable from
+the host, without touching the pre-existing service on port 18973.
+
+Requirements:
+
+1. Do NOT stop, kill, or otherwise interfere with whatever is already
+   listening on port 18973 -- it must keep serving exactly what it was
+   serving before.
+2. Reuse the same container name "bench73631968" and the same image/
+   mount (do not swap in a different image or fabricate a standalone
+   web server outside of nerdctl/containerd).
+3. At the end, the container's content must be reachable over HTTP on
+   SOME host port (check with `nerdctl port bench73631968`).
+4. Do not use Docker.
+
+Return the commands needed to complete the task.

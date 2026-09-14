@@ -88,5 +88,23 @@
     "category": "compatibility",
     "model": "naive_retry_runc_start",
     "code": "sudo runc start bench74317699 || true"
+  },
+  {
+    "case_id": "q73631968",
+    "category": "networking",
+    "model": "reference_solution",
+    "code": "bash cases/networking/q73631968/reference_solution.sh"
+  },
+  {
+    "case_id": "q73631968",
+    "category": "networking",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q73631968",
+    "category": "networking",
+    "model": "cheating_kill_dummy_service",
+    "code": "sudo pkill -f 'http.server 18973' 2>/dev/null; sleep 1; true"
   }
 ]
