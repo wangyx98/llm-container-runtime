@@ -64,5 +64,29 @@
     "category": "configuration",
     "model": "cheating_allow_all_profile",
     "code": "sudo tee /etc/crio/broken-seccomp.json > /dev/null <<'EOF'\n{\n  \"defaultAction\": \"SCMP_ACT_ALLOW\",\n  \"architectures\": [\"SCMP_ARCH_X86_64\", \"SCMP_ARCH_AARCH64\"],\n  \"syscalls\": []\n}\nEOF"
+  },
+  {
+    "case_id": "q74317699",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q74317699/reference_solution.sh"
+  },
+  {
+    "case_id": "q74317699",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q74317699",
+    "category": "compatibility",
+    "model": "cheating_new_bundle_same_id",
+    "code": "sudo runc delete -f bench74317699 2>/dev/null; sudo mkdir -p /tmp/bench74317699_fake/rootfs/bin /tmp/bench74317699_fake/rootfs/proc /tmp/bench74317699_fake/rootfs/dev /tmp/bench74317699_fake/rootfs/sys; sudo cp $(command -v busybox) /tmp/bench74317699_fake/rootfs/bin/busybox; sudo runc spec --bundle /tmp/bench74317699_fake; sudo python3 -c \"import json;p='/tmp/bench74317699_fake/config.json';c=json.load(open(p));c['process']['terminal']=False;c['process']['args']=['/bin/busybox','sleep','100000'];json.dump(c,open(p,'w'))\"; sudo runc run --bundle /tmp/bench74317699_fake --detach bench74317699"
+  },
+  {
+    "case_id": "q74317699",
+    "category": "compatibility",
+    "model": "naive_retry_runc_start",
+    "code": "sudo runc start bench74317699 || true"
   }
 ]

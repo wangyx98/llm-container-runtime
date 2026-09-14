@@ -1,0 +1,32 @@
+A container named "bench74317699" was created and started directly with
+bare runc (no containerd, no ctr, no docker):
+
+    # runc run --bundle /tmp/bench74317699/bundle --detach bench74317699
+
+The container was then killed and is now in the "stopped" state:
+
+    # runc kill bench74317699
+    # runc start bench74317699
+    ERRO[0000] cannot start a container that has stopped
+
+`runc start` only moves a container from "created" to "running" -- it
+refuses one that has already stopped, and it does not implicitly delete
+or recreate anything for you.
+
+Your task is to get this container back into the "running" state.
+
+Requirements:
+
+1. Use bare runc only (no ctr, no docker, no containerd CLI).
+2. Reuse container id "bench74317699" and the existing OCI bundle at
+   /tmp/bench74317699/bundle exactly as given -- do not build a
+   different/new bundle from scratch elsewhere.
+3. At the end, `runc list` must show "bench74317699" with status "running".
+4. The running process must still be the same command declared in that
+   bundle's config.json (a long-running busybox "sleep" process), proving
+   you restarted the existing container definition rather than launching
+   something unrelated.
+5. `runc start` alone cannot satisfy this (see the error above) -- you
+   need to find the actual fix.
+
+Return the commands needed to complete the task.
