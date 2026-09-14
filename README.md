@@ -191,6 +191,63 @@ is for when you want a persisted, aggregated CSV across many samples.
 `run_benchmark.py` never needs to change — it dispatches purely by the
 `category` + `case_id` fields on each sample.
 
+## Dynamically testing an LLM's problem-solving ability
+
+The harness evaluates solutions by **executing them and checking real
+system state** (`oracle.sh`), not by diffing text against
+`reference_solution.sh`. `reference_solution.sh` is just one hand-written
+way to pass — an LLM can take a completely different approach (different
+commands, different tool, different order of operations) and still pass,
+as long as the final observable state satisfies the oracle. Conversely, a
+solution that looks similar to the reference but leaves the system in the
+wrong state will fail. This is what makes the benchmark "dynamic":
+correctness is judged by execution, not by resemblance.
+
+To evaluate a real LLM instead of the hand-written baseline/cheating
+samples in `samples/llm_outputs.json`, use `generate_llm_samples.py`:
+
+1. Install the SDK and set your API key:
+```bash
+   pip install anthropic
+   export ANTHROPIC_API_KEY=...
+```
+2. Call the model on one case (or all of them) using each case's
+   `task.txt` as the prompt. The script extracts the shell command(s) from
+   the model's ```bash code block and writes them as a sample:
+```bash
+   python3 generate_llm_samples.py --model claude-sonnet-4-5 --case q74317699
+   # or, for every case in cases/*/*/task.txt:
+   python3 generate_llm_samples.py --model claude-sonnet-4-5 --all
+```
+   This writes to `samples/llm_generated_outputs.json` by default (kept
+   separate from `samples/llm_outputs.json`, which holds the hand-written
+   `reference_solution` / `no_op_baseline` / `cheating_*` samples used to
+   validate the oracle itself).
+3. Run the generated sample(s) through the same 5-stage harness:
+```bash
+   # single case
+   python3 run_single_case.py q74317699 --model claude-sonnet-4-5 \
+       --samples samples/llm_generated_outputs.json
+
+   # full batch
+   python3 run_benchmark.py --samples samples/llm_generated_outputs.json
+```
+
+`run_single_case.py` and `run_benchmark.py` don't care whether a sample
+came from a human or a model — they just run whatever `code` string is
+attached to the sample through cleanup → setup → precondition →
+`[code]` → oracle → cleanup, exactly as described above.
+
+**Current limitations:**
+- Only the Anthropic Messages API is wired up (`call_anthropic()` in
+  `generate_llm_samples.py`); adding another provider means adding a
+  parallel `call_<provider>()` function and a `--provider` flag.
+- Code extraction is a naive regex for the first ```bash/```sh fenced
+  block in the response — check the output of a single `--case` run
+  before trusting `--all` on a new model.
+- No retries or rate-limiting; a large `--all` run against many cases can
+  hit provider rate limits with no backoff.
+
 ## Requirements
 
 Must run inside an environment with the relevant container runtime
