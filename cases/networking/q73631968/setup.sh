@@ -66,17 +66,45 @@ echo "  -> OK"
 echo "[setup] pulling $IMAGE ..."
 sudo nerdctl pull "$IMAGE"
 
-echo "[setup] starting the target container, published to the SAME (already-occupied) port..."
-sudo nerdctl run -d --name "$CONTAINER" \
+echo "[setup] starting the target container, published to the SAME (already-occupied)"
+echo "[setup] port -- this is EXPECTED to fail, exactly like the original bug report..."
+if sudo nerdctl run -d --name "$CONTAINER" \
     -p "${BAD_PORT}:80" \
     -v "$WORK_DIR/container_site:/www" \
     "$IMAGE" busybox httpd -f -p 80 -h /www \
-    < /dev/null > /dev/null 2>&1
+    < /dev/null > "$WORK_DIR/nerdctl_run.log" 2>&1
+then
+    echo "[setup] unexpected: nerdctl actually managed to start the container on the"
+    echo "[setup] already-occupied port -- this environment doesn't reproduce the bug"
+    echo "[setup] the way this case expects."
+    exit 1
+fi
 
-sleep 1
-echo "[setup] confirming the container itself is up (nerdctl's own view)..."
-sudo nerdctl ps | grep -q "$CONTAINER"
-echo "  -> OK"
+echo "[setup] confirmed: nerdctl correctly refused to start (port already allocated):"
+cat "$WORK_DIR/nerdctl_run.log"
 
-echo "[setup] done. Container '$CONTAINER' is running but published to a port that a"
-echo "[setup] pre-existing host service ($BAD_PORT) already occupies."
+echo "[setup] removing the half-created container object left behind by the failed attempt..."
+sudo nerdctl rm -f "$CONTAINER" >/dev/null 2>&1 || true
+
+echo "[setup] done. No container named '$CONTAINER' exists yet; port $BAD_PORT is"
+echo "[setup] occupied by the pre-existing service that must not be touched."
+
+#echo "[setup] confirmed: nerdctl correctly refused to start (port already allocated):"
+#cat "$WORK_DIR/nerdctl_run.log"
+
+#echo "[setup] done. No container named '$CONTAINER' exists yet; port $BAD_PORT is"
+#echo "[setup] occupied by the pre-existing service that must not be touched."
+
+#sudo nerdctl run -d --name "$CONTAINER" \
+   # -p "${BAD_PORT}:80" \
+   # -v "$WORK_DIR/container_site:/www" \
+   # "$IMAGE" busybox httpd -f -p 80 -h /www \
+   # < /dev/null > /dev/null 2>&1
+
+#sleep 1
+#echo "[setup] confirming the container itself is up (nerdctl's own view)..."
+#sudo nerdctl ps | grep -q "$CONTAINER"
+#echo "  -> OK"
+
+#echo "[setup] done. Container '$CONTAINER' is running but published to a port that a"
+#echo "[setup] pre-existing host service ($BAD_PORT) already occupies."

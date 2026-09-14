@@ -43,8 +43,13 @@ def run_tests(sample: dict, cfg: dict):
     setup = run_script(CASE_DIR / "setup.sh", timeout=timeout)
     cases["setup_ok"] = setup.ok
     if not setup.ok:
-        error_message = f"setup.sh failed: {setup.stderr.strip()[-500:]}"
+        tail_out = setup.stdout.strip()[-800:]
+        tail_err = setup.stderr.strip()[-500:]
+        error_message = f"setup.sh failed.\n--- stdout (tail) ---\n{tail_out}\n--- stderr (tail) ---\n{tail_err}"
         return cases, error_message
+
+     # error_message = f"setup.sh failed: {setup.stderr.strip()[-500:]}"
+     # return cases, error_message
 
     # 2. precondition oracle: prove the port conflict really exists and the
     #    container's content is NOT reachable yet

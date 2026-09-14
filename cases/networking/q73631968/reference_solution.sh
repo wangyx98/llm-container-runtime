@@ -18,15 +18,28 @@ s.close()
 ")
 echo "[solution] chosen free port: $GOOD_PORT"
 
-echo "[solution] removing the old (misconfigured) container..."
-sudo nerdctl rm -f "$CONTAINER" < /dev/null > /dev/null 2>&1
+echo "[solution] removing the old (misconfigured) container, if any..."
+sudo nerdctl rm -f "$CONTAINER" < /dev/null > /dev/null 2>&1 || true
+
+#echo "[solution] removing the old (misconfigured) container..."
+#sudo nerdctl rm -f "$CONTAINER" < /dev/null > /dev/null 2>&1
 
 echo "[solution] re-running it published to the free port..."
-sudo nerdctl run -d --name "$CONTAINER" \
+if ! sudo nerdctl run -d --name "$CONTAINER" \
     -p "${GOOD_PORT}:80" \
     -v "$WORK_DIR/container_site:/www" \
     "$IMAGE" busybox httpd -f -p 80 -h /www \
-    < /dev/null > /dev/null 2>&1
+    < /dev/null > "$WORK_DIR/nerdctl_run.log" 2>&1
+then
+    echo "[solution] FAIL: 'nerdctl run' failed. Output was:"
+    cat "$WORK_DIR/nerdctl_run.log"
+    exit 1
+fi
+#sudo nerdctl run -d --name "$CONTAINER" \
+ #   -p "${GOOD_PORT}:80" \
+ #   -v "$WORK_DIR/container_site:/www" \
+ #   "$IMAGE" busybox httpd -f -p 80 -h /www \
+ #   < /dev/null > /dev/null 2>&1
 
 echo "[solution] done. Container republished on port $GOOD_PORT (port $BAD_PORT's"
 echo "[solution] pre-existing service was never touched)."
