@@ -1,0 +1,54 @@
+Host is running containerd + the gVisor (runsc) runtime shim
+(`io.containerd.runsc.v1` / `containerd-shim-runsc-v1`, already installed).
+
+A debug-logging config for runsc has already been prepared at:
+
+    /tmp/bench72392812/runsc.toml
+
+containing:
+
+    [runsc_config]
+      debug = "true"
+      debug-log = "/tmp/bench72392812/runsc-logs/"
+      strace = "true"
+
+(the trailing "/" on debug-log means "treat this as a directory and write
+one auto-named log file per runsc command", exactly like gVisor's own
+"--debug-log=/tmp/runsc/" Docker example.)
+
+An engineer already tried starting the sandboxed container with:
+
+    $ sudo ctr run -d --runtime io.containerd.runsc.v1 \
+          docker.io/library/alpine:3.20 bench72392812 sleep infinity
+
+The container starts and shows RUNNING in `ctr task ls`, but
+/tmp/bench72392812/runsc-logs/ stays completely empty -- no debug logs,
+no strace output, nothing -- even though the runsc.toml above clearly
+enables them.
+
+Your task is to actually get gVisor's debug logs written to
+/tmp/bench72392812/runsc-logs/ for a sandboxed container named
+"bench72392812".
+
+Requirements:
+
+1. Use containerd/`ctr` only (no Docker, no crictl).
+2. The container must run under the gVisor sandbox runtime
+   (`io.containerd.runsc.v1`), not plain runc -- this must still be true
+   after your fix, i.e. you cannot switch away from gVisor just to make
+   logging easier.
+3. `ctr task ls` must show a container named "bench72392812" in the
+   RUNNING state when you're done.
+4. The runsc.toml config already at /tmp/bench72392812/runsc.toml must be
+   the one actually applied (don't hand-edit its debug settings away or
+   replace it with a different mechanism) -- find how to make `ctr`
+   actually load it.
+5. Do not manually create, copy, or write into files under
+   /tmp/bench72392812/runsc-logs/ yourself. Every file there must be
+   produced by runsc itself as a side effect of correctly starting the
+   sandbox with debug logging enabled.
+6. Merely re-running the exact same command shown above ("naive retry")
+   does not fix anything -- something about how the runtime is invoked
+   has to change.
+
+Return the commands needed to complete the task.
