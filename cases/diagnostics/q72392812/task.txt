@@ -8,6 +8,7 @@ A debug-logging config for runsc has already been prepared at:
 containing:
 
     [runsc_config]
+      platform = "ptrace"
       debug = "true"
       debug-log = "/tmp/bench72392812/runsc-logs/"
       strace = "true"

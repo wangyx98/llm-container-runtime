@@ -5,12 +5,26 @@ CONTAINER="bench72392812"
 LOG_DIR="/tmp/bench72392812/runsc-logs"
 
 echo "[oracle] check 0: container '$CONTAINER' task must be RUNNING..."
-sudo ctr task ls | grep "$CONTAINER" | grep -q RUNNING
-echo "  -> OK"
+TASK_LINE=$(sudo ctr task ls | grep "$CONTAINER" || true)
+if [ -z "$TASK_LINE" ]; then
+    echo "  -> FAIL: no task named '$CONTAINER' found at all."
+    echo "     (did setup.sh/reference_solution.sh actually run? or was"
+    echo "      cleanup.sh run afterwards, removing it?)"
+    exit 1
+fi
+if ! echo "$TASK_LINE" | grep -q RUNNING; then
+    echo "  -> FAIL: task exists but is not RUNNING: $TASK_LINE"
+    exit 1
+fi
+echo "  -> OK ($TASK_LINE)"
 
 echo "[oracle] check 1: it must genuinely be sandboxed under gVisor"
 echo "[oracle]          (io.containerd.runsc.v1), not plain runc..."
-sudo ctr containers info "$CONTAINER" | grep -q 'io.containerd.runsc.v1'
+if ! sudo ctr containers info "$CONTAINER" 2>/dev/null | grep -q 'io.containerd.runsc.v1'; then
+    echo "  -> FAIL: container '$CONTAINER' is not using io.containerd.runsc.v1"
+    echo "     (either it doesn't exist, or it was started with a different runtime)"
+    exit 1
+fi
 echo "  -> OK"
 
 echo "[oracle] check 2: an actual runsc-sandbox process must be alive"
