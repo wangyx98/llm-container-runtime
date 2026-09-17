@@ -17,23 +17,34 @@ RUNSC_CONF="$WORK_DIR/runsc.toml"
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
 export NEEDRESTART_SUSPEND=1
+<<<<<<< HEAD
 APT_OPTS=(-o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold)
 
 echo "[setup] noting containerd version (informational only)..."
 CONTAINERD_VERSION=$(containerd --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
 echo "  -> containerd ${CONTAINERD_VERSION:-<unknown, could not detect>}"
+=======
+>>>>>>> 788c3204d18e0ceb3b57b409ae169bd3bb31cc95
 
 echo "[setup] ensuring gVisor (runsc + containerd-shim-runsc-v1) is installed..."
 if ! command -v runsc >/dev/null 2>&1 || ! command -v containerd-shim-runsc-v1 >/dev/null 2>&1; then
     sudo -E apt-get update -qq
+<<<<<<< HEAD
     sudo -E apt-get install -y -qq "${APT_OPTS[@]}" apt-transport-https ca-certificates curl gnupg
+=======
+    sudo -E apt-get install -y -qq apt-transport-https ca-certificates curl gnupg
+>>>>>>> 788c3204d18e0ceb3b57b409ae169bd3bb31cc95
 
     curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" \
         | sudo tee /etc/apt/sources.list.d/gvisor.list > /dev/null
 
     sudo -E apt-get update -qq
+<<<<<<< HEAD
     sudo -E apt-get install -y -qq "${APT_OPTS[@]}" runsc
+=======
+    sudo -E apt-get install -y -qq runsc
+>>>>>>> 788c3204d18e0ceb3b57b409ae169bd3bb31cc95
 fi
 
 echo "[setup] confirming runsc + shim binaries are on PATH..."
