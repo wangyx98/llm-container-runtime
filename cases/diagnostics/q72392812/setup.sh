@@ -7,17 +7,28 @@ WORK_DIR="/tmp/bench72392812"
 LOG_DIR="$WORK_DIR/runsc-logs"
 RUNSC_CONF="$WORK_DIR/runsc.toml"
 
+# Ubuntu 22.04/24.04 ship `needrestart`, which pops up an interactive
+# whiptail dialog ("Daemons using outdated libraries...") whenever apt
+# upgrades a shared library as a dependency (curl/gnupg/ca-certificates
+# or runsc itself can pull one in). That dialog needs a TTY and will hang
+# forever when this script is run non-interactively by run_single_case.py
+# / run_benchmark.py (subprocess with no stdin). Force both apt's own
+# prompts and needrestart into fully automatic/non-interactive mode.
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+export NEEDRESTART_SUSPEND=1
+
 echo "[setup] ensuring gVisor (runsc + containerd-shim-runsc-v1) is installed..."
 if ! command -v runsc >/dev/null 2>&1 || ! command -v containerd-shim-runsc-v1 >/dev/null 2>&1; then
-    sudo apt-get update -qq
-    sudo apt-get install -y -qq apt-transport-https ca-certificates curl gnupg
+    sudo -E apt-get update -qq
+    sudo -E apt-get install -y -qq apt-transport-https ca-certificates curl gnupg
 
     curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" \
         | sudo tee /etc/apt/sources.list.d/gvisor.list > /dev/null
 
-    sudo apt-get update -qq
-    sudo apt-get install -y -qq runsc
+    sudo -E apt-get update -qq
+    sudo -E apt-get install -y -qq runsc
 fi
 
 echo "[setup] confirming runsc + shim binaries are on PATH..."
