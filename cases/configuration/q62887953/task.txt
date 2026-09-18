@@ -1,0 +1,61 @@
+You're using bare runc (no Docker, no containerd/ctr) and want to preload
+a shared library into the container's process with the classic LD_PRELOAD
+trick. Your first instinct is to smash the variable assignment and the
+command together into a single element of config.json's "args" array,
+the way you might type it at a bash prompt:
+
+    "args": [
+        "LD_PRELOAD=/preload.so /victim"
+    ],
+
+This does not work. `args` is passed straight to execve() -- it is NOT
+run through a shell, so there is no shell around to split
+"VAR=value program" into an environment assignment plus a command. The
+whole string "LD_PRELOAD=/preload.so /victim" (space, "=" sign and all)
+is treated as a single literal executable path, which does not exist:
+
+    # runc run --bundle /tmp/bench62887953/bundle bench62887953
+    ERRO[0000] exec: "LD_PRELOAD=/preload.so /victim": stat LD_PRELOAD=/preload.so /victim: no such file or directory: OCI runtime attempted to invoke a command that was not found
+
+The bundle's rootfs already contains everything you need:
+
+  - /victim   -- a small dynamically-linked ELF binary (plus its
+                 ld-linux/libc.so.6 it needs, already copied into the
+                 rootfs) that calls getuid() and prints "uid=<value>".
+                 Run as root with no user-namespace remapping, its real,
+                 unmodified uid is 0.
+  - /preload.so -- a shared library that overrides getuid() to always
+                 return the sentinel value 918273645 instead of the real
+                 uid. It only has any effect if it is actually loaded
+                 via the dynamic linker's LD_PRELOAD mechanism before
+                 /victim's own getuid() call resolves -- it cannot do
+                 anything if it is never loaded.
+
+Your task: get /victim to run inside this container via runc such that
+/preload.so's overridden getuid() is what fires, i.e. the container's
+output is "uid=918273645" instead of the real "uid=0".
+
+Requirements:
+
+1. Use bare runc only, reusing the exact bundle already at
+   /tmp/bench62887953/bundle -- do not build a different rootfs/bundle
+   elsewhere, do not use Docker/containerd.
+2. The fix must actually configure LD_PRELOAD as a real environment
+   variable for the container process (config.json's "env" array) --
+   not smuggled into "args" as one merged string, and "args" must be a
+   normal, clean argv (e.g. just ["/victim"]).
+3. Running the container (`runc run` against this bundle) must exit
+   successfully (code 0) and print "uid=918273645".
+4. This must genuinely come from the dynamic linker loading
+   /preload.so -- do not modify /victim or /preload.so's behavior to
+   hardcode the sentinel value regardless of LD_PRELOAD, and do not
+   fake the output by any means other than actually running the
+   container. (The check for this: with LD_PRELOAD removed from the
+   env again, the exact same container must go back to printing the
+   real "uid=0" -- if it still prints the sentinel value either way,
+   that proves the output doesn't actually depend on LD_PRELOAD.)
+5. Retrying the exact same broken single-merged-string "args" approach,
+   or any other bare-args variant of it, will not work -- runc's exec
+   has no shell to split it for you.
+
+Return the commands needed to complete the task.

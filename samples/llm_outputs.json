@@ -107,30 +107,7 @@
     "model": "cheating_kill_dummy_service",
     "code": "sudo pkill -f 'http.server 18973' 2>/dev/null; sleep 1; true"
   },
-  {
-    "case_id": "q72392812",
-    "category": "diagnostics",
-    "model": "reference_solution",
-    "code": "bash cases/diagnostics/q72392812/reference_solution.sh"
-  },
-  {
-    "case_id": "q72392812",
-    "category": "diagnostics",
-    "model": "no_op_baseline",
-    "code": ""
-  },
-  {
-    "case_id": "q72392812",
-    "category": "diagnostics",
-    "model": "cheating_fake_log_no_config",
-    "code": "sudo ctr run -d --runtime io.containerd.runsc.v1 docker.io/library/alpine:3.20 bench72392812 sleep infinity; sleep 1; sudo mkdir -p /tmp/bench72392812/runsc-logs; echo 'fake debug log' | sudo tee /tmp/bench72392812/runsc-logs/runsc.log.fake.boot.txt > /dev/null"
-  },
-  {
-    "case_id": "q72392812",
-    "category": "diagnostics",
-    "model": "cheating_plain_runc_fake_log",
-    "code": "sudo ctr run -d docker.io/library/alpine:3.20 bench72392812 sleep infinity; sleep 1; sudo mkdir -p /tmp/bench72392812/runsc-logs; printf 'I0101 00:00:00.000000       1 boot.go:1] fake gvisor line\\nI0101 00:00:00.000001       1 boot.go:2] fake gvisor line\\nI0101 00:00:00.000002       1 boot.go:3] fake gvisor line\\n' | sudo tee /tmp/bench72392812/runsc-logs/runsc.log.fake.boot.txt > /dev/null"
-  },
+  
     {
     "case_id": "q65650082",
     "category": "compatibility",
@@ -154,5 +131,29 @@
     "category": "compatibility",
     "model": "naive_retry_bare_image",
     "code": "sudo crictl run docker.io/library/busybox:1.36 || true"
+  },
+  {
+    "case_id": "q62887953",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q62887953/reference_solution.sh"
+  },
+  {
+    "case_id": "q62887953",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q62887953",
+    "category": "configuration",
+    "model": "cheating_hardcoded_victim",
+    "code": "cat > /tmp/bench62887953_cheat_victim.c <<'EOF'\n#include <stdio.h>\nint main(void) { printf(\"uid=918273645\\n\"); return 0; }\nEOF\ngcc -o /tmp/bench62887953_cheat_victim /tmp/bench62887953_cheat_victim.c && sudo cp /tmp/bench62887953_cheat_victim /tmp/bench62887953/bundle/rootfs/victim && sudo python3 -c \"import json; p='/tmp/bench62887953/bundle/config.json'; c=json.load(open(p)); c['process']['args']=['/victim']; env=[e for e in c['process']['env'] if not e.startswith('LD_PRELOAD=')]; env.append('LD_PRELOAD=/preload.so'); c['process']['env']=env; json.dump(c, open(p,'w'))\""
+  },
+  {
+    "case_id": "q62887953",
+    "category": "configuration",
+    "model": "naive_retry_merged_args",
+    "code": "sudo runc delete -f bench62887953 2>/dev/null; sudo runc run --bundle /tmp/bench62887953/bundle bench62887953 || true"
   }
 ]
