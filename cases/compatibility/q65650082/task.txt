@@ -1,0 +1,50 @@
+You're used to Docker's one-liner UX:
+
+    # docker run -it busybox sleep 100000
+
+and want the same thing under CRI-O (the Kubernetes-facing container
+runtime -- no Docker, no containerd/ctr involved). You reach for crictl
+and try the naive, Docker-shaped guess:
+
+    # sudo crictl run docker.io/library/busybox:1.36
+    FATA[0000] Usage: crictl run [command options] container-config.json pod-config.json
+
+    # sudo crictl run --help
+    ...
+    USAGE:
+       crictl run [command options] container-config.json pod-config.json
+
+`crictl run` refuses a bare image name -- it always requires two JSON
+config files as positional arguments: one for the Container, one for the
+PodSandbox that owns it. There is no flag that lets you skip either file
+and pass just an image name; CRI-O (like every CRI runtime) has no
+single-command "just run this image" concept the way Docker does.
+
+Your task is to actually get a container running the image
+"docker.io/library/busybox:1.36" up under CRI-O, going through crictl
+against the real CRI-O socket (no docker, no podman, no plain ctr/
+containerd -- those would not exercise CRI-O at all, and would not
+satisfy the checks below).
+
+Requirements:
+
+1. Use crictl talking to the real CRI-O endpoint
+   (unix:///var/run/crio/crio.sock, already the default in
+   /etc/crictl.yaml) -- no other runtime CLI.
+2. End state: a pod sandbox named "bench65650082-pod" in state
+   SANDBOX_READY, and a container named "bench65650082" belonging to
+   that exact pod, in state CONTAINER_RUNNING, created from the image
+   "docker.io/library/busybox:1.36" (not some other already-cached
+   image).
+3. The container's actual OS-level process must be alive and be the
+   long-running command you gave it (a "sleep" process) -- not just a
+   CRI object that immediately exited or was never really started.
+4. `crictl run docker.io/library/busybox:1.36` alone cannot satisfy this
+   (see the error above) -- you need to find the actual fix, which
+   involves writing the minimal container-config.json and pod-config.json
+   that crictl requires and passing both to `crictl run`.
+5. Retrying the exact same naive command, or any other bare-image-name
+   variant of it, will not work -- crictl's `run` subcommand has no such
+   mode.
+
+Return the commands needed to complete the task.

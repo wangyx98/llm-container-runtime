@@ -130,5 +130,29 @@
     "category": "diagnostics",
     "model": "cheating_plain_runc_fake_log",
     "code": "sudo ctr run -d docker.io/library/alpine:3.20 bench72392812 sleep infinity; sleep 1; sudo mkdir -p /tmp/bench72392812/runsc-logs; printf 'I0101 00:00:00.000000       1 boot.go:1] fake gvisor line\\nI0101 00:00:00.000001       1 boot.go:2] fake gvisor line\\nI0101 00:00:00.000002       1 boot.go:3] fake gvisor line\\n' | sudo tee /tmp/bench72392812/runsc-logs/runsc.log.fake.boot.txt > /dev/null"
+  },
+    {
+    "case_id": "q65650082",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q65650082/reference_solution.sh"
+  },
+  {
+    "case_id": "q65650082",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q65650082",
+    "category": "compatibility",
+    "model": "cheating_wrong_image",
+    "code": "mkdir -p /tmp/bench65650082; cat > /tmp/bench65650082/pod-config.json <<'EOF'\n{\"metadata\":{\"name\":\"bench65650082-pod\",\"namespace\":\"default\",\"attempt\":1,\"uid\":\"bench65650082uid00000099\"},\"log_directory\":\"/tmp/bench65650082\",\"linux\":{}}\nEOF\ncat > /tmp/bench65650082/container-config.json <<'EOF'\n{\"metadata\":{\"name\":\"bench65650082\"},\"image\":{\"image\":\"docker.io/library/alpine:3.20\"},\"command\":[\"sleep\",\"100000\"],\"log_path\":\"bench65650082.0.log\",\"linux\":{}}\nEOF\nsudo crictl pull docker.io/library/alpine:3.20; sudo crictl run /tmp/bench65650082/container-config.json /tmp/bench65650082/pod-config.json"
+  },
+  {
+    "case_id": "q65650082",
+    "category": "compatibility",
+    "model": "naive_retry_bare_image",
+    "code": "sudo crictl run docker.io/library/busybox:1.36 || true"
   }
 ]
