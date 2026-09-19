@@ -1,0 +1,62 @@
+The question this case is built from ("How to mount volume without using
+docker") got an answer that only covers the full-Kubernetes case
+(a Pod spec with a hostPath volume). The asker's own follow-up comment is
+the actually unanswered part:
+
+    "Is there a way to mount volumes via the arguments of crictl command?
+     Unfortunately is not our choice to configure pod spec"
+
+i.e. no Kubernetes Pod YAML, no `docker run -v` -- just crictl talking
+directly to CRI-O. Your first instinct might be to look for a docker-style
+flag:
+
+    # sudo crictl run --volume /tmp/bench69295491/hostdir:/data \
+        container-config.json pod-config.json
+    FATA[0000] flag provided but not defined: -volume
+
+crictl has no such flag. There is, however, a real, supported way to do
+this: container-config.json (the same file `crictl run`/`crictl create`
+already require) has a "mounts" field -- an array of
+{container_path, host_path, readonly} objects -- which is exactly the CRI
+equivalent of Docker's `-v host:container` bind mount.
+
+The host directory to mount already exists:
+
+    /tmp/bench69295491/hostdir/data.txt
+
+Your task: get this host directory bind-mounted into a container at
+/data, using ONLY crictl/CRI-O (no Kubernetes Pod spec, no Docker), such
+that it behaves like a REAL bind mount -- not a one-time copy of the
+file's contents.
+
+Requirements:
+
+1. Use crictl against the real CRI-O endpoint (unix:///var/run/crio/crio.sock,
+   the default in /etc/crictl.yaml) -- no Kubernetes Pod YAML/kubectl, no
+   Docker, no podman.
+2. End state: a pod sandbox named "bench69295491-pod" (SANDBOX_READY) and
+   a container named "bench69295491" (CONTAINER_RUNNING) belonging to it,
+   with /tmp/bench69295491/hostdir bind-mounted at /data inside the
+   container.
+3. This must be a GENUINE, LIVE bind mount, not a snapshot/copy taken at
+   container-creation time:
+   a. A file written into /data from OUTSIDE the container (a plain
+      host-side `echo`/`cp` into /tmp/bench69295491/hostdir, done AFTER
+      the container is already running, with no further action on your
+      part) must immediately be visible inside the container at the
+      matching path.
+   b. A file written into /data from INSIDE the container (via
+      `crictl exec`) must appear on the host under
+      /tmp/bench69295491/hostdir.
+   If you satisfy the initial content match but the mount doesn't
+   actually stay live in both directions (e.g. you just copied the file
+   into the container's rootfs once, the way you might via
+   `/proc/<pid>/root`, instead of configuring a real mount), this will
+   be detected and rejected.
+4. Do not use a Kubernetes Pod spec / kubectl / hostPath volumes -- the
+   whole point, per the follow-up comment, is that Pod-spec configuration
+   is not available; it has to be done through crictl's own config files.
+5. Retrying the same `crictl run --volume ...`-style flag, or any other
+   docker-style CLI flag, will not work -- crictl has no such flag.
+
+Return the commands needed to complete the task.
