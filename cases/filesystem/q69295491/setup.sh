@@ -18,6 +18,25 @@ APT_OPTS=(-o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold)
 # step is a fast no-op if that case already ran on this host.
 CRIO_VERSION="v1.34"
 CRICTL_VERSION="v1.34.0"
+
+# crictl's GitHub release ships separate per-arch tarballs (linux-amd64,
+# linux-arm64, ...); unlike the apt-installed cri-o package (which apt
+# resolves to the host's native arch automatically), this raw binary
+# download must pick the right one explicitly -- an ARM64 host (e.g. a
+# Multipass VM on Apple Silicon) given the amd64 tarball gets a binary
+# that fails with "Exec format error" the moment it's run.
+case "$(uname -m)" in
+    x86_64|amd64)   CRICTL_ARCH="amd64" ;;
+    aarch64|arm64)  CRICTL_ARCH="arm64" ;;
+    armv7l|armhf)   CRICTL_ARCH="arm" ;;
+    ppc64le)        CRICTL_ARCH="ppc64le" ;;
+    s390x)          CRICTL_ARCH="s390x" ;;
+    *)
+        echo "[setup] WARNING: unrecognized architecture '$(uname -m)', defaulting to amd64" >&2
+        CRICTL_ARCH="amd64"
+        ;;
+esac
+
 IMAGE="docker.io/library/busybox:1.36"
 WORK_DIR="/tmp/bench69295491"
 HOST_DIR="$WORK_DIR/hostdir"
@@ -72,7 +91,7 @@ if command -v crictl >/dev/null 2>&1; then
 fi
 if [ "$CURRENT_CRICTL_VERSION" != "$CRICTL_VERSION" ]; then
     echo "[setup] crictl is '${CURRENT_CRICTL_VERSION:-not installed}', pinned version is $CRICTL_VERSION -- (re)installing..."
-    curl -fsSL "https://github.com/kubernetes-sigs/cri-tools/releases/download/${CRICTL_VERSION}/crictl-${CRICTL_VERSION}-linux-amd64.tar.gz" \
+    curl -fsSL "https://github.com/kubernetes-sigs/cri-tools/releases/download/${CRICTL_VERSION}/crictl-${CRICTL_VERSION}-linux-${CRICTL_ARCH}.tar.gz" \
         -o /tmp/crictl.tar.gz
     sudo tar zxf /tmp/crictl.tar.gz -C /usr/local/bin
     rm -f /tmp/crictl.tar.gz
