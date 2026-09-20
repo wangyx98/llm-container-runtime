@@ -24,10 +24,30 @@ HOST_DIR="$WORK_DIR/hostdir"
 POD_NAME="bench69295491-pod"
 CONTAINER_NAME="bench69295491"
 
-echo "[setup] ensuring CRI-O ($CRIO_VERSION stream) is installed..."
-if ! command -v crio >/dev/null 2>&1; then
+echo "[setup] ensuring CRI-O is installed AT the pinned $CRIO_VERSION stream..."
+echo "[setup] (not just 'installed at all' -- a host that already has a"
+echo "[setup]  different crio version from an earlier experiment must be"
+echo "[setup]  corrected to the pinned version, not left as-is)"
+PINNED_CRIO_MINOR="${CRIO_VERSION#v}"
+CURRENT_CRIO_VERSION=""
+if command -v crio >/dev/null 2>&1; then
+    CURRENT_CRIO_VERSION=$(crio --version 2>/dev/null | head -1 | awk '{print $3}')
+fi
+if [[ "$CURRENT_CRIO_VERSION" != "${PINNED_CRIO_MINOR}."* ]]; then
+    echo "[setup] crio is '${CURRENT_CRIO_VERSION:-not installed}', pinned stream is $CRIO_VERSION -- (re)installing..."
     sudo -E apt-get update -qq
     sudo -E apt-get install -y -qq "${APT_OPTS[@]}" curl gnupg ca-certificates
+
+    # a stale apt source pinned to a DIFFERENT cri-o stream (e.g. left over
+    # from an earlier manual install) would otherwise win version
+    # resolution over the one we're about to add below.
+    for f in /etc/apt/sources.list.d/*.list; do
+        [ -f "$f" ] || continue
+        if grep -q "isv:/cri-o:/stable:/" "$f" 2>/dev/null; then
+            echo "[setup]   removing pre-existing CRI-O apt source: $f"
+            sudo rm -f "$f"
+        fi
+    done
 
     sudo mkdir -p /etc/apt/keyrings
     curl -fsSL "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/${CRIO_VERSION}/deb/Release.key" \
@@ -36,19 +56,28 @@ if ! command -v crio >/dev/null 2>&1; then
         | sudo tee /etc/apt/sources.list.d/cri-o.list > /dev/null
 
     sudo -E apt-get update -qq
-    sudo -E apt-get install -y -qq "${APT_OPTS[@]}" cri-o
+    sudo -E apt-get install -y -qq "${APT_OPTS[@]}" --allow-downgrades --allow-change-held-packages cri-o
+else
+    echo "[setup] crio $CURRENT_CRIO_VERSION already matches the pinned $CRIO_VERSION stream, skipping install."
 fi
 
 echo "[setup] confirming crio binary is on PATH..."
 command -v crio
 crio --version | head -1
 
-echo "[setup] ensuring crictl ($CRICTL_VERSION, matching CRI-O's minor) is installed..."
-if ! command -v crictl >/dev/null 2>&1; then
+echo "[setup] ensuring crictl is installed AT the pinned $CRICTL_VERSION (matching CRI-O's minor)..."
+CURRENT_CRICTL_VERSION=""
+if command -v crictl >/dev/null 2>&1; then
+    CURRENT_CRICTL_VERSION=$(crictl --version 2>/dev/null | awk '{print $3}')
+fi
+if [ "$CURRENT_CRICTL_VERSION" != "$CRICTL_VERSION" ]; then
+    echo "[setup] crictl is '${CURRENT_CRICTL_VERSION:-not installed}', pinned version is $CRICTL_VERSION -- (re)installing..."
     curl -fsSL "https://github.com/kubernetes-sigs/cri-tools/releases/download/${CRICTL_VERSION}/crictl-${CRICTL_VERSION}-linux-amd64.tar.gz" \
         -o /tmp/crictl.tar.gz
     sudo tar zxf /tmp/crictl.tar.gz -C /usr/local/bin
     rm -f /tmp/crictl.tar.gz
+else
+    echo "[setup] crictl $CURRENT_CRICTL_VERSION already matches the pinned $CRICTL_VERSION, skipping install."
 fi
 command -v crictl
 crictl --version
@@ -71,6 +100,34 @@ EOF
 echo "[setup] enabling the default CNI bridge plugin (ships disabled)..."
 if [ -f /etc/cni/net.d/10-crio-bridge.conflist.disabled ]; then
     sudo mv /etc/cni/net.d/10-crio-bridge.conflist.disabled /etc/cni/net.d/10-crio-bridge.conflist
+fi
+
+echo "[setup] working around a systemd-networkd vs CNI bridge-plugin MAC"
+echo "[setup] conflict: systemd's default MACAddressPolicy=persistent for"
+echo "[setup] virtual NICs reassigns a freshly-created veth's MAC right after"
+echo "[setup] the CNI bridge plugin sets it, before CRI-O reads it back --"
+echo "[setup] this causes a deterministic 'Interface vethXXX Mac doesn't"
+echo "[setup] match ... not found' failure on EVERY RunPodSandbox call, on"
+echo "[setup] any host where systemd-networkd (not NetworkManager) manages"
+echo "[setup] networking. Only applies when systemd-networkd is active."
+if systemctl is-active --quiet systemd-networkd 2>/dev/null; then
+    if [ ! -f /etc/systemd/network/98-cni-veth.link ]; then
+        echo "[setup] systemd-networkd is active -- installing a udev .link rule so"
+        echo "[setup] CNI-created veth* interfaces keep the MAC CNI assigned them..."
+        cat <<'EOF' | sudo tee /etc/systemd/network/98-cni-veth.link > /dev/null
+[Match]
+OriginalName=veth*
+
+[Link]
+MACAddressPolicy=none
+EOF
+        sudo udevadm control --reload
+    else
+        echo "[setup] .link rule already present, skipping."
+    fi
+else
+    echo "[setup] systemd-networkd is not the active network manager, skipping"
+    echo "[setup] (this workaround is specific to that manager)."
 fi
 
 echo "[setup] (re)starting crio.service so the config above takes effect..."
