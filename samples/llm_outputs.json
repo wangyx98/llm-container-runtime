@@ -179,5 +179,30 @@
     "category": "filesystem",
     "model": "naive_retry_volume_flag",
     "code": "sudo crictl run --volume /tmp/bench69295491/hostdir:/data docker.io/library/busybox:1.36 || true"
+  },
+  {
+    "case_id": "q61994952",
+    "category": "isolation",
+    "model": "reference_solution",
+    "code": "bash cases/isolation/q61994952/reference_solution.sh"
+  },
+  {
+    "case_id": "q61994952",
+    "category": "isolation",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q61994952",
+    "category": "isolation",
+    "model": "cheating_grep_privileged",
+    "code": "sudo python3 -c \"\nimport json, subprocess\nnames = ['bench61994952-c1','bench61994952-c2','bench61994952-c3','bench61994952-c4']\nverdicts = {}\nfor n in names:\n    r = subprocess.run(['sudo','grep','-ri','privileged','/tmp/bench61994952/runc-root/'+n+'/state.json'], capture_output=True, text=True)\n    verdicts[n] = 'PRIVILEGED' if r.stdout.strip() else 'NOT_PRIVILEGED'\njson.dump(verdicts, open('/tmp/bench61994952/verdict.json','w'))\n\""
+  },
+  {
+    "case_id": "q61994952",
+    "category": "isolation",
+    "model": "cheating_single_signal_devices_only",
+    "code": "sudo python3 -c \"\nimport json, os\nrunc_root = '/tmp/bench61994952/runc-root'\nnames = ['bench61994952-c1','bench61994952-c2','bench61994952-c3','bench61994952-c4']\nverdicts = {}\nfor n in names:\n    with open(os.path.join(runc_root, n, 'state.json')) as f:\n        state = json.load(f)\n    devices = (state['config'].get('cgroups') or {}).get('devices') or []\n    has_allow_all = any(d.get('type')==97 and d.get('major')==-1 and d.get('minor')==-1 and d.get('allow') for d in devices)\n    verdicts[n] = 'PRIVILEGED' if has_allow_all else 'NOT_PRIVILEGED'\njson.dump(verdicts, open('/tmp/bench61994952/verdict.json','w'))\n\""
   }
+
 ]
