@@ -130,38 +130,46 @@ def find_all_case_ids():
 
 
 # ---------------------------------------------------------------------------
-# provider backends -- each takes (model, prompt, args) and returns the raw
-# text response. Imports are lazy so installing one SDK doesn't require the
-# others.
+# provider backends -- each takes (model, prompt, args) and returns
+# (text, finish_reason). finish_reason is normalized to "stop" (model ended
+# naturally), "length" (hit max_tokens and got cut off mid-response -- a
+# strong signal that a "no code block found" extraction failure downstream
+# is a token-budget problem, not a model-capability problem), or None if the
+# provider didn't report one. Imports are lazy so installing one SDK doesn't
+# require the others.
 # ---------------------------------------------------------------------------
 
-def call_anthropic(model: str, prompt: str, args) -> str:
+def call_anthropic(model: str, prompt: str, args) -> tuple[str, str | None]:
     """Anthropic Messages API. Reads ANTHROPIC_API_KEY from the environment."""
     import anthropic  # pip install anthropic
 
     client = anthropic.Anthropic()
     resp = client.messages.create(
         model=model,
-        max_tokens=1024,
+        max_tokens=args.max_tokens,
         messages=[{"role": "user", "content": prompt}],
     )
-    return "".join(block.text for block in resp.content if block.type == "text")
+    text = "".join(block.text for block in resp.content if block.type == "text")
+    # Anthropic's own stop_reason is already "end_turn" / "max_tokens" / etc.
+    finish_reason = "length" if resp.stop_reason == "max_tokens" else resp.stop_reason
+    return text, finish_reason
 
 
-def call_openai(model: str, prompt: str, args) -> str:
+def call_openai(model: str, prompt: str, args) -> tuple[str, str | None]:
     """OpenAI Chat Completions API. Reads OPENAI_API_KEY from the environment."""
     from openai import OpenAI  # pip install openai
 
     client = OpenAI()
     resp = client.chat.completions.create(
         model=model,
-        max_tokens=1024,
+        max_tokens=args.max_tokens,
         messages=[{"role": "user", "content": prompt}],
     )
-    return resp.choices[0].message.content or ""
+    choice = resp.choices[0]
+    return choice.message.content or "", choice.finish_reason
 
 
-def call_huggingface(model: str, prompt: str, args) -> str:
+def call_huggingface(model: str, prompt: str, args) -> tuple[str, str | None]:
     """Hugging Face Inference API/Providers, via huggingface_hub's chat-completions
     interface (works for instruction-tuned open models regardless of which
     backend HF routes the request to). Reads HF_TOKEN from the environment
@@ -178,12 +186,13 @@ def call_huggingface(model: str, prompt: str, args) -> str:
     client = InferenceClient(model=model, token=token, provider=args.hf_provider or "auto")
     resp = client.chat_completion(
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=1024,
+        max_tokens=args.max_tokens,
     )
-    return resp.choices[0].message.content or ""
+    choice = resp.choices[0]
+    return choice.message.content or "", getattr(choice, "finish_reason", None)
 
 
-def call_openai_compatible(model: str, prompt: str, args) -> str:
+def call_openai_compatible(model: str, prompt: str, args) -> tuple[str, str | None]:
     """Any server speaking the OpenAI chat-completions wire format at a
     custom base URL -- self-hosted vLLM/TGI/Ollama, a HF Inference
     Endpoint, OpenRouter, Together, Fireworks, etc."""
@@ -200,10 +209,11 @@ def call_openai_compatible(model: str, prompt: str, args) -> str:
     client = OpenAI(base_url=args.base_url, api_key=api_key)
     resp = client.chat.completions.create(
         model=model,
-        max_tokens=1024,
+        max_tokens=args.max_tokens,
         messages=[{"role": "user", "content": prompt}],
     )
-    return resp.choices[0].message.content or ""
+    choice = resp.choices[0]
+    return choice.message.content or "", choice.finish_reason
 
 
 PROVIDERS = {
@@ -214,13 +224,19 @@ PROVIDERS = {
 }
 
 
-def extract_code(response_text: str) -> str:
+def extract_code(response_text: str) -> tuple[str, bool]:
     """Pull the first ```bash/```sh/``` fenced block out of the response.
-    Falls back to the raw response text if no fenced block is found."""
+    Falls back to the raw response text if no CLOSED fenced block is found
+    (a common failure mode for smaller/less instruction-following models:
+    no code fence at all, or a fence that never closes because the
+    response got cut off by max_tokens). Returns (code, was_fenced) so the
+    caller can flag the fallback case -- code extracted this way is often
+    not valid, executable shell on its own (it may still contain prose,
+    an unclosed fence marker, or multiple mixed blocks)."""
     m = re.search(r"```(?:bash|sh)?\s*\n(.*?)```", response_text, re.DOTALL)
     if m:
-        return m.group(1).strip()
-    return response_text.strip()
+        return m.group(1).strip(), True
+    return response_text.strip(), False
 
 
 def load_existing_samples(path: Path) -> list:
@@ -251,6 +267,11 @@ def main():
                               "backups. Pass this explicitly to merge into one shared file "
                               "instead (matching (case_id, model) entries are replaced, others "
                               "are kept).")
+    parser.add_argument("--max-tokens", type=int, default=2048,
+                         help="max_tokens for the model's response (default: 2048). If a "
+                              "sample's finish_reason comes back 'length' and/or extraction "
+                              "falls back to the raw (unfenced) response, the response was "
+                              "likely cut off before finishing its ```bash block -- raise this.")
     parser.add_argument("--base-url", default=None,
                          help="(--provider openai_compatible only) base URL of the API server")
     parser.add_argument("--api-key-env", default=None,
@@ -305,9 +326,21 @@ def main():
 
         print(f"=== [{args.provider}:{args.model}] asking for a solution to {case_id} ({category}) ===")
         try:
-            response_text = call_fn(args.model, prompt, args)
-            code = extract_code(response_text)
-            print(f"--- extracted code ---\n{code}\n----------------------\n")
+            response_text, finish_reason = call_fn(args.model, prompt, args)
+            code, was_fenced = extract_code(response_text)
+            print(f"--- extracted code (fenced={was_fenced}, finish_reason={finish_reason}) ---\n"
+                  f"{code}\n----------------------\n")
+            if finish_reason == "length":
+                print(f"!!! WARNING: {case_id}'s response was cut off by the token limit "
+                      f"(finish_reason=length) -- the model likely hadn't finished its answer. "
+                      f"Re-run with a higher --max-tokens (currently {args.max_tokens}).\n",
+                      file=sys.stderr)
+            elif not was_fenced:
+                print(f"!!! WARNING: {case_id}'s response had no closed ```bash/```sh code "
+                      f"block -- 'code' below is the RAW response text, which is often not "
+                      f"directly executable (may contain prose, be truncated, or use a "
+                      f"different format). Inspect it before trusting the result.\n",
+                      file=sys.stderr)
         except Exception as exc:
             print(f"!!! call failed for {case_id}: {exc}\n", file=sys.stderr)
             failures.append((case_id, str(exc)))
@@ -327,6 +360,9 @@ def main():
             "provider": args.provider,
             "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "code": code,
+            "code_was_fenced": was_fenced,
+            "finish_reason": finish_reason,
+            "raw_response": response_text,
         })
 
         # write after every case, not just at the end, so a crash/rate-limit
@@ -338,6 +374,26 @@ def main():
             time.sleep(args.sleep)
 
     print(f"wrote {len(samples)} total sample(s) to {out_path}")
+
+    this_run = [s for s in samples if s.get("model") == args.model and s.get("provider") == args.provider]
+    unfenced = [s["case_id"] for s in this_run if s.get("code_was_fenced") is False]
+    truncated = [s["case_id"] for s in this_run if s.get("finish_reason") == "length"]
+    if unfenced or truncated:
+        print(f"\nDiagnostics for this run ({args.provider}:{args.model}):")
+        if truncated:
+            print(f"  - {len(truncated)} case(s) got cut off by --max-tokens {args.max_tokens} "
+                  f"(finish_reason=length): {truncated}")
+            print(f"    -> these are very likely to fail the harness regardless of the model's "
+                  f"actual ability; re-run just these with a higher --max-tokens before "
+                  f"drawing any pass@1 conclusions from them.")
+        if unfenced:
+            print(f"  - {len(unfenced)} case(s) had no closed ```bash code block, so 'code' is "
+                  f"the raw response text: {unfenced}")
+            print(f"    -> check samples/generated/.../raw_response for these -- if the model "
+                  f"just didn't follow the fencing instruction, the extracted 'code' may still "
+                  f"be mostly-valid shell with stray prose mixed in (worth a manual look before "
+                  f"assuming a genuine solution failure).")
+
     if failures:
         print(f"\n{len(failures)} case(s) FAILED to generate a sample (left untouched in the output):")
         for case_id, err in failures:

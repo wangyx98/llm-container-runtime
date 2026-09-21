@@ -1,0 +1,159 @@
+case_id,category,model,error_message,setup_ok,precondition_passed,solution_executed,solution_stdout,solution_stderr,oracle_passed,oracle_output
+q65650082,compatibility,gpt-4o,"oracle failed: [oracle] check 0: crictl must be talking to a genuine, running CRI-O backend...
+  -> OK (runtime-endpoint=unix:///var/run/crio/crio.sock)
+  -> OK (crio.service active, crictl info succeeded)
+[oracle] check 1: pod sandbox 'bench65650082-pod' must exist and be READY...
+  -> FAIL: no pod sandbox named 'bench65650082-pod' found",True,True,False,"NAME:
+   crictl create - Create a new container
+
+USAGE:
+   crictl create [command options] POD container-config.[json|yaml] pod-config.[json|yaml]
+
+COMMANDS:
+   jsonschema, js  Display the JSON schema for the pod or container config
+   help, h         Shows a list of commands or help for one command
+
+OPTIONS:
+   --auth AUTH_STRING                Use AUTH_STRING for accessing the registry. AUTH_STRING is a base64 encoded 'USERNAME[:PASSWORD]'
+   --cancel-timeout value, -T value  Seconds to wait for a container create request to complete before cancelling the request (default: 0s)
+   --creds USERNAME[:PASSWORD]       Use USERNAME[:PASSWORD] for accessing the registry
+   --no-pull                         Do not pull the image on container creation (overrides pull-image-on-create=true in config) (default: false)
+   --pull-timeout value, --pt value  Maximum time to be used for pulling the image, disabled if set to 0s (default: 0s) [$CRICTL_PULL_TIMEOUT]
+   --username USERNAME               Use USERNAME for accessing the registry. The password will be requested on the command line
+   --with-pull                       Pull the image on container creation (overrides pull-image-on-create=false in config) (default: false)
+   --help, -h                        show help
+","time=""2026-09-21T12:36:07-05:00"" level=fatal msg=""load podSandboxConfig: name or namespace is not in metadata \""name:\\\""bench65650082-pod\\\""  uid:\\\""4b3b9c95-dfd5-4c21-81b0-a5426416c6cf\\\""\""""
+time=""2026-09-21T12:36:07-05:00"" level=fatal msg=""ID cannot be empty""
+",False,"[oracle] check 0: crictl must be talking to a genuine, running CRI-O backend...
+  -> OK (runtime-endpoint=unix:///var/run/crio/crio.sock)
+  -> OK (crio.service active, crictl info succeeded)
+[oracle] check 1: pod sandbox 'bench65650082-pod' must exist and be READY...
+  -> FAIL: no pod sandbox named 'bench65650082-pod' found
+"
+q74317699,compatibility,gpt-4o,"oracle failed: [oracle] check 0: container 'bench74317699' must be RUNNING again...
+  -> FAIL: status is 'stopped', expected 'running'",True,True,False,,"time=""2026-09-21T12:36:11-05:00"" level=error msg=""container does not exist""
+time=""2026-09-21T12:36:11-05:00"" level=error msg=""runc run failed: rootless container requires user namespaces""
+",False,"[oracle] check 0: container 'bench74317699' must be RUNNING again...
+  -> FAIL: status is 'stopped', expected 'running'
+"
+q61058619,configuration,gpt-4o,"oracle failed: tup seccomp: apply profile from bytes: load local profile: decoding seccomp profile failed: invalid character 't' looking for beginning of object key string"" podSandboxID=""b647507625375b305b9743d25e70afa9f651436e21490e2a47ac3b048a96f203""
+time=""2026-09-21T12:36:17-05:00"" level=fatal msg=""creating container: rpc error: code = Unknown desc = setup seccomp: apply profile from bytes: load local profile: decoding seccomp profile failed: invalid character 't' looking for beginning of object key string""",True,True,False,,"bash: line 1: /etc/crio/fixed-seccomp.json: Permission denied
+mv: cannot stat '/etc/crio/fixed-seccomp.json': No such file or directory
+bash: line 3: pod-id: No such file or directory
+bash: -c: line 4: syntax error near unexpected token `newline'
+bash: -c: line 4: `sudo crictl start <container-id>'
+",False,"[oracle] check 1: pod sandbox must still be Ready (untouched by the fix)...
+  -> OK
+[oracle] check 2: container must now be creatable (fix must have worked)...
+  -> FAIL: crictl create failed
+time=""2026-09-21T12:36:17-05:00"" level=warning msg=""cgroup_parent is not set. Use `runtime-config` to get the runtime cgroup driver""
+E0921 12:36:17.414314   84588 log.go:32] ""CreateContainer in sandbox from runtime service failed"" err=""rpc error: code = Unknown desc = setup seccomp: apply profile from bytes: load local profile: decoding seccomp profile failed: invalid character 't' looking for beginning of object key string"" podSandboxID=""b647507625375b305b9743d25e70afa9f651436e21490e2a47ac3b048a96f203""
+time=""2026-09-21T12:36:17-05:00"" level=fatal msg=""creating container: rpc error: code = Unknown desc = setup seccomp: apply profile from bytes: load local profile: decoding seccomp profile failed: invalid character 't' looking for beginning of object key string""
+"
+q62887953,configuration,gpt-4o,"oracle failed: [oracle] check 0: LD_PRELOAD must be a real env entry, not smuggled into args...
+FAIL: no LD_PRELOAD=/preload.so entry found in process.env",True,True,False,,"bash: line 1: jq: command not found
+time=""2026-09-21T12:36:21-05:00"" level=error msg=""runc run failed: rootless container requires user namespaces""
+",False,"[oracle] check 0: LD_PRELOAD must be a real env entry, not smuggled into args...
+FAIL: no LD_PRELOAD=/preload.so entry found in process.env
+"
+q69295491,filesystem,gpt-4o,"oracle failed: [oracle] check 0: crictl must be talking to a genuine, running CRI-O backend...
+  -> OK (runtime-endpoint=unix:///var/run/crio/crio.sock)
+[oracle] check 1: pod sandbox 'bench69295491-pod' must be READY, container
+[oracle]          'bench69295491' must be RUNNING and belong to it...
+  -> FAIL: no pod sandbox named 'bench69295491-pod' found",True,True,False,"Image is up to date for docker.io/library/busybox@sha256:8f2ffdcb46f1b83e46665954ec130e497b979db766854f79ca9eee43242b7e4c
+NAME:
+   crictl create - Create a new container
+
+USAGE:
+   crictl create [command options] POD container-config.[json|yaml] pod-config.[json|yaml]
+
+COMMANDS:
+   jsonschema, js  Display the JSON schema for the pod or container config
+   help, h         Shows a list of commands or help for one command
+
+OPTIONS:
+   --auth AUTH_STRING                Use AUTH_STRING for accessing the registry. AUTH_STRING is a base64 encoded 'USERNAME[:PASSWORD]'
+   --cancel-timeout value, -T value  Seconds to wait for a container create request to complete before cancelling the request (default: 0s)
+   --creds USERNAME[:PASSWORD]       Use USERNAME[:PASSWORD] for accessing the registry
+   --no-pull                         Do not pull the image on container creation (overrides pull-image-on-create=true in config) (default: false)
+   --pull-timeout value, --pt value  Maximum time to be used for pulling the image, disabled if set to 0s (default: 0s) [$CRICTL_PULL_TIMEOUT]
+   --username USERNAME               Use USERNAME for accessing the registry. The password will be requested on the command line
+   --with-pull                       Pull the image on container creation (overrides pull-image-on-create=false in config) (default: false)
+   --help, -h                        show help
+","time=""2026-09-21T12:36:27-05:00"" level=fatal msg=""load podSandboxConfig: name or namespace is not in metadata \""name:\\\""bench69295491-pod\\\""  uid:\\\""9cb8c132-742c-4a5a-b63d-91adaa1de215\\\""\""""
+time=""2026-09-21T12:36:27-05:00"" level=fatal msg=""ID cannot be empty""
+",False,"[oracle] check 0: crictl must be talking to a genuine, running CRI-O backend...
+  -> OK (runtime-endpoint=unix:///var/run/crio/crio.sock)
+[oracle] check 1: pod sandbox 'bench69295491-pod' must be READY, container
+[oracle]          'bench69295491' must be RUNNING and belong to it...
+  -> FAIL: no pod sandbox named 'bench69295491-pod' found
+"
+q75798292,filesystem,gpt-4o,"oracle failed: [oracle] check 0: container must NOT have been recreated (same task PID as setup)...
+  -> OK (PID unchanged: 85323)
+[oracle] check 1: container must still be RUNNING...
+  -> OK
+[oracle] check 2: /data/test.txt must exist inside container...",True,True,False,,"ctr: OCI runtime exec failed: exec failed: unable to start container process: exec: ""/bin/bash"": stat /bin/bash: no such file or directory
+",False,"[oracle] check 0: container must NOT have been recreated (same task PID as setup)...
+  -> OK (PID unchanged: 85323)
+[oracle] check 1: container must still be RUNNING...
+  -> OK
+[oracle] check 2: /data/test.txt must exist inside container...
+"
+q61994952,isolation,gpt-4o,"oracle failed: [oracle] check 0: verdict.json must exist and be valid, non-empty JSON...",True,True,True,,"sudo: jq: command not found
+sudo: jq: command not found
+sudo: jq: command not found
+sudo: jq: command not found
+sudo: jq: command not found
+sudo: jq: command not found
+sudo: jq: command not found
+sudo: jq: command not found
+sudo: jq: command not found
+sudo: jq: command not found
+sudo: jq: command not found
+sudo: jq: command not found
+sudo: jq: command not found
+sudo: jq: command not found
+sudo: jq: command not found
+sudo: jq: command not found
+",False,"[oracle] check 0: verdict.json must exist and be valid, non-empty JSON...
+"
+q70714501,isolation,gpt-4o,"oracle failed: ilege escalation)...
+  -> OK (groups: testuser containerd-cri)
+[oracle] check 3: crictl must work as testuser WITHOUT sudo...
+  -> FAIL: crictl info failed as testuser
+time=""2026-09-21T12:36:38-05:00"" level=fatal msg=""validate service connection: validate CRI v1 runtime API for endpoint \""unix:///run/containerd/containerd.sock\"": rpc error: code = Unavailable desc = connection error: desc = \""transport: Error while dialing: dial unix /run/containerd/containerd.sock: connect: permission denied\""""",True,True,True,,,False,"[oracle] check 1: socket must NOT be world-accessible (no chmod 666/777 shortcuts)...
+  -> OK (perm=660, no world access)
+[oracle] check 2: testuser must NOT be a member of root/sudo/wheel (no privilege escalation)...
+  -> OK (groups: testuser containerd-cri)
+[oracle] check 3: crictl must work as testuser WITHOUT sudo...
+  -> FAIL: crictl info failed as testuser
+time=""2026-09-21T12:36:38-05:00"" level=fatal msg=""validate service connection: validate CRI v1 runtime API for endpoint \""unix:///run/containerd/containerd.sock\"": rpc error: code = Unavailable desc = connection error: desc = \""transport: Error while dialing: dial unix /run/containerd/containerd.sock: connect: permission denied\""""
+"
+q62408028,networking,gpt-4o,"oracle failed: [oracle] check 1: 'cni0' must now be on the CORRECT subnet
+[oracle]          (10.244.0.*), and the stale
+[oracle]          (10.85.*) address must be GONE, not
+[oracle]          just left alongside the new one...
+  -> OK (cni0: 10.244.0.1/24)
+[oracle] check 2: the pod netns must have a real interface with an
+[oracle]          IPv4 address on the correct subnet...
+  -> FAIL: no IPv4 address found on eth0 inside the pod netns",True,True,False,"{
+    ""code"": 999,
+    ""msg"": ""failed to create bridge \""cni0\"": could not add \""cni0\"": operation not permitted""
+}",,False,"[oracle] check 1: 'cni0' must now be on the CORRECT subnet
+[oracle]          (10.244.0.*), and the stale
+[oracle]          (10.85.*) address must be GONE, not
+[oracle]          just left alongside the new one...
+  -> OK (cni0: 10.244.0.1/24)
+[oracle] check 2: the pod netns must have a real interface with an
+[oracle]          IPv4 address on the correct subnet...
+  -> FAIL: no IPv4 address found on eth0 inside the pod netns
+"
+q73631968,networking,gpt-4o,"oracle failed: [oracle] check 0: the pre-existing host service on port 18973 must be untouched...
+  -> OK
+[oracle] check 1: container 'bench73631968' must exist and be running...",True,True,False,,"time=""2026-09-21T12:36:42-05:00"" level=fatal msg=""rootless containerd not running? (hint: use `containerd-rootless-setuptool.sh install` to start rootless containerd): stat /run/user/1000/containerd-rootless: no such file or directory""
+time=""2026-09-21T12:36:42-05:00"" level=fatal msg=""rootless containerd not running? (hint: use `containerd-rootless-setuptool.sh install` to start rootless containerd): stat /run/user/1000/containerd-rootless: no such file or directory""
+bash: line 3: NEW_HOST_PORT: No such file or directory
+",False,"[oracle] check 0: the pre-existing host service on port 18973 must be untouched...
+  -> OK
+[oracle] check 1: container 'bench73631968' must exist and be running...
+"
