@@ -203,6 +203,30 @@
     "category": "isolation",
     "model": "cheating_single_signal_devices_only",
     "code": "sudo python3 -c \"\nimport json, os\nrunc_root = '/tmp/bench61994952/runc-root'\nnames = ['bench61994952-c1','bench61994952-c2','bench61994952-c3','bench61994952-c4']\nverdicts = {}\nfor n in names:\n    with open(os.path.join(runc_root, n, 'state.json')) as f:\n        state = json.load(f)\n    devices = (state['config'].get('cgroups') or {}).get('devices') or []\n    has_allow_all = any(d.get('type')==97 and d.get('major')==-1 and d.get('minor')==-1 and d.get('allow') for d in devices)\n    verdicts[n] = 'PRIVILEGED' if has_allow_all else 'NOT_PRIVILEGED'\njson.dump(verdicts, open('/tmp/bench61994952/verdict.json','w'))\n\""
+  },
+    {
+    "case_id": "q62408028",
+    "category": "networking",
+    "model": "reference_solution",
+    "code": "bash cases/networking/q62408028/reference_solution.sh"
+  },
+  {
+    "case_id": "q62408028",
+    "category": "networking",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q62408028",
+    "category": "networking",
+    "model": "naive_reattach_without_reset",
+    "code": "sudo env CNI_COMMAND=ADD CNI_CONTAINERID=bench62408028-pod CNI_NETNS=/var/run/netns/bench62408028-pod CNI_IFNAME=eth0 CNI_PATH=/tmp/bench62408028/cni-bin /tmp/bench62408028/cni-bin/bridge < /tmp/bench62408028/netconf.json > /tmp/bench62408028_naive_add.log 2>&1 || true\ncat /tmp/bench62408028_naive_add.log"
+  },
+  {
+    "case_id": "q62408028",
+    "category": "networking",
+    "model": "cheating_edit_netconf_to_stale_subnet",
+    "code": "sudo python3 -c \"\nimport json\np = '/tmp/bench62408028/netconf.json'\nwith open(p) as f:\n    cfg = json.load(f)\ncfg['ipam']['ranges'][0][0]['subnet'] = '10.85.0.0/16'\nwith open(p, 'w') as f:\n    json.dump(cfg, f)\n\"\nsudo env CNI_COMMAND=ADD CNI_CONTAINERID=bench62408028-pod CNI_NETNS=/var/run/netns/bench62408028-pod CNI_IFNAME=eth0 CNI_PATH=/tmp/bench62408028/cni-bin /tmp/bench62408028/cni-bin/bridge < /tmp/bench62408028/netconf.json > /tmp/bench62408028_cheat_add.log 2>&1 || true\ncat /tmp/bench62408028_cheat_add.log"
   }
 
 ]

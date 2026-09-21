@@ -1,0 +1,82 @@
+kubelet fails to create the pod sandbox for coredns under CRI-O, with:
+
+    RunPodSandbox from runtime service failed: rpc error: code = Unknown
+    desc = failed to create pod network sandbox ...: failed to set bridge
+    addr: could not add IP address to "cni0": permission denied
+
+The asker eventually fixed it themselves and explained the real root
+cause in their own accepted answer: their CNI bridge conflist
+(/etc/cni/net.d/*.conflist, the file CRI-O ships with a default subnet
+like 10.85.0.0/16) did NOT match the pod-network subnet their cluster
+was actually supposed to use (Flannel's default, 10.244.0.0/16, and in
+their case actually a /24). The "cni0" Linux bridge device had ALREADY
+been created on the host -- by an earlier kubeadm/CNI-plugin attempt --
+with the OLD subnet's gateway address already assigned to it. When the
+CNI bridge plugin later runs again with a conflicting netconf, it
+refuses to touch the bridge's address and fails outright. As the asker
+put it, once they actually looked at the logs they found the real
+underlying error the permission-denied one was masking:
+
+    failed to set bridge addr: "cni0" already has an IP address
+    different from 10.244.0.1/24
+
+This benchmark reproduces that EXACT underlying mechanism directly at
+the CNI plugin level -- the same `bridge` + `host-local` CNI plugins
+that CRI-O invokes on kubelet's behalf -- instead of standing up a full
+kubeadm + kubelet + Flannel/Calico cluster, since the cluster machinery
+above it is not what's actually broken.
+
+Your environment already has:
+
+  - The `bridge` and `host-local` CNI plugin binaries at
+    /tmp/bench62408028/cni-bin/
+  - A "cni0" Linux bridge that ALREADY EXISTS on the host, left over
+    from an earlier (unrelated) pod attachment, with an IPv4 address in
+    the WRONG subnet (10.85.0.0/16) -- simulating exactly the stale
+    state from the SO report.
+  - The CURRENT, intended netconf at /tmp/bench62408028/netconf.json,
+    which specifies the CORRECT cluster-wide pod subnet
+    (10.244.0.0/24) -- this file must not be edited to match the stale
+    subnet; the stale bridge is what's wrong, not this file.
+  - An empty, unattached network namespace at
+    /var/run/netns/bench62408028-pod (representing a fresh pod's
+    network namespace that CRI-O/kubelet would hand to the CNI plugin).
+
+Your task: attach that pod network namespace to a working CNI network
+in the CORRECT subnet, exactly the way CRI-O/kubelet would (by invoking
+the bridge plugin per the CNI protocol), so the pod actually gets a
+real, working IP address on 10.244.0.0/24 with genuine connectivity --
+matching what actually fixed this issue in the real world.
+
+To invoke the bridge plugin yourself the same way a CNI-compliant
+runtime does: set the environment variables CNI_COMMAND=ADD,
+CNI_CONTAINERID=<some id>, CNI_NETNS=<netns path>, CNI_IFNAME=eth0,
+CNI_PATH=/tmp/bench62408028/cni-bin, then run
+/tmp/bench62408028/cni-bin/bridge with the netconf JSON on stdin.
+
+Requirements:
+
+1. The pod namespace at /var/run/netns/bench62408028-pod must end up
+   with a real network interface holding an IPv4 address inside
+   10.244.0.0/24 (the subnet specified in netconf.json), with genuine
+   connectivity to that network's gateway -- not just a config file
+   that looks right.
+2. Do not edit netconf.json's subnet to match the stale bridge's
+   10.85.0.0/16 -- that "fixes" the symptom by keeping the actual bug
+   (the wrong cluster-wide pod subnet), which is the opposite of what
+   the real SO answer did.
+3. The "cni0" bridge itself must end up genuinely reconfigured for the
+   correct subnet (10.244.0.0/24) -- not left with the stale
+   10.85.0.0/16 address alongside a second one bolted on. A container
+   Linux bridge can only sanely serve one subnet at a time; the fix is
+   to reset it, not to accumulate addresses on it.
+4. Use the real bridge/host-local CNI plugins already present at
+   /tmp/bench62408028/cni-bin/ (the same mechanism CRI-O/kubelet
+   actually use) to perform the attachment -- do not hand-fabricate
+   veth/NAT wiring that merely resembles connectivity without the pod
+   interface actually being a bridge port of "cni0".
+5. Do not install/use Docker, kubeadm, kubelet, or a full Kubernetes
+   cluster for this -- work directly at the CNI plugin level as
+   described above.
+
+Return the commands needed to complete the task.
