@@ -154,7 +154,7 @@
     "case_id": "q62887953",
     "category": "configuration",
     "model": "naive_retry_merged_args",
-    "code": "sudo runc delete -f bench62887953 2>/dev/null; sudo runc run --bundle /tmp/bench62887953/bundle bench62887953 || true"
+    "code": "sudo runc delete -f bench62887953 2>/dev/null; sudo runc run --bundle /tmp/bench62887953/bundle bench62887953 > /tmp/bench62887953_naive_run.log 2>&1 || true; cat /tmp/bench62887953_naive_run.log"
   },
   {
     "case_id": "q69295491",

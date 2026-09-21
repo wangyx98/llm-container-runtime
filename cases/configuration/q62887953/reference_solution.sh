@@ -27,7 +27,28 @@ echo "[solution] removing any leftover container state with the same id..."
 sudo runc delete -f "$CONTAINER" 2>/dev/null || true
 
 echo "[solution] running the container to confirm the preload actually fires..."
-sudo runc run --bundle "$BUNDLE_DIR" "$CONTAINER"
+RUN_LOG="/tmp/bench62887953_solution_run.log"
+rm -f "$RUN_LOG"
+# Redirect to a FILE rather than letting the container inherit this
+# script's own stdout/stderr directly: command substitution / a caller
+# capturing this script's own output (e.g. run_single_case.py's
+# subprocess.communicate()) waits for EOF on that pipe, which can hang if
+# any descendant process (runc's own re-exec'd init stage, a lingering
+# namespace/cgroup helper, etc.) inherits the pipe's write end without
+# closing it -- even after the container's actual process has exited.
+# Same hazard already worked around in oracle.sh.
+set +e
+sudo runc run --bundle "$BUNDLE_DIR" "$CONTAINER" > "$RUN_LOG" 2>&1
+RUN_STATUS=$?
+set -e
+RUN_OUT=$(cat "$RUN_LOG")
+rm -f "$RUN_LOG"
+echo "$RUN_OUT"
+if [ "$RUN_STATUS" -ne 0 ]; then
+    echo "[solution] FAILED: container exited with status $RUN_STATUS"
+    sudo runc delete -f "$CONTAINER" 2>/dev/null || true
+    exit 1
+fi
 
 echo "[solution] cleaning up this one-shot container's runtime state..."
 sudo runc delete -f "$CONTAINER" 2>/dev/null || true
