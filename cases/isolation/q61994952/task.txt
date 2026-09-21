@@ -1,0 +1,100 @@
+Regardless of whether Docker, containerd, or CRI-O started it, is there a
+way to tell -- at the bare runc layer -- whether a runc container is
+running "privileged"?
+
+The honest answer is: runc itself has NO notion of "privileged" at all.
+`runc spec`'s config.json, and the internal state.json that runc writes
+under its --root directory for every container it creates, never contain
+a field called "privileged" anywhere. That word is purely an abstraction
+invented by higher-level tools (Docker's --privileged flag); it does not
+exist at the runc/OCI-runtime level. So `grep -ri privileged` against
+config.json or state.json will find nothing, and hardcoding "yes" or "no"
+regardless of the container is exactly the kind of trick this task is
+designed to catch.
+
+What DOES exist at the runc level -- and what Docker's --privileged flag
+actually configures under the hood -- is a specific combination of real,
+inspectable primitives:
+
+  1. The Linux capability set granted to the container's process
+     (state.json's config.capabilities.Bounding list). A normal
+     container gets a small handful (bare `runc spec`'s own default is
+     just 3: CAP_AUDIT_WRITE, CAP_KILL, CAP_NET_BIND_SERVICE). A
+     privileged one gets (near-)ALL of them.
+  2. The cgroup device access rules (state.json's config.cgroups.devices
+     list). A normal container has an explicit DENY-all wildcard rule
+     ({"type": 97, "major": -1, "minor": -1, "allow": false}) plus a
+     short allowlist of specific device nodes. A privileged container
+     instead has an ALLOW-all wildcard rule ({"type": 97, "major": -1,
+     "minor": -1, "allow": true, "permissions": "rwm"}) -- type 97 is
+     the ASCII code for 'a' (all device types).
+  3. no_new_privileges (state.json's config.no_new_privileges). This is
+     "on" by default (bare `runc spec` sets it true). Because Go's JSON
+     encoder omits `false`-valued fields with `omitempty`, when this
+     protection is turned OFF the key is entirely ABSENT from
+     state.json rather than present with value false -- so "key present
+     and true" means the protection is ON, and "key absent" (or
+     present-and-false) means it's OFF.
+  4. The /proc and /sys lockdown paths -- config.mask_paths and
+     config.readonly_paths. By default these list several sensitive
+     paths (/proc/kcore, /proc/acpi, /proc/sys, etc.). A privileged
+     container has both lists cleared to empty.
+
+A container only counts as the practical equivalent of
+`docker run --privileged` if ALL FOUR of these hold together. Any ONE of
+them alone is NOT sufficient proof -- for example, a container can
+legitimately be handed extra Linux capabilities (say, CAP_NET_ADMIN and
+CAP_SYS_PTRACE for a debugging/networking tool) without also getting
+open device access or dropped /proc,/sys hardening, and vice versa. Real
+production containers do this all the time; treating "has some elevated
+capabilities" or "has open device access" alone as proof of
+"--privileged-equivalent" produces false positives.
+
+Your environment already has 4 runc containers, all created (via `sudo
+runc --root /tmp/bench61994952/runc-root create ...`, state "created",
+nothing ever started) with names:
+
+    bench61994952-c1
+    bench61994952-c2
+    bench61994952-c3
+    bench61994952-c4
+
+Exactly which of the 4 checks above each container satisfies is not
+disclosed here -- and it is randomized fresh on every setup, so you
+cannot memorize or hardcode a fixed answer across runs. You must
+determine the answer for each container independently by actually
+reading its real state.json.
+
+Requirements:
+
+1. Bare runc only. Do not use `docker inspect`, `ctr`, `crictl`, or any
+   higher-level tool -- inspect only the runc-level artifacts (the
+   state.json files under /tmp/bench61994952/runc-root/<name>/).
+2. Do not grep/search for the literal word "privileged" anywhere, and do
+   not hardcode the same verdict for every container regardless of its
+   actual state.json content -- it does not exist as a field, and the
+   ground truth differs per container and changes every run.
+3. For a container to be classified "PRIVILEGED", ALL FOUR signals above
+   must hold. If even one is missing, it must be classified
+   "NOT_PRIVILEGED" -- checking only one or two signals in isolation
+   will misclassify the decoy containers in this environment that
+   deliberately have only a subset elevated.
+4. state.json is root-owned (mode 0600) -- you will need sudo to read
+   it.
+5. Write your verdict for all 4 containers to
+   /tmp/bench61994952/verdict.json as a single flat JSON object mapping
+   each container's full name to exactly the string "PRIVILEGED" or
+   "NOT_PRIVILEGED", e.g.:
+
+    {
+      "bench61994952-c1": "NOT_PRIVILEGED",
+      "bench61994952-c2": "PRIVILEGED",
+      "bench61994952-c3": "NOT_PRIVILEGED",
+      "bench61994952-c4": "NOT_PRIVILEGED"
+    }
+
+   (the example values above are illustrative only, not the actual
+   answer -- you must compute them from each container's real
+   state.json).
+
+Return the commands needed to complete the task.

@@ -1,2 +1,6 @@
 pyyaml>=6.0
 anthropic>=0.34.0
+
+# Optional, only needed for the matching --provider in generate_llm_samples.py:
+# openai>=1.40.0          # --provider openai / openai_compatible
+# huggingface_hub>=0.25.0 # --provider huggingface

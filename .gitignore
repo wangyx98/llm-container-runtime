@@ -1,8 +1,7 @@
 __pycache__/
 *.pyc
 .DS_Store
-results/*/
-!results/.gitkeep
+
 .venv/
 venv/
 *.egg-info/

@@ -29,9 +29,16 @@ def load_test_module(category: str, case_id: str):
     return importlib.import_module(module_path)
 
 
-def run_all(samples_path: str, cfg: dict) -> list[dict]:
+def run_all(samples_path: str, cfg: dict, exclude_ids: set[str] | None = None) -> list[dict]:
     with open(samples_path, "r", encoding="utf-8") as f:
         samples = json.load(f)
+
+    exclude_ids = exclude_ids or set()
+    if exclude_ids:
+        skipped = [s["case_id"] for s in samples if s["case_id"] in exclude_ids]
+        samples = [s for s in samples if s["case_id"] not in exclude_ids]
+        if skipped:
+            print(f"skipping {len(skipped)} sample(s) for excluded case(s): {skipped}\n")
 
     results = []
     for sample in samples:
@@ -98,12 +105,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default=str(REPO_ROOT / "conf" / "config.yaml"))
     parser.add_argument("--samples", default=None, help="overrides samples_file in config.yaml")
+    parser.add_argument("--exclude", default=None,
+                         help="comma-separated case_id(s) to skip, e.g. --exclude q72392812 "
+                              "to skip a case whose reference solution is "
+                              "architecture-specific (e.g. gVisor/runsc x86_64-only) and "
+                              "can't run on this machine")
     args = parser.parse_args()
 
     cfg = primary.load(args.config)
     samples_file = args.samples or cfg.get("samples_file", "samples/llm_outputs.json")
+    exclude_ids = {c.strip() for c in args.exclude.split(",")} if args.exclude else set()
 
-    results = run_all(samples_file, cfg)
+    results = run_all(samples_file, cfg, exclude_ids=exclude_ids)
 
     # results/<timestamp>/results.csv — never overwrite a previous run
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")

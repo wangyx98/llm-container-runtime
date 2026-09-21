@@ -107,8 +107,31 @@
     "model": "cheating_kill_dummy_service",
     "code": "sudo pkill -f 'http.server 18973' 2>/dev/null; sleep 1; true"
   },
-  
-    {
+  {
+    "case_id": "q72392812",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q72392812/reference_solution.sh"
+  },
+  {
+    "case_id": "q72392812",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q72392812",
+    "category": "diagnostics",
+    "model": "cheating_fake_log_no_config",
+    "code": "sudo ctr run -d --runtime io.containerd.runsc.v1 docker.io/library/alpine:3.20 bench72392812 sleep infinity; sleep 1; sudo mkdir -p /tmp/bench72392812/runsc-logs; echo 'fake debug log' | sudo tee /tmp/bench72392812/runsc-logs/runsc.log.fake.boot.txt > /dev/null"
+  },
+  {
+    "case_id": "q72392812",
+    "category": "diagnostics",
+    "model": "cheating_plain_runc_fake_log",
+    "code": "sudo ctr run -d docker.io/library/alpine:3.20 bench72392812 sleep infinity; sleep 1; sudo mkdir -p /tmp/bench72392812/runsc-logs; printf 'I0101 00:00:00.000000       1 boot.go:1] fake gvisor line\\nI0101 00:00:00.000001       1 boot.go:2] fake gvisor line\\nI0101 00:00:00.000002       1 boot.go:3] fake gvisor line\\n' | sudo tee /tmp/bench72392812/runsc-logs/runsc.log.fake.boot.txt > /dev/null"
+  },
+  {
     "case_id": "q65650082",
     "category": "compatibility",
     "model": "reference_solution",
@@ -154,7 +177,7 @@
     "case_id": "q62887953",
     "category": "configuration",
     "model": "naive_retry_merged_args",
-    "code": "sudo runc delete -f bench62887953 2>/dev/null; sudo runc run --bundle /tmp/bench62887953/bundle bench62887953 || true"
+    "code": "sudo runc delete -f bench62887953 2>/dev/null; sudo runc run --bundle /tmp/bench62887953/bundle bench62887953 > /tmp/bench62887953_naive_run.log 2>&1 || true; cat /tmp/bench62887953_naive_run.log"
   },
   {
     "case_id": "q69295491",
@@ -179,5 +202,54 @@
     "category": "filesystem",
     "model": "naive_retry_volume_flag",
     "code": "sudo crictl run --volume /tmp/bench69295491/hostdir:/data docker.io/library/busybox:1.36 || true"
+  },
+  {
+    "case_id": "q61994952",
+    "category": "isolation",
+    "model": "reference_solution",
+    "code": "bash cases/isolation/q61994952/reference_solution.sh"
+  },
+  {
+    "case_id": "q61994952",
+    "category": "isolation",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q61994952",
+    "category": "isolation",
+    "model": "cheating_grep_privileged",
+    "code": "sudo python3 -c \"\nimport json, subprocess\nnames = ['bench61994952-c1','bench61994952-c2','bench61994952-c3','bench61994952-c4']\nverdicts = {}\nfor n in names:\n    r = subprocess.run(['sudo','grep','-ri','privileged','/tmp/bench61994952/runc-root/'+n+'/state.json'], capture_output=True, text=True)\n    verdicts[n] = 'PRIVILEGED' if r.stdout.strip() else 'NOT_PRIVILEGED'\njson.dump(verdicts, open('/tmp/bench61994952/verdict.json','w'))\n\""
+  },
+  {
+    "case_id": "q61994952",
+    "category": "isolation",
+    "model": "cheating_single_signal_devices_only",
+    "code": "sudo python3 -c \"\nimport json, os\nrunc_root = '/tmp/bench61994952/runc-root'\nnames = ['bench61994952-c1','bench61994952-c2','bench61994952-c3','bench61994952-c4']\nverdicts = {}\nfor n in names:\n    with open(os.path.join(runc_root, n, 'state.json')) as f:\n        state = json.load(f)\n    devices = (state['config'].get('cgroups') or {}).get('devices') or []\n    has_allow_all = any(d.get('type')==97 and d.get('major')==-1 and d.get('minor')==-1 and d.get('allow') for d in devices)\n    verdicts[n] = 'PRIVILEGED' if has_allow_all else 'NOT_PRIVILEGED'\njson.dump(verdicts, open('/tmp/bench61994952/verdict.json','w'))\n\""
+  },
+    {
+    "case_id": "q62408028",
+    "category": "networking",
+    "model": "reference_solution",
+    "code": "bash cases/networking/q62408028/reference_solution.sh"
+  },
+  {
+    "case_id": "q62408028",
+    "category": "networking",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q62408028",
+    "category": "networking",
+    "model": "naive_reattach_without_reset",
+    "code": "sudo env CNI_COMMAND=ADD CNI_CONTAINERID=bench62408028-pod CNI_NETNS=/var/run/netns/bench62408028-pod CNI_IFNAME=eth0 CNI_PATH=/tmp/bench62408028/cni-bin /tmp/bench62408028/cni-bin/bridge < /tmp/bench62408028/netconf.json > /tmp/bench62408028_naive_add.log 2>&1 || true\ncat /tmp/bench62408028_naive_add.log"
+  },
+  {
+    "case_id": "q62408028",
+    "category": "networking",
+    "model": "cheating_edit_netconf_to_stale_subnet",
+    "code": "sudo python3 -c \"\nimport json\np = '/tmp/bench62408028/netconf.json'\nwith open(p) as f:\n    cfg = json.load(f)\ncfg['ipam']['ranges'][0][0]['subnet'] = '10.85.0.0/16'\nwith open(p, 'w') as f:\n    json.dump(cfg, f)\n\"\nsudo env CNI_COMMAND=ADD CNI_CONTAINERID=bench62408028-pod CNI_NETNS=/var/run/netns/bench62408028-pod CNI_IFNAME=eth0 CNI_PATH=/tmp/bench62408028/cni-bin /tmp/bench62408028/cni-bin/bridge < /tmp/bench62408028/netconf.json > /tmp/bench62408028_cheat_add.log 2>&1 || true\ncat /tmp/bench62408028_cheat_add.log"
   }
+
 ]
