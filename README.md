@@ -184,6 +184,8 @@ is for when you want a persisted, aggregated CSV across many samples.
 `run_benchmark.py` never needs to change — it dispatches purely by the
 `category` + `case_id` fields on each sample.
 
+Before writing `task.txt`, see [`docs/task_authoring_checklist.md`](docs/task_authoring_checklist.md) for common non-capability pitfalls (placeholders, permission ambiguity, tool-choice ambiguity) to avoid baking into new cases.
+
 ## Dynamically testing an LLM's problem-solving ability
 
 The harness evaluates solutions by **executing them and checking real
