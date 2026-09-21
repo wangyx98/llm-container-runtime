@@ -1,0 +1,15 @@
+{
+  "apiVersion": "podresources.k8s.io/v1alpha1",
+  "metadata": {
+    "name": "bench65650082"
+  },
+  "image": "docker.io/library/busybox:1.36",
+  "command": ["/bin/sh", "-c", "sleep 100000"],
+  "restartPolicy": "Always",
+  "stdin": true,
+  "stdout": true,
+  "stderr": true,
+  "tty": false,
+  "logPath": "",
+  "capabilities": {}
+}

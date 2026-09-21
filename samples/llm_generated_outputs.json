@@ -1,0 +1,72 @@
+[
+  {
+    "case_id": "q65650082",
+    "category": "compatibility",
+    "model": "Qwen/Qwen2.5-Coder-32B-Instruct",
+    "provider": "huggingface",
+    "code": "cat > pod-config.json <<EOF\n{\n  \"metadata\": {\n    \"name\": \"bench65650082-pod\",\n    \"namespace\": \"default\"\n  },\n  \"linux\": {}\n}\nEOF\n\ncat > container-config.json <<EOF\n{\n  \"metadata\": {\n    \"name\": \"bench65650082\"\n  },\n  \"image\": {\n    \"image\": \"docker.io/library/busybox:1.36\"\n  },\n  \"command\": [\n    \"sleep\",\n    \"100000\"\n  ],\n  \"logPath\": \"logs/bench65650082.log\"\n}\nEOF\n\nPOD_ID=$(sudo crictl runp pod-config.json)\n\nsudo crictl create $POD_ID container-config.json pod-config.json\n\nsudo crictl start $(sudo crictl ps -a | grep bench65650082 | awk '{print $1}')"
+  },
+  {
+    "case_id": "q74317699",
+    "category": "compatibility",
+    "model": "Qwen/Qwen2.5-Coder-32B-Instruct",
+    "provider": "huggingface",
+    "code": "runc delete bench74317699 && runc run --bundle /tmp/bench74317699/bundle --detach bench74317699"
+  },
+  {
+    "case_id": "q61058619",
+    "category": "configuration",
+    "model": "Qwen/Qwen2.5-Coder-32B-Instruct",
+    "provider": "huggingface",
+    "code": "sudo cp /var/lib/kubelet/seccomp/operator/default.json /etc/crio/broken-seccomp.json"
+  },
+  {
+    "case_id": "q62887953",
+    "category": "configuration",
+    "model": "Qwen/Qwen2.5-Coder-32B-Instruct",
+    "provider": "huggingface",
+    "code": "sed -i 's|\"args\": \\[\"LD_PRELOAD=.*\\]|\"args\": [\"/victim\"],|' /tmp/bench62887953/bundle/config.json && sed -i '/\"env\": \\[/a\\ \\ \\ \\ \"LD_PRELOAD=\\/preload.so\",' /tmp/bench62887953/bundle/config.json"
+  },
+  {
+    "case_id": "q69295491",
+    "category": "filesystem",
+    "model": "Qwen/Qwen2.5-Coder-32B-Instruct",
+    "provider": "huggingface",
+    "code": "cat <<EOF > container-config.json\n{\n  \"metadata\": {\n    \"name\": \"bench69295491\"\n  },\n  \"image\": {\n    \"image\": \"alpine:latest\"\n  },\n  \"command\": [\n    \"sh\",\n    \"-c\",\n    \"tail -f /dev/null\"\n  ],\n  \"mounts\": [\n    {\n      \"container_path\": \"/data\",\n      \"host_path\": \"/tmp/bench69295491/hostdir\",\n      \"readonly\": false\n    }\n  ]\n}\nEOF\ncat <<EOF > pod-config.json\n{\n  \"metadata\": {\n    \"name\": \"bench69295491-pod\"\n  },\n  \"log_directory\": \"/var/log/pods\"\n}\nEOF\nPOD_ID=$(sudo crictl runp pod-config.json)\nsudo crictl create $POD_ID container-config.json pod-config.json\nsudo crictl start $POD_ID"
+  },
+  {
+    "case_id": "q75798292",
+    "category": "filesystem",
+    "model": "Qwen/Qwen2.5-Coder-32B-Instruct",
+    "provider": "huggingface",
+    "code": "ctr containers mount bench75798292 /mnt && cp /tmp/bench75798292/test.txt /mnt/data/ && ctr containers unmount bench75798292"
+  },
+  {
+    "case_id": "q61994952",
+    "category": "isolation",
+    "model": "Qwen/Qwen2.5-Coder-32B-Instruct",
+    "provider": "huggingface",
+    "code": "sudo bash -c 'echo \"{\" > /tmp/bench61994952/verdict.json; for c in bench61994952-c1 bench61994952-c2 bench61994952-c3 bench61994952-c4; do j=/tmp/bench61994952/runc-root/$c/state.json; c=$(jq \".config.capabilities.Bounding | length == $(capsh --print | grep \"=ep\" | wc -l)\" $j); d=$(jq '.config.cgroups.devices[] | select(.type==97 and .major==-1 and .minor==-1) | .allow == true' $j); n=np=$(jq '.config.no_new_privileges | if . == null then \"true\" else . end' $j); p=$(jq '.config.mask_paths == [] and .config.readonly_paths == []' $j); s=$(if [[ $c == true && $d == true && $n == true && $p == true ]]; then echo \"PRIVILEGED\"; else echo \"NOT_PRIVILEGED\"; fi); echo \"\\\"$c\\\": \\\"$s\\\",\" >> /tmp/bench61994952/verdict.json; done; sed -i \"$ s/,$//\" /tmp/bench61994952/verdict.json; echo \"}\" >> /tmp/bench61994952/verdict.json'"
+  },
+  {
+    "case_id": "q70714501",
+    "category": "isolation",
+    "model": "Qwen/Qwen2.5-Coder-32B-Instruct",
+    "provider": "huggingface",
+    "code": "mkdir -p /etc/containerd/certs.d/cri && groupadd testusergroup && usermod -aG testusergroup testuser && systemctl restart containerd"
+  },
+  {
+    "case_id": "q62408028",
+    "category": "networking",
+    "model": "Qwen/Qwen2.5-Coder-32B-Instruct",
+    "provider": "huggingface",
+    "code": "ip link delete cni0\n/tmp/bench62408028/cni-bin/bridge < /tmp/bench62408028/netconf.json CNI_COMMAND=ADD CNI_CONTAINERID=\"bench62408028-container\" CNI_NETNS=/var/run/netns/bench62408028-pod CNI_IFNAME=eth0 CNI_PATH=/tmp/bench62408028/cni-bin"
+  },
+  {
+    "case_id": "q73631968",
+    "category": "networking",
+    "model": "Qwen/Qwen2.5-Coder-32B-Instruct",
+    "provider": "huggingface",
+    "code": "nerdctl stop bench73631968 && nerdctl rm bench73631968 && nerdctl run -d --name bench73631968 -p 18974:80 busybox httpd -f -p 80 -h /www"
+  }
+]

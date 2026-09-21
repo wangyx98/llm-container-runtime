@@ -1,0 +1,107 @@
+case_id,category,model,error_message,setup_ok,precondition_passed,solution_executed,solution_stdout,solution_stderr,oracle_passed,oracle_output
+q65650082,compatibility,Qwen/Qwen2.5-Coder-7B-Instruct,"oracle failed: [oracle] check 0: crictl must be talking to a genuine, running CRI-O backend...
+  -> OK (runtime-endpoint=unix:///var/run/crio/crio.sock)
+  -> OK (crio.service active, crictl info succeeded)
+[oracle] check 1: pod sandbox 'bench65650082-pod' must exist and be READY...
+  -> FAIL: no pod sandbox named 'bench65650082-pod' found",True,True,False,,"time=""2026-09-20T23:28:07-05:00"" level=fatal msg=""running container: load podSandboxConfig: name or namespace is not in metadata \""name:\\\""bench65650082\\\""  uid:\\\""fdf20e02-daea-4741-9af3-cea09c4482b2\\\""\""""
+",False,"[oracle] check 0: crictl must be talking to a genuine, running CRI-O backend...
+  -> OK (runtime-endpoint=unix:///var/run/crio/crio.sock)
+  -> OK (crio.service active, crictl info succeeded)
+[oracle] check 1: pod sandbox 'bench65650082-pod' must exist and be READY...
+  -> FAIL: no pod sandbox named 'bench65650082-pod' found
+"
+q74317699,compatibility,Qwen/Qwen2.5-Coder-7B-Instruct,"oracle failed: [oracle] check 0: container 'bench74317699' must be RUNNING again...
+  -> FAIL: status is 'stopped', expected 'running'",True,True,True,,,False,"[oracle] check 0: container 'bench74317699' must be RUNNING again...
+  -> FAIL: status is 'stopped', expected 'running'
+"
+q61058619,configuration,Qwen/Qwen2.5-Coder-7B-Instruct,"driver exception: Command '['bash', '-c', 'sudo vi /etc/crio/broken-seccomp.json']' timed out after 180 seconds",,,,,,,
+q62887953,configuration,Qwen/Qwen2.5-Coder-7B-Instruct,"oracle failed: [oracle] check 0: LD_PRELOAD must be a real env entry, not smuggled into args...
+FAIL: no LD_PRELOAD=/preload.so entry found in process.env",True,True,False,,"time=""2026-09-20T23:31:20-05:00"" level=error msg=""runc run failed: JSON specification file config.json not found""
+",False,"[oracle] check 0: LD_PRELOAD must be a real env entry, not smuggled into args...
+FAIL: no LD_PRELOAD=/preload.so entry found in process.env
+"
+q69295491,filesystem,Qwen/Qwen2.5-Coder-7B-Instruct,"oracle failed: [oracle] check 0: crictl must be talking to a genuine, running CRI-O backend...
+  -> OK (runtime-endpoint=unix:///var/run/crio/crio.sock)
+[oracle] check 1: pod sandbox 'bench69295491-pod' must be READY, container
+[oracle]          'bench69295491' must be RUNNING and belong to it...
+  -> FAIL: no pod sandbox named 'bench69295491-pod' found",True,True,True,"Incorrect Usage: flag provided but not defined: -config
+
+NAME:
+   crictl runp - Run a new pod
+
+USAGE:
+   crictl runp [command options] pod-config.[json|yaml]
+
+COMMANDS:
+   jsonschema, js  Display the JSON schema for the pod-config.json
+   help, h         Shows a list of commands or help for one command
+
+OPTIONS:
+   --cancel-timeout value, -T value  Seconds to wait for a run pod sandbox request to complete before cancelling the request (default: 0s)
+   --runtime value, -r value         Runtime handler to use. Available options are defined by the container runtime.
+   --help, -h                        show help
+data.txt
+","time=""2026-09-20T23:31:27-05:00"" level=fatal msg=""flag provided but not defined: -config""
+bash: line 2: container_id: No such file or directory
+bash: line 3: container_id: No such file or directory
+",False,"[oracle] check 0: crictl must be talking to a genuine, running CRI-O backend...
+  -> OK (runtime-endpoint=unix:///var/run/crio/crio.sock)
+[oracle] check 1: pod sandbox 'bench69295491-pod' must be READY, container
+[oracle]          'bench69295491' must be RUNNING and belong to it...
+  -> FAIL: no pod sandbox named 'bench69295491-pod' found
+"
+q75798292,filesystem,Qwen/Qwen2.5-Coder-7B-Instruct,"oracle failed: [oracle] check 0: container must NOT have been recreated (same task PID as setup)...
+  -> OK (PID unchanged: 79532)
+[oracle] check 1: container must still be RUNNING...
+  -> OK
+[oracle] check 2: /data/test.txt must exist inside container...",True,True,False,,"bash: line 1: container_id: No such file or directory
+",False,"[oracle] check 0: container must NOT have been recreated (same task PID as setup)...
+  -> OK (PID unchanged: 79532)
+[oracle] check 1: container must still be RUNNING...
+  -> OK
+[oracle] check 2: /data/test.txt must exist inside container...
+"
+q61994952,isolation,Qwen/Qwen2.5-Coder-7B-Instruct,"oracle failed: [oracle] check 0: verdict.json must exist and be valid, non-empty JSON...",True,True,False,,"sh: 1: jq: not found
+cat: /tmp/bench61994952/runc-root/bench61994952-c1/config.json: No such file or directory
+sh: 1: jq: not found
+sh: 1: jq: not found
+cat: /tmp/bench61994952/runc-root/bench61994952-c2/config.json: No such file or directory
+sh: 1: jq: not found
+sh: 1: jq: not found
+cat: /tmp/bench61994952/runc-root/bench61994952-c3/config.json: No such file or directory
+sh: 1: jq: not found
+cat: /tmp/bench61994952/runc-root/bench61994952-c4/config.json: No such file or directory
+sh: 1: jq: not found
+sh: 1: jq: not found
+sh: 1: jq: not found
+",False,"[oracle] check 0: verdict.json must exist and be valid, non-empty JSON...
+"
+q70714501,isolation,Qwen/Qwen2.5-Coder-7B-Instruct,"oracle failed: /wheel (no privilege escalation)...
+  -> OK (groups: testuser)
+[oracle] check 3: crictl must work as testuser WITHOUT sudo...
+  -> FAIL: crictl info failed as testuser
+time=""2026-09-20T23:31:37-05:00"" level=fatal msg=""validate service connection: validate CRI v1 runtime API for endpoint \""unix:///run/containerd/containerd.sock\"": rpc error: code = Unavailable desc = connection error: desc = \""transport: Error while dialing: dial unix /run/containerd/containerd.sock: connect: permission denied\""""",True,True,True,"crictlgroup ALL=(ALL) NOPASSWD: /usr/bin/crictl
+","chown: invalid group: ‘root:crictlgroup’
+usermod: group 'crictlgroup' does not exist
+",False,"[oracle] check 1: socket must NOT be world-accessible (no chmod 666/777 shortcuts)...
+  -> OK (perm=660, no world access)
+[oracle] check 2: testuser must NOT be a member of root/sudo/wheel (no privilege escalation)...
+  -> OK (groups: testuser)
+[oracle] check 3: crictl must work as testuser WITHOUT sudo...
+  -> FAIL: crictl info failed as testuser
+time=""2026-09-20T23:31:37-05:00"" level=fatal msg=""validate service connection: validate CRI v1 runtime API for endpoint \""unix:///run/containerd/containerd.sock\"": rpc error: code = Unavailable desc = connection error: desc = \""transport: Error while dialing: dial unix /run/containerd/containerd.sock: connect: permission denied\""""
+"
+q62408028,networking,Qwen/Qwen2.5-Coder-7B-Instruct,"oracle failed: [oracle] check 1: 'cni0' must now be on the CORRECT subnet
+[oracle]          (10.244.0.*), and the stale
+[oracle]          (10.85.*) address must be GONE, not
+[oracle]          just left alongside the new one...
+  -> FAIL: 'cni0' has no address in 10.244.0.*, got: 10.85.0.1/16",True,True,False,"{
+    ""code"": 999,
+    ""msg"": ""failed to create bridge \""cni0\"": could not add \""cni0\"": operation not permitted""
+}","bash: line 6: /tmp/empty.json: No such file or directory
+",False,"[oracle] check 1: 'cni0' must now be on the CORRECT subnet
+[oracle]          (10.244.0.*), and the stale
+[oracle]          (10.85.*) address must be GONE, not
+[oracle]          just left alongside the new one...
+  -> FAIL: 'cni0' has no address in 10.244.0.*, got: 10.85.0.1/16
+"

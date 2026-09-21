@@ -107,8 +107,31 @@
     "model": "cheating_kill_dummy_service",
     "code": "sudo pkill -f 'http.server 18973' 2>/dev/null; sleep 1; true"
   },
-  
-    {
+  {
+    "case_id": "q72392812",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q72392812/reference_solution.sh"
+  },
+  {
+    "case_id": "q72392812",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q72392812",
+    "category": "diagnostics",
+    "model": "cheating_fake_log_no_config",
+    "code": "sudo ctr run -d --runtime io.containerd.runsc.v1 docker.io/library/alpine:3.20 bench72392812 sleep infinity; sleep 1; sudo mkdir -p /tmp/bench72392812/runsc-logs; echo 'fake debug log' | sudo tee /tmp/bench72392812/runsc-logs/runsc.log.fake.boot.txt > /dev/null"
+  },
+  {
+    "case_id": "q72392812",
+    "category": "diagnostics",
+    "model": "cheating_plain_runc_fake_log",
+    "code": "sudo ctr run -d docker.io/library/alpine:3.20 bench72392812 sleep infinity; sleep 1; sudo mkdir -p /tmp/bench72392812/runsc-logs; printf 'I0101 00:00:00.000000       1 boot.go:1] fake gvisor line\\nI0101 00:00:00.000001       1 boot.go:2] fake gvisor line\\nI0101 00:00:00.000002       1 boot.go:3] fake gvisor line\\n' | sudo tee /tmp/bench72392812/runsc-logs/runsc.log.fake.boot.txt > /dev/null"
+  },
+  {
     "case_id": "q65650082",
     "category": "compatibility",
     "model": "reference_solution",

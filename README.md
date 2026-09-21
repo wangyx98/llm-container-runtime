@@ -56,7 +56,7 @@ llm-container-runtime-benchmark/
 ├── cases/
 │   ├── compatibility/
 │   ├── configuration/
-│   │   └── q61058619/           # one case = one self-contained bash test kit
+│   │  test kit
 │   │       ├── setup.sh
 │   │       ├── precondition.sh
 │   │       ├── reference_solution.sh
@@ -64,21 +64,7 @@ llm-container-runtime-benchmark/
 │   │       ├── cleanup.sh
 │   │       └── task.txt
 │   ├── filesystem/
-│   │   └── q75798292/
-│   │       ├── setup.sh
-│   │       ├── precondition.sh
-│   │       ├── reference_solution.sh
-│   │       ├── oracle.sh
-│   │       ├── cleanup.sh
-│   │       └── task.txt
 │   ├── isolation/
-│   │   └── q70714501/
-│   │       ├── setup.sh
-│   │       ├── precondition.sh
-│   │       ├── reference_solution.sh
-│   │       ├── oracle.sh
-│   │       ├── cleanup.sh
-│   │       └── task.txt
 │   ├── networking/
 │   └── diagnostics/
 │
@@ -101,12 +87,19 @@ llm-container-runtime-benchmark/
 │       └── diagnostics/
 │
 ├── samples/
-│   └── llm_outputs.json         # LLM-generated solutions to evaluate
+│   ├── llm_outputs.json          # hand-written reference_solution/no_op_baseline/cheating_*
+│   └── generated/                # real LLM outputs, one auto-named file per run (see below):
+│       └── <provider>__<model>__<timestamp>.json
 │
 ├── results/
 │   └── <timestamp>/results.csv  # run_benchmark.py writes here, one folder per run
 │
 ├── requirements.txt
+├── generate_llm_samples.py       # calls a real LLM API (Claude/GPT/HF/OpenAI-compatible) on
+│                                  # each case's task.txt, writes samples/generated/...
+├── merge_samples.py              # combine several samples/generated/*.json files into one,
+│                                  # for a single run_benchmark.py pass across multiple models
+├── compute_pass_at_1.py          # aggregate a results.csv into a per-model pass@1 table
 ├── run_benchmark.py              # top-level driver: loads config + samples, calls the
 │                                  # right test_suites module, writes timestamped results
 └── run_single_case.py            # run the full 5-stage lifecycle for ONE case only,
@@ -204,9 +197,20 @@ wrong state will fail. This is what makes the benchmark "dynamic":
 correctness is judged by execution, not by resemblance.
 
 To evaluate a real LLM instead of the hand-written baseline/cheating
-samples in `samples/llm_outputs.json`, use `generate_llm_samples.py`:
+samples in `samples/llm_outputs.json`, use `generate_llm_samples.py`.
+It supports four provider backends via `--provider`, so the same
+workflow covers a proprietary API (Claude, ChatGPT) or an open-weight
+model (anything on the Hugging Face Inference API, or a self-hosted
+vLLM/TGI/Ollama server):
 
-1. Install the SDK and set your API key:
+| `--provider` | What it calls | Install | API key |
+|---|---|---|---|
+| `anthropic` (default) | Claude models, Anthropic Messages API | `pip install anthropic` | `ANTHROPIC_API_KEY` |
+| `openai` | GPT models, OpenAI Chat Completions API | `pip install openai` | `OPENAI_API_KEY` |
+| `huggingface` | Any open-weight model on the HF Inference API/Providers (Qwen2.5-Coder, Llama-3.1, DeepSeek-Coder, ...) | `pip install huggingface_hub` | `HF_TOKEN` |
+| `openai_compatible` | Any server speaking the OpenAI chat-completions wire format at a custom `--base-url` (self-hosted vLLM/TGI/Ollama, a HF Inference Endpoint, OpenRouter, Together, Fireworks, ...) | `pip install openai` | env var named by `--api-key-env` (default `OPENAI_API_KEY`) |
+
+1. Install the one SDK you need and set the matching API key, e.g. for Claude:
 ```bash
    pip install anthropic
    export ANTHROPIC_API_KEY=...
@@ -215,23 +219,103 @@ samples in `samples/llm_outputs.json`, use `generate_llm_samples.py`:
    `task.txt` as the prompt. The script extracts the shell command(s) from
    the model's ```bash code block and writes them as a sample:
 ```bash
-   python3 generate_llm_samples.py --model claude-sonnet-4-5 --case q74317699
-   # or, for every case in cases/*/*/task.txt:
-   python3 generate_llm_samples.py --model claude-sonnet-4-5 --all
+   # Claude
+   python3 generate_llm_samples.py --provider anthropic \
+       --model claude-sonnet-4-5 --case q74317699
+   python3 generate_llm_samples.py --provider anthropic \
+       --model claude-sonnet-4-5 --all
+
+   # ChatGPT / GPT
+   export OPENAI_API_KEY=sk-...
+   python3 generate_llm_samples.py --provider openai \
+       --model gpt-4o --all
+
+   # An open-weight model via the Hugging Face Inference API
+   export HF_TOKEN=hf_...
+   python3 generate_llm_samples.py --provider huggingface \
+       --model Qwen/Qwen2.5-Coder-32B-Instruct --all
+
+   # A self-hosted / OpenAI-compatible endpoint (vLLM, TGI, Ollama, ...)
+   export MY_ENDPOINT_KEY=...
+   python3 generate_llm_samples.py --provider openai_compatible \
+       --model meta-llama/Llama-3.1-70B-Instruct \
+       --base-url https://your-endpoint.example.com/v1 \
+       --api-key-env MY_ENDPOINT_KEY --all
 ```
-   This writes to `samples/llm_generated_outputs.json` by default (kept
-   separate from `samples/llm_outputs.json`, which holds the hand-written
+   **Every run writes to its own new, auto-named file** —
+   `samples/generated/<provider>__<model>__<timestamp>.json` — printed
+   at the start of the run, e.g.:
+```
+   samples/generated/anthropic__claude-sonnet-4-5__2026-09-20_21-15-03.json
+   samples/generated/openai__gpt-4o__2026-09-20_21-40-11.json
+   samples/generated/huggingface__Qwen_Qwen2.5-Coder-32B-Instruct__2026-09-20_22-02-47.json
+```
+   Nothing is ever silently overwritten this way: a different model, or
+   a re-run of the *same* model at a different time, always lands in its
+   own file, so every run is automatically kept as a dated backup. Each
+   sample inside the file also carries `"provider"`, `"model"`, and
+   `"generated_at"` fields, so a file is self-describing even if you
+   rename or move it later. (This is kept separate from
+   `samples/llm_outputs.json`, which holds the hand-written
    `reference_solution` / `no_op_baseline` / `cheating_*` samples used to
-   validate the oracle itself).
-3. Run the generated sample(s) through the same 5-stage harness:
+   validate the oracle itself — that file is never touched by this
+   script.) Each generated sample is written incrementally (after every
+   case, not just at the end), so a `--all` run that fails partway
+   through (rate limit, network error) doesn't lose everything already
+   collected — check the printed list of failed cases at the end and
+   re-run just those with `--case`.
+
+   If you'd rather accumulate several models into one shared file as
+   you go (instead of one file per run), pass `--out` explicitly — a
+   sample for a `(case_id, model)` pair already in that file is
+   replaced, everything else is kept:
+```bash
+   python3 generate_llm_samples.py --provider anthropic \
+       --model claude-sonnet-4-5 --all --out samples/generated/compare.json
+   python3 generate_llm_samples.py --provider openai \
+       --model gpt-4o --all --out samples/generated/compare.json
+```
+3. Run the generated sample(s) through the same 5-stage harness, pointing
+   `--samples` at whichever file you want to evaluate:
 ```bash
    # single case
    python3 run_single_case.py q74317699 --model claude-sonnet-4-5 \
-       --samples samples/llm_generated_outputs.json
+       --samples samples/generated/anthropic__claude-sonnet-4-5__2026-09-20_21-15-03.json
 
-   # full batch
-   python3 run_benchmark.py --samples samples/llm_generated_outputs.json
+   # full batch, one model's run
+   python3 run_benchmark.py \
+       --samples samples/generated/anthropic__claude-sonnet-4-5__2026-09-20_21-15-03.json
 ```
+   To compare **multiple** models' separate per-run files in one
+   `results.csv` (and therefore one `compute_pass_at_1.py` table), merge
+   them first with `merge_samples.py` — it only reads the inputs and
+   writes a new combined file, so the individual per-run backups are
+   never modified:
+```bash
+   python3 merge_samples.py \
+       samples/generated/anthropic__claude-sonnet-4-5__2026-09-20_21-15-03.json \
+       samples/generated/openai__gpt-4o__2026-09-20_21-40-11.json \
+       samples/generated/huggingface__Qwen_Qwen2.5-Coder-32B-Instruct__2026-09-20_22-02-47.json \
+       --out samples/generated/compare_2026-09-20.json
+
+   python3 run_benchmark.py --samples samples/generated/compare_2026-09-20.json
+```
+4. Summarize pass@1 across all cases, per model, from the resulting
+   `results.csv`:
+```bash
+   python3 compute_pass_at_1.py --latest
+   # or point at a specific run:
+   python3 compute_pass_at_1.py results/2026-09-20_12-00-00/results.csv
+   # save the summary table too:
+   python3 compute_pass_at_1.py --latest --out results/pass_at_1_summary.csv
+```
+   Each row in `samples_file` is a single, unretried attempt at a case,
+   so `oracle_passed` per `(case_id, model)` **is** the pass@1 signal for
+   that attempt — `compute_pass_at_1.py` just aggregates it into
+   `passed / attempted` per model and lists which case_ids failed.
+   Pass `--strict` to also require `setup_ok`/`precondition_passed`,
+   excluding cases where the harness environment itself misbehaved
+   rather than the model's solution being wrong.
 
 `run_single_case.py` and `run_benchmark.py` don't care whether a sample
 came from a human or a model — they just run whatever `code` string is
@@ -239,14 +323,19 @@ attached to the sample through cleanup → setup → precondition →
 `[code]` → oracle → cleanup, exactly as described above.
 
 **Current limitations:**
-- Only the Anthropic Messages API is wired up (`call_anthropic()` in
-  `generate_llm_samples.py`); adding another provider means adding a
-  parallel `call_<provider>()` function and a `--provider` flag.
 - Code extraction is a naive regex for the first ```bash/```sh fenced
   block in the response — check the output of a single `--case` run
-  before trusting `--all` on a new model.
-- No retries or rate-limiting; a large `--all` run against many cases can
-  hit provider rate limits with no backoff.
+  before trusting `--all` on a new model. A model that ignores the
+  "respond with ONLY a code block" instruction (common on smaller
+  open-weight models) may need a stricter prompt or a smarter extractor.
+- No retries/backoff beyond the incremental-write safety net above; a
+  large `--all` run against many cases can still hit provider rate
+  limits mid-run — pass `--sleep <seconds>` to space out calls.
+- The Hugging Face Inference API's model availability and routing
+  (`--hf-provider`) can change over time; if a call fails with a
+  "model not supported by this provider" style error, try
+  `--hf-provider hf-inference` explicitly or check the model's page on
+  huggingface.co for which Inference Providers currently serve it.
 
 ## Requirements
 
