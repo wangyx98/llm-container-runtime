@@ -1,0 +1,18 @@
+{
+  "metadata": {
+    "name": "bench69295491"
+  },
+  "image": {
+    "image": "busybox"
+  },
+  "command": [
+    "sh",
+    "-c",
+    "sleep infinity"
+  ],
+  "mounts": [{
+    "host_path": "/tmp/bench69295491/hostdir",
+    "container_path": "/data",
+    "readonly": false
+  }]
+}

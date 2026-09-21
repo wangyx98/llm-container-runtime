@@ -1,0 +1,120 @@
+case_id,category,model,error_message,setup_ok,precondition_passed,solution_executed,solution_stdout,solution_stderr,oracle_passed,oracle_output
+q65650082,compatibility,Qwen/Qwen2.5-Coder-32B-Instruct,,True,True,True,"d85a87eb2202749b5735fa6be75633fdabb1fa612b80924857e8a849065c7abe
+d85a87eb22027
+","time=""2026-09-20T22:50:50-05:00"" level=warning msg=""cgroup_parent is not set. Use `runtime-config` to get the runtime cgroup driver""
+time=""2026-09-20T22:50:50-05:00"" level=warning msg=""cgroup_parent is not set. Use `runtime-config` to get the runtime cgroup driver""
+",True,"[oracle] check 0: crictl must be talking to a genuine, running CRI-O backend...
+  -> OK (runtime-endpoint=unix:///var/run/crio/crio.sock)
+  -> OK (crio.service active, crictl info succeeded)
+[oracle] check 1: pod sandbox 'bench65650082-pod' must exist and be READY...
+  -> OK (pod 3cd834ba771c2e5d0fcdb7e09b77cd2f7312aa30a24e1caf307b3724fc15ce92 is SANDBOX_READY)
+[oracle] check 2: container 'bench65650082' must exist, be RUNNING,
+[oracle]          belong to that exact pod, and use the busybox image...
+  -> OK (container d85a87eb2202749b5735fa6be75633fdabb1fa612b80924857e8a849065c7abe is CONTAINER_RUNNING)
+  -> OK (image matches: docker.io/library/busybox:1.36)
+  -> OK (container is linked to pod 3cd834ba771c2e5d0fcdb7e09b77cd2f7312aa30a24e1caf307b3724fc15ce92)
+[oracle] check 3: a real OS process must be alive and be the expected 'sleep' command...
+  -> process cmdline: sleep 100000 
+  -> OK (matches expected sleep process)
+[oracle] ALL CHECKS PASSED
+"
+q74317699,compatibility,Qwen/Qwen2.5-Coder-32B-Instruct,"oracle failed: [oracle] check 0: container 'bench74317699' must be RUNNING again...
+  -> FAIL: status is 'stopped', expected 'running'",True,True,False,,"time=""2026-09-20T22:50:56-05:00"" level=error msg=""container does not exist""
+",False,"[oracle] check 0: container 'bench74317699' must be RUNNING again...
+  -> FAIL: status is 'stopped', expected 'running'
+"
+q61058619,configuration,Qwen/Qwen2.5-Coder-32B-Instruct,"oracle failed: tup seccomp: apply profile from bytes: load local profile: decoding seccomp profile failed: invalid character 't' looking for beginning of object key string"" podSandboxID=""314c39caabdfe892822c881aa6ba258f6ea534486431cd4bdae7f85698cbe7f0""
+time=""2026-09-20T22:51:03-05:00"" level=fatal msg=""creating container: rpc error: code = Unknown desc = setup seccomp: apply profile from bytes: load local profile: decoding seccomp profile failed: invalid character 't' looking for beginning of object key string""",True,True,False,,"cp: cannot stat '/var/lib/kubelet/seccomp/operator/default.json': No such file or directory
+",False,"[oracle] check 1: pod sandbox must still be Ready (untouched by the fix)...
+  -> OK
+[oracle] check 2: container must now be creatable (fix must have worked)...
+  -> FAIL: crictl create failed
+time=""2026-09-20T22:51:03-05:00"" level=warning msg=""cgroup_parent is not set. Use `runtime-config` to get the runtime cgroup driver""
+E0920 22:51:03.022627   76408 log.go:32] ""CreateContainer in sandbox from runtime service failed"" err=""rpc error: code = Unknown desc = setup seccomp: apply profile from bytes: load local profile: decoding seccomp profile failed: invalid character 't' looking for beginning of object key string"" podSandboxID=""314c39caabdfe892822c881aa6ba258f6ea534486431cd4bdae7f85698cbe7f0""
+time=""2026-09-20T22:51:03-05:00"" level=fatal msg=""creating container: rpc error: code = Unknown desc = setup seccomp: apply profile from bytes: load local profile: decoding seccomp profile failed: invalid character 't' looking for beginning of object key string""
+"
+q62887953,configuration,Qwen/Qwen2.5-Coder-32B-Instruct,"oracle failed: [oracle] check 0: LD_PRELOAD must be a real env entry, not smuggled into args...
+FAIL: LD_PRELOAD found inside args ('LD_PRELOAD=/preload.so /victim') instead of env",True,True,True,,,False,"[oracle] check 0: LD_PRELOAD must be a real env entry, not smuggled into args...
+FAIL: LD_PRELOAD found inside args ('LD_PRELOAD=/preload.so /victim') instead of env
+"
+q69295491,filesystem,Qwen/Qwen2.5-Coder-32B-Instruct,"oracle failed: [oracle] check 0: crictl must be talking to a genuine, running CRI-O backend...
+  -> OK (runtime-endpoint=unix:///var/run/crio/crio.sock)
+[oracle] check 1: pod sandbox 'bench69295491-pod' must be READY, container
+[oracle]          'bench69295491' must be RUNNING and belong to it...
+  -> FAIL: no pod sandbox named 'bench69295491-pod' found",True,True,False,"NAME:
+   crictl create - Create a new container
+
+USAGE:
+   crictl create [command options] POD container-config.[json|yaml] pod-config.[json|yaml]
+
+COMMANDS:
+   jsonschema, js  Display the JSON schema for the pod or container config
+   help, h         Shows a list of commands or help for one command
+
+OPTIONS:
+   --auth AUTH_STRING                Use AUTH_STRING for accessing the registry. AUTH_STRING is a base64 encoded 'USERNAME[:PASSWORD]'
+   --cancel-timeout value, -T value  Seconds to wait for a container create request to complete before cancelling the request (default: 0s)
+   --creds USERNAME[:PASSWORD]       Use USERNAME[:PASSWORD] for accessing the registry
+   --no-pull                         Do not pull the image on container creation (overrides pull-image-on-create=true in config) (default: false)
+   --pull-timeout value, --pt value  Maximum time to be used for pulling the image, disabled if set to 0s (default: 0s) [$CRICTL_PULL_TIMEOUT]
+   --username USERNAME               Use USERNAME for accessing the registry. The password will be requested on the command line
+   --with-pull                       Pull the image on container creation (overrides pull-image-on-create=false in config) (default: false)
+   --help, -h                        show help
+","time=""2026-09-20T22:51:12-05:00"" level=fatal msg=""load podSandboxConfig: name or namespace is not in metadata \""name:\\\""bench69295491-pod\\\""  uid:\\\""1bf8eaac-2ed8-498f-88e2-0d7ff38b55af\\\""\""""
+time=""2026-09-20T22:51:12-05:00"" level=fatal msg=""ID cannot be empty""
+",False,"[oracle] check 0: crictl must be talking to a genuine, running CRI-O backend...
+  -> OK (runtime-endpoint=unix:///var/run/crio/crio.sock)
+[oracle] check 1: pod sandbox 'bench69295491-pod' must be READY, container
+[oracle]          'bench69295491' must be RUNNING and belong to it...
+  -> FAIL: no pod sandbox named 'bench69295491-pod' found
+"
+q75798292,filesystem,Qwen/Qwen2.5-Coder-32B-Instruct,"oracle failed: [oracle] check 0: container must NOT have been recreated (same task PID as setup)...
+  -> OK (PID unchanged: 77137)
+[oracle] check 1: container must still be RUNNING...
+  -> OK
+[oracle] check 2: /data/test.txt must exist inside container...",True,True,False,,"No help topic for 'mount'
+",False,"[oracle] check 0: container must NOT have been recreated (same task PID as setup)...
+  -> OK (PID unchanged: 77137)
+[oracle] check 1: container must still be RUNNING...
+  -> OK
+[oracle] check 2: /data/test.txt must exist inside container...
+"
+q61994952,isolation,Qwen/Qwen2.5-Coder-32B-Instruct,"oracle failed: [oracle] check 0: verdict.json must exist and be valid, non-empty JSON...
+  -> FAIL: /tmp/bench61994952/verdict.json was not written by the solution",True,True,False,,"bash: -c: line 1: syntax error near unexpected token `('
+bash: -c: line 1: `sudo bash -c 'echo ""{"" > /tmp/bench61994952/verdict.json; for c in bench61994952-c1 bench61994952-c2 bench61994952-c3 bench61994952-c4; do j=/tmp/bench61994952/runc-root/$c/state.json; c=$(jq "".config.capabilities.Bounding | length == $(capsh --print | grep ""=ep"" | wc -l)"" $j); d=$(jq '.config.cgroups.devices[] | select(.type==97 and .major==-1 and .minor==-1) | .allow == true' $j); n=np=$(jq '.config.no_new_privileges | if . == null then ""true"" else . end' $j); p=$(jq '.config.mask_paths == [] and .config.readonly_paths == []' $j); s=$(if [[ $c == true && $d == true && $n == true && $p == true ]]; then echo ""PRIVILEGED""; else echo ""NOT_PRIVILEGED""; fi); echo ""\""$c\"": \""$s\"","" >> /tmp/bench61994952/verdict.json; done; sed -i ""$ s/,$//"" /tmp/bench61994952/verdict.json; echo ""}"" >> /tmp/bench61994952/verdict.json''
+",False,"[oracle] check 0: verdict.json must exist and be valid, non-empty JSON...
+  -> FAIL: /tmp/bench61994952/verdict.json was not written by the solution
+"
+q70714501,isolation,Qwen/Qwen2.5-Coder-32B-Instruct,"oracle failed: /wheel (no privilege escalation)...
+  -> OK (groups: testuser)
+[oracle] check 3: crictl must work as testuser WITHOUT sudo...
+  -> FAIL: crictl info failed as testuser
+time=""2026-09-20T22:51:24-05:00"" level=fatal msg=""validate service connection: validate CRI v1 runtime API for endpoint \""unix:///run/containerd/containerd.sock\"": rpc error: code = Unavailable desc = connection error: desc = \""transport: Error while dialing: dial unix /run/containerd/containerd.sock: connect: permission denied\""""",True,True,False,,"mkdir: cannot create directory ‘/etc/containerd/certs.d’: Permission denied
+",False,"[oracle] check 1: socket must NOT be world-accessible (no chmod 666/777 shortcuts)...
+  -> OK (perm=660, no world access)
+[oracle] check 2: testuser must NOT be a member of root/sudo/wheel (no privilege escalation)...
+  -> OK (groups: testuser)
+[oracle] check 3: crictl must work as testuser WITHOUT sudo...
+  -> FAIL: crictl info failed as testuser
+time=""2026-09-20T22:51:24-05:00"" level=fatal msg=""validate service connection: validate CRI v1 runtime API for endpoint \""unix:///run/containerd/containerd.sock\"": rpc error: code = Unavailable desc = connection error: desc = \""transport: Error while dialing: dial unix /run/containerd/containerd.sock: connect: permission denied\""""
+"
+q62408028,networking,Qwen/Qwen2.5-Coder-32B-Instruct,"oracle failed: [oracle] check 1: 'cni0' must now be on the CORRECT subnet
+[oracle]          (10.244.0.*), and the stale
+[oracle]          (10.85.*) address must be GONE, not
+[oracle]          just left alongside the new one...
+  -> FAIL: 'cni0' has no address in 10.244.0.*, got: 10.85.0.1/16",True,True,True,,"RTNETLINK answers: Operation not permitted
+CNI bridge plugin v1.5.1
+CNI protocol versions supported: 0.1.0, 0.2.0, 0.3.0, 0.3.1, 0.4.0, 1.0.0
+",False,"[oracle] check 1: 'cni0' must now be on the CORRECT subnet
+[oracle]          (10.244.0.*), and the stale
+[oracle]          (10.85.*) address must be GONE, not
+[oracle]          just left alongside the new one...
+  -> FAIL: 'cni0' has no address in 10.244.0.*, got: 10.85.0.1/16
+"
+q73631968,networking,Qwen/Qwen2.5-Coder-32B-Instruct,"oracle failed: [oracle] check 0: the pre-existing host service on port 18973 must be untouched...
+  -> OK
+[oracle] check 1: container 'bench73631968' must exist and be running...",True,True,False,,"time=""2026-09-20T22:51:28-05:00"" level=fatal msg=""rootless containerd not running? (hint: use `containerd-rootless-setuptool.sh install` to start rootless containerd): stat /run/user/1000/containerd-rootless: no such file or directory""
+",False,"[oracle] check 0: the pre-existing host service on port 18973 must be untouched...
+  -> OK
+[oracle] check 1: container 'bench73631968' must exist and be running...
+"
