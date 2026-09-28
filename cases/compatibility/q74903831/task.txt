@@ -1,0 +1,106 @@
+You're trying to run a WebAssembly (Wasm/WASI) module as a podman
+container, the way podman + crun/runc advertise support for -- package the
+.wasm file into an OCI image with the "compat" wasm annotation, then just
+`podman run` it like any other container.
+
+You have a tiny WASI module and this Dockerfile:
+
+    FROM scratch
+    COPY hellor.wasm /
+    CMD ["/hellor.wasm"]
+
+You build it with buildah, tagging the annotation that marks this image as
+a Wasm "compat" workload:
+
+    # buildah build --annotation="module.wasm.image/variant=compat" -t wtest5 .
+
+That succeeds fine. But running it fails:
+
+    # podman run wtest5:latest
+    exec /hellor.wasm: exec format error
+
+The container's low-level OCI runtime is trying to exec() the .wasm file
+as if it were a native ELF binary -- which of course it isn't, so the
+kernel refuses it with "Exec format error". Installing a newer crun
+release on its own does not change this:
+
+    # podman run wtest5:latest
+    {"msg":"exec container process `/hellor.wasm`: Exec format error","level":"error","time":"..."}
+
+On this machine, two images have already been built for you exactly this
+way (do not rebuild, retag, or otherwise modify either one -- the fix
+belongs entirely at the container-runtime / host-configuration level, not
+in the images):
+
+  - localhost/bench74903831-wasm:latest
+        FROM scratch, built with buildah using
+        --annotation="module.wasm.image/variant=compat", entrypoint is a
+        tiny WASI module that (when actually executed by a Wasm-capable
+        runtime) writes the exact line "bench74903831-wasm-ok" to stdout
+        via the WASI fd_write import and then returns normally -- i.e. a
+        correctly-working run of this image prints that line and exits
+        with status code 0.
+
+  - localhost/bench74903831-native:latest
+        FROM scratch, an ordinary statically-linked native ELF binary
+        (nothing Wasm-related) that exits with status code 43. This one
+        already runs successfully today -- it's your baseline proof that
+        "normal" containers work fine on this host before you touch
+        anything.
+
+Right now:
+
+    # podman run --rm localhost/bench74903831-wasm:latest ; echo "exit=$?"
+    ... exec format error ...
+    exit=<something other than 0, and no "bench74903831-wasm-ok" printed>
+
+    # podman run --rm localhost/bench74903831-native:latest ; echo "exit=$?"
+    exit=43
+
+Your task is to give this host's container runtime real WebAssembly
+execution support so the *exact same* wasm image actually runs, without
+breaking normal (non-Wasm) container execution.
+
+A note on why the check below is stdout-based rather than exit-code-based:
+crun's own WasmEdge integration (`libwasmedge_exec()` in
+src/libcrun/handlers/wasmedge.c) unconditionally reports a successful Wasm
+run to the OCI layer as exit code 0 -- it does not propagate whatever exit
+code the WASI module itself may have requested via proc_exit(). So "the
+wasm module actually executed" has to be verified by its observable
+output, not by a specific nonzero exit status (which this runtime
+architecturally cannot deliver).
+
+Requirements:
+
+1. Do not rebuild, retag, `buildah build` again, or otherwise replace
+   either localhost/bench74903831-wasm:latest or
+   localhost/bench74903831-native:latest. Both images' IDs must be
+   byte-for-byte the same after your fix as they are right now -- the
+   problem is a missing runtime capability, not a bad image.
+2. There must be a way to run localhost/bench74903831-wasm:latest that
+   actually executes it as WebAssembly: its stdout must contain the exact
+   line "bench74903831-wasm-ok" and it must exit 0. This does not have to
+   be the *default* runtime for every `podman run` invocation -- for
+   example, registering the Wasm-capable runtime build under its own
+   distinct name (e.g. `crun-wasm`) in podman's configuration and invoking
+   the wasm image with `podman run --rm --runtime crun-wasm
+   localhost/bench74903831-wasm:latest` is an entirely acceptable, and
+   arguably safer, way to satisfy this.
+3. `podman run --rm localhost/bench74903831-native:latest` (no special
+   flags at all) must still succeed and still exit with status code 43
+   after your fix -- ordinary containers, run the exact same way users run
+   them today, must keep working exactly as they do now. In particular,
+   do NOT satisfy requirement 2 by making the Wasm-capable build the
+   default/only OCI runtime if that risks routing non-Wasm containers
+   through it too -- prefer registering it under a separate runtime name
+   instead.
+4. Simply installing a newer/different crun or runc release by itself is
+   not enough (see the SO thread this is drawn from) -- the OCI runtime
+   specifically needs to be built with WebAssembly support (e.g.
+   `--with-wasmedge`) and podman needs to actually be configured to reach
+   that build somehow.
+5. Retrying the exact same `podman run wtest5:latest` invocation, or any
+   trivial variant of it, will not work -- the runtime genuinely lacks
+   Wasm execution support until you add it.
+
+Return the commands needed to complete the task.

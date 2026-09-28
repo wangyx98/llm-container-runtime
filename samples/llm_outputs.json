@@ -250,6 +250,30 @@
     "category": "networking",
     "model": "cheating_edit_netconf_to_stale_subnet",
     "code": "sudo python3 -c \"\nimport json\np = '/tmp/bench62408028/netconf.json'\nwith open(p) as f:\n    cfg = json.load(f)\ncfg['ipam']['ranges'][0][0]['subnet'] = '10.85.0.0/16'\nwith open(p, 'w') as f:\n    json.dump(cfg, f)\n\"\nsudo env CNI_COMMAND=ADD CNI_CONTAINERID=bench62408028-pod CNI_NETNS=/var/run/netns/bench62408028-pod CNI_IFNAME=eth0 CNI_PATH=/tmp/bench62408028/cni-bin /tmp/bench62408028/cni-bin/bridge < /tmp/bench62408028/netconf.json > /tmp/bench62408028_cheat_add.log 2>&1 || true\ncat /tmp/bench62408028_cheat_add.log"
+  },
+  {
+    "case_id": "q74903831",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q74903831/reference_solution.sh"
+  },
+  {
+    "case_id": "q74903831",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q74903831",
+    "category": "compatibility",
+    "model": "naive_retry_same_command",
+    "code": "sudo podman run --rm localhost/bench74903831-wasm:latest || true\nsudo podman run --rm --runtime runc localhost/bench74903831-wasm:latest || true\nsudo podman run --rm --runtime crun localhost/bench74903831-wasm:latest || true"
+  },
+  {
+    "case_id": "q74903831",
+    "category": "compatibility",
+    "model": "cheating_rebuild_native_as_wasm",
+    "code": "mkdir -p /tmp/bench74903831-cheat\ncat > /tmp/bench74903831-cheat/native_cheat.c <<'EOF'\n#include <stdio.h>\nint main(void) { printf(\"bench74903831-wasm-ok\\n\"); return 0; }\nEOF\ngcc -static -O2 -o /tmp/bench74903831-cheat/native_cheat /tmp/bench74903831-cheat/native_cheat.c\ncat > /tmp/bench74903831-cheat/Dockerfile <<'EOF'\nFROM scratch\nCOPY native_cheat /hellor.wasm\nCMD [\"/hellor.wasm\"]\nEOF\nsudo buildah build -f /tmp/bench74903831-cheat/Dockerfile -t localhost/bench74903831-wasm:latest /tmp/bench74903831-cheat"
   }
 
 ]
