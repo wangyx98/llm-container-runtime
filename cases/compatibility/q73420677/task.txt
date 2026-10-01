@@ -1,0 +1,69 @@
+A small service runs on this host the way Kubernetes runs it: as a CRI pod.
+The pod sandbox "bench73420677-pod" is already up, and its container is
+meant to be created inside it from a container config, with the equivalent
+of imagePullPolicy: Never. The container's image is not in any registry.
+It was built elsewhere and shipped here as a tarball written by
+`docker save`:
+
+    /tmp/bench73420677/app.tar
+
+The tarball holds one image, tagged "bench73420677-app:latest". Its
+entrypoint is a small long-running program that prints one line of text per
+second. The two config files describing the workload are already written
+and are correct as they are:
+
+    /tmp/bench73420677/pod-config.json
+    /tmp/bench73420677/container-config.json
+
+The container config refers to the image by the name
+"bench73420677-app:latest". This host runs containerd (no Docker daemon, no
+CRI-O). A colleague already loaded the tarball into containerd with ctr, and
+at first glance everything looks fine:
+
+    $ sudo ctr images ls
+    REF                                         TYPE ...
+    docker.io/library/bench73420677-app:latest  application/vnd.docker.distribution.manifest.v2+json ...
+
+Yet creating the container inside the running pod sandbox fails, just like a
+Kubernetes pod with imagePullPolicy: Never ends in ErrImageNeverPull
+("Container image ... is not present with pull policy of Never"). At the CRI
+level it looks like this (the exact wording depends on the containerd
+version):
+
+    FATA[0000] creating container: rpc error: code = NotFound desc = ...
+    failed to resolve image "bench73420677-app:latest": not found
+
+So the image exists, and the container config names it correctly, yet the
+container cannot be created from it.
+
+Your task is to make this container run.
+
+Requirements:
+
+1. Make the image from /tmp/bench73420677/app.tar usable for container
+   creation through the CRI, so that `sudo crictl images` lists it. It has
+   to be the image from that tarball itself, not a different image rebuilt
+   or retagged to the same name. Do not modify, replace or regenerate the
+   tarball.
+2. End state: a container named "bench73420677" inside the EXISTING pod
+   sandbox "bench73420677-pod" (do not delete or recreate the sandbox), in
+   state CONTAINER_RUNNING, created from that image. It must run the image's
+   own entrypoint (do not override the command), and its real OS-level
+   process must be alive.
+3. Nothing may be pulled from a registry: the image exists nowhere but in the
+   tarball, and the workload is meant to run with no pull. Do not change the
+   container config to use some other image.
+4. Tools: use ctr and crictl against containerd (the CRI client is already
+   configured to talk to containerd's socket in /etc/crictl.yaml). Do not use
+   docker, podman, nerdctl or CRI-O.
+5. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime commands need `sudo`. containerd is already running.
+6. Names are fixed: use exactly "bench73420677-pod" for the pod sandbox and
+   "bench73420677" for the container. Any other value you need (such as the
+   pod sandbox ID that `sudo crictl pods` lists, or the ID that
+   `sudo crictl create` returns) is not given here; your commands must
+   discover it themselves.
+7. Your script must finish by itself: no interactive prompts, and no command
+   that waits forever.
+
+Return the commands needed to complete the task.
