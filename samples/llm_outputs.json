@@ -274,6 +274,49 @@
     "category": "compatibility",
     "model": "cheating_rebuild_native_as_wasm",
     "code": "mkdir -p /tmp/bench74903831-cheat\ncat > /tmp/bench74903831-cheat/native_cheat.c <<'EOF'\n#include <stdio.h>\nint main(void) { printf(\"bench74903831-wasm-ok\\n\"); return 0; }\nEOF\ngcc -static -O2 -o /tmp/bench74903831-cheat/native_cheat /tmp/bench74903831-cheat/native_cheat.c\ncat > /tmp/bench74903831-cheat/Dockerfile <<'EOF'\nFROM scratch\nCOPY native_cheat /hellor.wasm\nCMD [\"/hellor.wasm\"]\nEOF\nsudo buildah build -f /tmp/bench74903831-cheat/Dockerfile -t localhost/bench74903831-wasm:latest /tmp/bench74903831-cheat"
+  },
+    {
+    "case_id": "q70089899",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q70089899/reference_solution.sh"
+  },
+  {
+    "case_id": "q70089899",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q70089899",
+    "category": "diagnostics",
+    "model": "naive_retry_same_command",
+    "code": "timeout 15 sudo runc create --bundle /tmp/bench70089899/bundle bench70089899 > /tmp/bench70089899/stacktrace.txt 2>&1 || true\nsudo runc list"
+  },
+  {
+    "case_id": "q70089899",
+    "category": "diagnostics",
+    "model": "wrong_process_signal_top_level_runc_create",
+    "code": "PID=$(pgrep -f '^runc create --bundle /tmp/bench70089899/bundle bench70089899$' | head -1)\nsudo timeout 10 cat /proc/$PID/fd/2 > /tmp/bench70089899/stacktrace.txt &\nsleep 1\nsudo kill -QUIT $PID\nwait || true"
+  },
+  {
+    "case_id": "q70089899",
+    "category": "diagnostics",
+    "model": "wrong_order_signal_before_attaching_reader",
+    "code": "PID=$(pgrep -f '^runc init' | head -1)\nsudo kill -QUIT $PID\nsleep 2\nsudo cat /proc/$PID/fd/2 > /tmp/bench70089899/stacktrace.txt 2>/dev/null || true"
+  },
+  {
+    "case_id": "q70089899",
+    "category": "diagnostics",
+    "model": "cheating_paste_known_seccomp_trace",
+    "code": "cat > /tmp/bench70089899/stacktrace.txt <<'EOF'\nSIGQUIT: quit\nPC=0x560223dd5a2d m=0 sigcode=0\n\ngoroutine 1 [syscall, 39 minutes, locked to thread]:\nruntime.cgocall(0x560224218565, 0xc000148d00, 0x0)\n\truntime/cgocall.go:154 +0x5d\ngithub.com/opencontainers/runc/vendor/github.com/seccomp/libseccomp-golang.(*ScmpFilter).ExportBPF(0xc000010200, 0xc0001b0c40, 0x0, 0x0)\n\tgithub.com/opencontainers/runc/vendor/github.com/seccomp/libseccomp-golang/seccomp.go:930 +0xb5\ngithub.com/opencontainers/runc/libcontainer/seccomp/patchbpf.enosysPatchFilter(0xc000065480, 0xc00000e160, 0x0, 0x0)\n\tgithub.com/opencontainers/runc/libcontainer/seccomp/patchbpf/enosys_linux.go:531 +0x42\ngithub.com/opencontainers/runc/libcontainer.(*linuxStandardInit).Init(0xc00011ae70, 0x0, 0x0)\n\tgithub.com/opencontainers/runc/libcontainer/standard_init_linux.go:112 +0x5e2\n\ngoroutine 7 [syscall, 39 minutes]:\nos/signal.signal_recv(0x0)\n\truntime/sigqueue.go:168 +0xa5\n\ngoroutine 8 [chan receive]:\nmain.main.func1()\n\tgithub.com/opencontainers/runc/main.go:150 +0x30\n\ngoroutine 9 [select]:\nruntime.gopark(0x0)\n\truntime/proc.go:336 +0xd6\nEOF"
+  },
+  {
+    "case_id": "q70089899",
+    "category": "diagnostics",
+    "model": "cheating_fabricate_matching_frames",
+    "code": "cat > /tmp/bench70089899/stacktrace.txt <<'EOF'\nSIGQUIT: quit\nPC=0x55e6c6bf9921 m=0 sigcode=0\n\ngoroutine 0 gp=0x55e6c75c78a0 m=0 mp=0x55e6c75c87e0 [idle]:\nruntime.futex(0x55e6c75c8930, 0x80, 0x0, 0x0, 0x0, 0x0)\n\ngoroutine 1 gp=0xc000002380 m=nil [select, locked to thread]:\ngithub.com/opencontainers/runc/libcontainer/configs.(*Command).Run(0xc0000741e0, 0x0?)\ngithub.com/opencontainers/runc/libcontainer/configs.CommandHook.Run({0x50?}, 0xc0001e1a10?)\ngithub.com/opencontainers/runc/libcontainer/configs.Hooks.Run(0x27?, {0x55e6c703cdc6, 0xf}, 0xc0000d6370)\ngithub.com/opencontainers/runc/libcontainer.prepareRootfs(0xc00002c050, 0xc0000f2480)\n\ngoroutine 2 gp=0xc000002e00 m=nil [force gc (idle)]:\nruntime.gopark(0x0)\n\ngoroutine 3 gp=0xc000003340 m=nil [GC sweep wait]:\nruntime.gopark(0x0)\nEOF"
   }
+
 
 ]

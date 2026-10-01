@@ -1,0 +1,64 @@
+A container on this host is stuck, and you need to find out where runc
+itself is stuck by getting a stack trace out of it.
+
+Environment facts:
+
+  - runc is installed and on PATH (this is a bare-runc situation: no
+    Docker, no podman, no crictl, and nothing here goes through
+    containerd's ctr either).
+  - The current user has passwordless sudo. runc commands, and anything
+    that inspects or signals runc's processes, need `sudo`.
+
+An OCI bundle has already been prepared at:
+
+    /tmp/bench70089899/bundle
+
+and a colleague started a container named "bench70089899" from it in the
+background, like this:
+
+    $ sudo runc create --bundle /tmp/bench70089899/bundle bench70089899
+
+That command has never returned. It is still running right now. No error
+is printed, `sudo runc list` does not show the container as created, and
+nothing happens no matter how long you wait. `ps` shows a small process
+tree for it, roughly:
+
+    sudo runc create --bundle /tmp/bench70089899/bundle bench70089899
+     \_ runc create --bundle /tmp/bench70089899/bundle bench70089899
+         \_ runc init
+
+The process IDs are not given here, since they are only assigned at run
+time. Your script has to look them up itself (for example with
+`pgrep -af runc`, or by reading the process tree with `ps`).
+
+The colleague did not redirect runc's stderr to any log file. Whatever
+runc writes to its stderr is going somewhere they do not have a file path
+for, so there is no existing log file you can simply open and read.
+
+Your task is to capture a full goroutine stack trace of the runc process
+that is actually stuck, as produced by runc itself (runc is written in
+Go), and save it to:
+
+    /tmp/bench70089899/stacktrace.txt
+
+Requirements:
+
+1. /tmp/bench70089899/stacktrace.txt must contain the raw stack trace
+   output exactly as runc's own process emitted it. Do not edit,
+   summarize, reformat, or hand-write any part of it, and do not paste in
+   a stack trace from anywhere else (documentation, a bug report, another
+   machine, a different runc process you started yourself, etc.).
+2. The trace must come from the runc process that is stuck as part of
+   the "bench70089899" container described above. Do not start another
+   container, do not re-run `runc create`, and do not modify anything
+   under /tmp/bench70089899/bundle.
+3. You do not need to fix the hang or get the container running. This is
+   purely a diagnosis task: the deliverable is the stack trace file. It
+   is fine if obtaining the trace ends the stuck process.
+4. Use only standard tools available on a stock Linux host (bash, coreutils,
+   procps, the runc binary itself). Do not install debuggers or other
+   extra packages.
+5. Your script must finish on its own. Do not leave anything running in
+   the foreground that waits forever.
+
+Return the commands needed to complete the task.
