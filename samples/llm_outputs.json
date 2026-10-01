@@ -297,7 +297,7 @@
     "case_id": "q70089899",
     "category": "diagnostics",
     "model": "wrong_process_signal_top_level_runc_create",
-    "code": "PID=$(pgrep -f '^runc create --bundle /tmp/bench70089899/bundle bench70089899$' | head -1)\nsudo timeout 10 cat /proc/$PID/fd/2 > /tmp/bench70089899/stacktrace.txt &\nsleep 1\nsudo kill -QUIT $PID\nwait || true"
+    "code": "PID=$(pgrep -f '^runc create --bundle /tmp/bench70089899/bundle bench70089899$' | head -1)\ntimeout 10 sudo cat /proc/$PID/fd/2 > /tmp/bench70089899/stacktrace.txt &\nsleep 1\nsudo kill -QUIT $PID\nwait || true"
   },
   {
     "case_id": "q70089899",
@@ -316,6 +316,78 @@
     "category": "diagnostics",
     "model": "cheating_fabricate_matching_frames",
     "code": "cat > /tmp/bench70089899/stacktrace.txt <<'EOF'\nSIGQUIT: quit\nPC=0x55e6c6bf9921 m=0 sigcode=0\n\ngoroutine 0 gp=0x55e6c75c78a0 m=0 mp=0x55e6c75c87e0 [idle]:\nruntime.futex(0x55e6c75c8930, 0x80, 0x0, 0x0, 0x0, 0x0)\n\ngoroutine 1 gp=0xc000002380 m=nil [select, locked to thread]:\ngithub.com/opencontainers/runc/libcontainer/configs.(*Command).Run(0xc0000741e0, 0x0?)\ngithub.com/opencontainers/runc/libcontainer/configs.CommandHook.Run({0x50?}, 0xc0001e1a10?)\ngithub.com/opencontainers/runc/libcontainer/configs.Hooks.Run(0x27?, {0x55e6c703cdc6, 0xf}, 0xc0000d6370)\ngithub.com/opencontainers/runc/libcontainer.prepareRootfs(0xc00002c050, 0xc0000f2480)\n\ngoroutine 2 gp=0xc000002e00 m=nil [force gc (idle)]:\nruntime.gopark(0x0)\n\ngoroutine 3 gp=0xc000003340 m=nil [GC sweep wait]:\nruntime.gopark(0x0)\nEOF"
+  },
+  {
+    "case_id": "q59161183",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q59161183/reference_solution.sh"
+  },
+  {
+    "case_id": "q59161183",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q59161183",
+    "category": "compatibility",
+    "model": "alt_valid_podman_load_as_root",
+    "code": "sudo podman load -i /tmp/bench59161183/app.tar\ncat > /tmp/bench59161183/pod-config.json <<'EOF'\n{\n  \"metadata\": {\"name\": \"bench59161183-pod\", \"namespace\": \"default\", \"attempt\": 1, \"uid\": \"bench59161183uid00000001\"},\n  \"log_directory\": \"/tmp/bench59161183\",\n  \"linux\": {}\n}\nEOF\ncat > /tmp/bench59161183/container-config.json <<'EOF'\n{\n  \"metadata\": {\"name\": \"bench59161183\"},\n  \"image\": {\"image\": \"localhost/bench59161183/app:local\"},\n  \"log_path\": \"bench59161183.0.log\",\n  \"linux\": {}\n}\nEOF\nPOD_ID=$(sudo crictl runp /tmp/bench59161183/pod-config.json)\nCTR_ID=$(sudo crictl create \"$POD_ID\" /tmp/bench59161183/container-config.json /tmp/bench59161183/pod-config.json)\nsudo crictl start \"$CTR_ID\""
+  },
+  {
+    "case_id": "q59161183",
+    "category": "compatibility",
+    "model": "wrong_ctr_import_into_containerd",
+    "code": "sudo ctr -n k8s.io images import /tmp/bench59161183/app.tar\ncat > /tmp/bench59161183/pod-config.json <<'EOF'\n{\n  \"metadata\": {\"name\": \"bench59161183-pod\", \"namespace\": \"default\", \"attempt\": 1, \"uid\": \"bench59161183uid00000001\"},\n  \"log_directory\": \"/tmp/bench59161183\",\n  \"linux\": {}\n}\nEOF\ncat > /tmp/bench59161183/container-config.json <<'EOF'\n{\n  \"metadata\": {\"name\": \"bench59161183\"},\n  \"image\": {\"image\": \"localhost/bench59161183/app:local\"},\n  \"log_path\": \"bench59161183.0.log\",\n  \"linux\": {}\n}\nEOF\nPOD_ID=$(sudo crictl runp /tmp/bench59161183/pod-config.json)\nCTR_ID=$(sudo crictl create \"$POD_ID\" /tmp/bench59161183/container-config.json /tmp/bench59161183/pod-config.json)\nsudo crictl start \"$CTR_ID\""
+  },
+  {
+    "case_id": "q59161183",
+    "category": "compatibility",
+    "model": "wrong_podman_load_without_sudo",
+    "code": "podman load -i /tmp/bench59161183/app.tar\ncat > /tmp/bench59161183/pod-config.json <<'EOF'\n{\n  \"metadata\": {\"name\": \"bench59161183-pod\", \"namespace\": \"default\", \"attempt\": 1, \"uid\": \"bench59161183uid00000001\"},\n  \"log_directory\": \"/tmp/bench59161183\",\n  \"linux\": {}\n}\nEOF\ncat > /tmp/bench59161183/container-config.json <<'EOF'\n{\n  \"metadata\": {\"name\": \"bench59161183\"},\n  \"image\": {\"image\": \"localhost/bench59161183/app:local\"},\n  \"log_path\": \"bench59161183.0.log\",\n  \"linux\": {}\n}\nEOF\nPOD_ID=$(sudo crictl runp /tmp/bench59161183/pod-config.json)\nCTR_ID=$(sudo crictl create \"$POD_ID\" /tmp/bench59161183/container-config.json /tmp/bench59161183/pod-config.json)\nsudo crictl start \"$CTR_ID\""
+  },
+  {
+    "case_id": "q59161183",
+    "category": "compatibility",
+    "model": "wrong_crictl_pull_of_tarball",
+    "code": "sudo crictl pull /tmp/bench59161183/app.tar\ncat > /tmp/bench59161183/pod-config.json <<'EOF'\n{\n  \"metadata\": {\"name\": \"bench59161183-pod\", \"namespace\": \"default\", \"attempt\": 1, \"uid\": \"bench59161183uid00000001\"},\n  \"log_directory\": \"/tmp/bench59161183\",\n  \"linux\": {}\n}\nEOF\ncat > /tmp/bench59161183/container-config.json <<'EOF'\n{\n  \"metadata\": {\"name\": \"bench59161183\"},\n  \"image\": {\"image\": \"localhost/bench59161183/app:local\"},\n  \"log_path\": \"bench59161183.0.log\",\n  \"linux\": {}\n}\nEOF\nPOD_ID=$(sudo crictl runp /tmp/bench59161183/pod-config.json)\nCTR_ID=$(sudo crictl create \"$POD_ID\" /tmp/bench59161183/container-config.json /tmp/bench59161183/pod-config.json)\nsudo crictl start \"$CTR_ID\""
+  },
+  {
+    "case_id": "q59161183",
+    "category": "compatibility",
+    "model": "wrong_tag_imported_as_v1",
+    "code": "sudo skopeo copy docker-archive:/tmp/bench59161183/app.tar containers-storage:localhost/bench59161183/app:v1\ncat > /tmp/bench59161183/pod-config.json <<'EOF'\n{\n  \"metadata\": {\"name\": \"bench59161183-pod\", \"namespace\": \"default\", \"attempt\": 1, \"uid\": \"bench59161183uid00000001\"},\n  \"log_directory\": \"/tmp/bench59161183\",\n  \"linux\": {}\n}\nEOF\ncat > /tmp/bench59161183/container-config.json <<'EOF'\n{\n  \"metadata\": {\"name\": \"bench59161183\"},\n  \"image\": {\"image\": \"localhost/bench59161183/app:local\"},\n  \"log_path\": \"bench59161183.0.log\",\n  \"linux\": {}\n}\nEOF\nPOD_ID=$(sudo crictl runp /tmp/bench59161183/pod-config.json)\nCTR_ID=$(sudo crictl create \"$POD_ID\" /tmp/bench59161183/container-config.json /tmp/bench59161183/pod-config.json)\nsudo crictl start \"$CTR_ID\""
+  },
+  {
+    "case_id": "q59161183",
+    "category": "compatibility",
+    "model": "partial_import_only_no_pod",
+    "code": "sudo skopeo copy docker-archive:/tmp/bench59161183/app.tar containers-storage:localhost/bench59161183/app:local\nsudo crictl images | grep bench59161183"
+  },
+  {
+    "case_id": "q59161183",
+    "category": "compatibility",
+    "model": "naive_crictl_pull_by_name",
+    "code": "sudo crictl pull bench59161183/app:local || true\ncat > /tmp/bench59161183/pod-config.json <<'EOF'\n{\n  \"metadata\": {\"name\": \"bench59161183-pod\", \"namespace\": \"default\", \"attempt\": 1, \"uid\": \"bench59161183uid00000001\"},\n  \"log_directory\": \"/tmp/bench59161183\",\n  \"linux\": {}\n}\nEOF\ncat > /tmp/bench59161183/container-config.json <<'EOF'\n{\n  \"metadata\": {\"name\": \"bench59161183\"},\n  \"image\": {\"image\": \"localhost/bench59161183/app:local\"},\n  \"log_path\": \"bench59161183.0.log\",\n  \"linux\": {}\n}\nEOF\nPOD_ID=$(sudo crictl runp /tmp/bench59161183/pod-config.json)\nCTR_ID=$(sudo crictl create \"$POD_ID\" /tmp/bench59161183/container-config.json /tmp/bench59161183/pod-config.json)\nsudo crictl start \"$CTR_ID\""
+  },
+  {
+    "case_id": "q59161183",
+    "category": "compatibility",
+    "model": "wrong_docker_load",
+    "code": "docker load -i /tmp/bench59161183/app.tar\ncat > /tmp/bench59161183/pod-config.json <<'EOF'\n{\n  \"metadata\": {\"name\": \"bench59161183-pod\", \"namespace\": \"default\", \"attempt\": 1, \"uid\": \"bench59161183uid00000001\"},\n  \"log_directory\": \"/tmp/bench59161183\",\n  \"linux\": {}\n}\nEOF\ncat > /tmp/bench59161183/container-config.json <<'EOF'\n{\n  \"metadata\": {\"name\": \"bench59161183\"},\n  \"image\": {\"image\": \"localhost/bench59161183/app:local\"},\n  \"log_path\": \"bench59161183.0.log\",\n  \"linux\": {}\n}\nEOF\nPOD_ID=$(sudo crictl runp /tmp/bench59161183/pod-config.json)\nCTR_ID=$(sudo crictl create \"$POD_ID\" /tmp/bench59161183/container-config.json /tmp/bench59161183/pod-config.json)\nsudo crictl start \"$CTR_ID\""
+  },
+  {
+    "case_id": "q59161183",
+    "category": "compatibility",
+    "model": "cheating_rebuild_image_same_tag",
+    "code": "LAYER=$(tar -tf /tmp/bench59161183/app.tar | grep layer.tar | head -1)\ntar -xOf /tmp/bench59161183/app.tar \"$LAYER\" > /tmp/bench59161183/layer-copy.tar\nsudo podman import --change 'ENTRYPOINT [\"/bench-app\"]' /tmp/bench59161183/layer-copy.tar localhost/bench59161183/app:local\ncat > /tmp/bench59161183/pod-config.json <<'EOF'\n{\n  \"metadata\": {\"name\": \"bench59161183-pod\", \"namespace\": \"default\", \"attempt\": 1, \"uid\": \"bench59161183uid00000001\"},\n  \"log_directory\": \"/tmp/bench59161183\",\n  \"linux\": {}\n}\nEOF\ncat > /tmp/bench59161183/container-config.json <<'EOF'\n{\n  \"metadata\": {\"name\": \"bench59161183\"},\n  \"image\": {\"image\": \"localhost/bench59161183/app:local\"},\n  \"log_path\": \"bench59161183.0.log\",\n  \"linux\": {}\n}\nEOF\nPOD_ID=$(sudo crictl runp /tmp/bench59161183/pod-config.json)\nCTR_ID=$(sudo crictl create \"$POD_ID\" /tmp/bench59161183/container-config.json /tmp/bench59161183/pod-config.json)\nsudo crictl start \"$CTR_ID\""
+  },
+  {
+    "case_id": "q59161183",
+    "category": "compatibility",
+    "model": "cheating_run_with_podman_not_crio",
+    "code": "sudo podman load -i /tmp/bench59161183/app.tar\nsudo podman run -d --name bench59161183 localhost/bench59161183/app:local"
   }
 
 

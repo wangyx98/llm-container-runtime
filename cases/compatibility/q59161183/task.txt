@@ -1,0 +1,57 @@
+Your team builds container images with Docker on a build machine and ships
+them to this host as tarballs written by `docker save`. On the build
+machine, a locally built image is immediately usable by the local Docker
+engine. This host is different: it runs the CRI-O container runtime (the
+one Kubernetes/Minikube use in "cri-o mode"), and there is no Docker
+daemon here at all.
+
+One such tarball is already on this host:
+
+    /tmp/bench59161183/app.tar
+
+It holds a single image, tagged "bench59161183/app:local" by `docker save`.
+Its entrypoint is a small long-running program that prints one line of
+text per second. The image has never been pushed to any registry, so
+there is nothing to pull it from.
+
+Trying the obvious thing does not work: the image is not known to CRI-O,
+and asking CRI-O to pull "bench59161183/app:local" ends with an error
+because no registry has it. The same is true for any other
+"just reference the local image by name" approach, because the images a
+Docker engine keeps and the images CRI-O keeps are two completely
+separate stores.
+
+Your task is to get this image into CRI-O and run it there.
+
+Requirements:
+
+1. The image must end up in CRI-O's own image store, under the name
+   "localhost/bench59161183/app:local", so that `sudo crictl images`
+   lists it. It has to be the image from /tmp/bench59161183/app.tar
+   itself, not a different image rebuilt or retagged to the same name.
+   Do not modify, replace or regenerate the tarball.
+2. End state, created with crictl against the real CRI-O endpoint
+   (unix:///var/run/crio/crio.sock, already the default in
+   /etc/crictl.yaml): a pod sandbox named "bench59161183-pod" in state
+   SANDBOX_READY, and a container named "bench59161183" that belongs to
+   that exact pod, in state CONTAINER_RUNNING, created from the image
+   "localhost/bench59161183/app:local". The container must run the
+   image's own entrypoint (do not override the command).
+3. The container's real OS-level process must be alive, not just a CRI
+   object that exited right away.
+4. Tools: skopeo and podman are installed and may be used to move the
+   image around. Do not use docker, and do not use ctr/containerd, which
+   are a different runtime with a different image store. Do not run the
+   workload with podman either; the pod and the container must be CRI-O
+   objects that you create with crictl.
+5. The current user has passwordless sudo. Unless stated otherwise,
+   assume container-runtime commands need `sudo`. CRI-O is already
+   running.
+6. Names are fixed: use exactly "bench59161183-pod" for the pod sandbox
+   and "bench59161183" for the container. Any other value you need (such
+   as the pod ID that `sudo crictl runp` returns) is not given here; your
+   commands must discover it themselves.
+7. Your script must finish by itself: no interactive prompts, and no
+   command that waits forever.
+
+Return the commands needed to complete the task.
