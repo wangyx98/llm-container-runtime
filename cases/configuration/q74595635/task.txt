@@ -1,0 +1,43 @@
+A containerd node (no Docker daemon, no CRI-O) has to pull its images from a
+registry mirror instead of docker.io. The mirror is already running on this
+host and is plain HTTP:
+
+    http://127.0.0.1:25635
+
+It holds a copy of the image "docker.io/library/bench74595635-app:latest".
+That image does not exist on docker.io itself, so it can only come from the
+mirror. containerd is already running with its CRI enabled, and crictl is
+configured to talk to it (see /etc/crictl.yaml), but containerd has not been
+told about the mirror. As a result, the pull goes to docker.io and fails:
+
+    $ sudo crictl pull docker.io/library/bench74595635-app:latest
+    FATA[0000] pulling image: ... failed to resolve image ... (the exact
+    wording depends on the containerd version and on the network)
+
+Your task is to configure containerd so that pulls from docker.io are served
+by the mirror, and the command above succeeds.
+
+Requirements:
+
+1. This is a configuration task: change containerd's registry configuration so
+   that a normal pull of "docker.io/library/bench74595635-app:latest" is
+   served by the mirror. Do not pull the image under another name and tag it,
+   do not import it with ctr, and do not change the image name in the pull.
+   The check wipes the image and runs the pull itself, as
+   "sudo crictl pull docker.io/library/bench74595635-app:latest", after your
+   script has finished; it passes only if that pull succeeds and the mirror
+   served it.
+2. containerd must be running, with a valid configuration, when your script
+   ends. Anything that has to be reloaded for your change to take effect must
+   be reloaded by your script.
+3. Tools: use crictl and ctr against containerd, plus ordinary file and
+   service commands. Do not use docker, podman, nerdctl or CRI-O.
+4. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime commands need `sudo`.
+5. The names, the mirror address and the paths named above are fixed. Any
+   other value you need is not given here; your commands must discover it
+   themselves.
+6. Your script must finish by itself: no interactive prompts, and no command
+   that waits forever.
+
+Return the commands needed to complete the task.
