@@ -1,0 +1,50 @@
+A containerd node (no Docker daemon, no CRI-O) runs a workload container that
+has to have its memory limit lowered while it keeps running. The container is
+already running in the pod "bench74849789-pod" and is named "bench74849789".
+Its container ID is not given here; look it up yourself, e.g. with
+`sudo crictl ps --name bench74849789 -q`. It was created with a memory limit of
+128 MiB, and containerd is already running with its CRI enabled and crictl
+configured to talk to it (see /etc/crictl.yaml).
+
+The workload is a small program (/app in its image, the container's only
+process). Right now it holds about 48 MiB of anonymous memory that it no longer
+needs. It gives that buffer back to the operating system as soon as it receives
+SIGUSR1, and nothing else about it changes when it does. Next to that it writes
+a heartbeat file, /data/status inside the container, which is the host
+directory /tmp/bench74849789/data/status; its counter grows once a second.
+
+You want to cap the container at 16 MiB (16777216 bytes) without restarting it.
+Asking for that directly does not work:
+
+    $ sudo crictl update --memory 16777216 "$(sudo crictl ps --name bench74849789 -q)"
+    FATA[0000] updating container resources for "...": rpc error: code = Unknown
+    desc = failed to update resources: failed to update resources: runc did not
+    terminate successfully: exit status 1: unable to set memory limit to
+    16777216 (current usage: ..., peak usage: ...)
+
+(That is what happens on a cgroup v1 host. On a cgroup v2 host the command does
+not complain at all; the kernel instead tries to make the container fit and
+kills the workload if it cannot.)
+
+Your task is to end up with the same container, the same workload process,
+still running and still doing its job, under a memory limit of exactly
+16777216 bytes.
+
+Requirements:
+
+1. The limit has to be lowered on the running container. Do not stop, remove or
+   re-create the container or the pod, and do not restart the workload process.
+   The check looks at the container's cgroup memory limit, at whether it is
+   still the original container and process, at whether the workload's heartbeat
+   counter keeps advancing, and at whether anything was OOM-killed.
+2. Tools: use crictl against containerd's CRI, plus ordinary shell commands.
+   Do not use docker, podman, nerdctl or CRI-O.
+3. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime commands need `sudo`.
+4. The names, the 16 MiB target and the paths named above are fixed. Any other
+   value you need (the container ID, the workload's process ID on the host) is
+   not given here; your commands must discover it themselves.
+5. Your script must finish by itself: no interactive prompts, and no command
+   that waits forever.
+
+Return the commands needed to complete the task.
