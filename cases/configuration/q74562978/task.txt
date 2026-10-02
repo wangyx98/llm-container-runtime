@@ -1,0 +1,47 @@
+A containerd node (no Docker daemon, no CRI-O) has to pull an image from a
+private development registry. The registry is already running on this host. It
+speaks plain HTTP only, there is no TLS on it at all, and insecure is fine
+here, since this is a development setup. Its address is:
+
+    registry.bench74562978.test:25562
+
+(the name resolves to this host through /etc/hosts). It holds the image
+"registry.bench74562978.test:25562/bench74562978/app:latest". containerd is
+already running with its CRI enabled, and crictl is configured to talk to it
+(see /etc/crictl.yaml), but the pull fails because containerd insists on
+HTTPS for this registry:
+
+    $ sudo crictl pull registry.bench74562978.test:25562/bench74562978/app:latest
+    FATA[0000] pulling image: ... failed to resolve image ... Head
+    "https://registry.bench74562978.test:25562/v2/bench74562978/app/manifests/latest":
+    http: server gave HTTP response to HTTPS client
+    (the exact wording depends on the containerd version)
+
+Your task is to configure containerd so that it can pull from this registry
+over plain HTTP, and the command above succeeds.
+
+Requirements:
+
+1. This is a configuration task: change containerd's registry configuration
+   so that a normal pull of
+   "registry.bench74562978.test:25562/bench74562978/app:latest" works. Do not
+   pull the image by another route and tag it, do not import it with ctr, and
+   do not change the image name in the pull. The check wipes the image and
+   runs the pull itself, as
+   "sudo crictl pull registry.bench74562978.test:25562/bench74562978/app:latest",
+   after your script has finished; it passes only if that pull succeeds and
+   the registry served it.
+2. containerd must be running, with a valid configuration, when your script
+   ends. Anything that has to be reloaded for your change to take effect must
+   be reloaded by your script.
+3. Tools: use crictl and ctr against containerd, plus ordinary file and
+   service commands. Do not use docker, podman, nerdctl or CRI-O.
+4. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime commands need `sudo`.
+5. The names, the registry address and the paths named above are fixed. Any
+   other value you need is not given here; your commands must discover it
+   themselves.
+6. Your script must finish by itself: no interactive prompts, and no command
+   that waits forever.
+
+Return the commands needed to complete the task.
