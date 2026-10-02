@@ -1,0 +1,77 @@
+Two machines of a small Kubernetes-style setup are simulated on this host
+as two independent containerd daemons. Each has its own socket and its own
+image store, just like two separate machines would:
+
+    node-a (the build node):   unix:///run/bench75568311/node-a/containerd.sock
+    node-b (the worker node):  unix:///run/bench75568311/node-b/containerd.sock
+
+(The host's default containerd socket, /run/containerd/containerd.sock, is
+neither of them and is not part of this task.) The `crictl` client on this
+host is configured in /etc/crictl.yaml to talk to node-b. To talk to node-a,
+pass its socket explicitly. For `ctr`, always pass the socket of the node you
+mean with `-a`.
+
+An application image was built locally on node-a. It has never been pushed
+to any registry. Its entrypoint is a small long-running program that prints
+one line of text per second. On node-a it is stored in containerd's k8s.io
+namespace, the one the CRI looks at, and both `ctr` and `crictl` show it
+there under the name "docker.io/library/bench75568311-app:latest":
+
+    $ sudo ctr -a /run/bench75568311/node-a/containerd.sock -n k8s.io images ls
+    $ sudo crictl --runtime-endpoint unix:///run/bench75568311/node-a/containerd.sock images
+
+A pod was scheduled to node-b. Its pod sandbox "bench75568311-pod" is
+already running there, and its container is meant to be created inside it
+from a container config, with the equivalent of imagePullPolicy: Never. The
+two config files describing the workload are already written and are correct
+as they are:
+
+    /tmp/bench75568311/pod-config.json
+    /tmp/bench75568311/container-config.json
+
+The container config refers to the image by the name
+"bench75568311-app:latest". Creating the container on node-b fails, just
+like a Kubernetes pod with imagePullPolicy: Never ends in ErrImageNeverPull
+("Container image ... is not present with pull policy of Never"). At the CRI
+level it looks like this (the exact wording depends on the containerd
+version):
+
+    FATA[0000] creating container: rpc error: code = NotFound desc = ...
+    failed to resolve image "bench75568311-app:latest": not found
+
+So the image exists and is visible on node-a, yet the container cannot be
+created on node-b.
+
+Your task is to make this container run on node-b.
+
+Requirements:
+
+1. Make the image from node-a available on node-b, so that `sudo crictl images`
+   (which talks to node-b) lists it. It has to be the very same image that
+   node-a has (the same image ID), not a different image rebuilt or retagged
+   to the same name.
+2. End state: a container named "bench75568311" inside the EXISTING pod
+   sandbox "bench75568311-pod" on node-b (do not delete or recreate the
+   sandbox), in state CONTAINER_RUNNING, created from that image. It must run
+   the image's own entrypoint (do not override the command), and its real
+   OS-level process must be alive.
+3. Nothing may be pulled from a registry: the image exists nowhere but in
+   node-a's store, and the workload is meant to run with no pull. Do not
+   change the container config to use some other image.
+4. The workload must run on node-b, and node-a must be left with its image
+   (the image is to be copied to the worker, not moved away from the build
+   node).
+5. Tools: use ctr and crictl. Do not use docker, podman, nerdctl, skopeo or
+   CRI-O. Do not stop, restart or reconfigure either containerd daemon.
+6. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime commands need `sudo`. Both containerd daemons are
+   already running.
+7. Names are fixed: use exactly "bench75568311-pod" for the pod sandbox and
+   "bench75568311" for the container. Any other value you need (such as the
+   pod sandbox ID that `sudo crictl pods` lists, or the ID that
+   `sudo crictl create` returns) is not given here; your commands must
+   discover it themselves.
+8. Your script must finish by itself: no interactive prompts, and no command
+   that waits forever.
+
+Return the commands needed to complete the task.
