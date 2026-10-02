@@ -1,0 +1,59 @@
+This host runs containerd (no Docker daemon, no CRI-O), with nerdctl installed
+and BuildKit running as the build backend, started the usual way for nerdctl:
+buildkitd with its containerd worker, listening on its default socket. All
+nerdctl commands below use nerdctl's default containerd namespace.
+
+An image named "bench71709053-base:local" was built on this host earlier with
+nerdctl. It exists only here; it is not in any registry, and it is meant to be
+used locally. nerdctl shows it:
+
+    $ sudo nerdctl images
+    REPOSITORY                TAG      IMAGE ID       CREATED       PLATFORM       SIZE
+    bench71709053-base        local    ...            ...           linux/amd64    ...
+
+The build context is the directory /tmp/bench71709053. It holds two
+Dockerfiles, Dockerfile.base (already built) and Dockerfile.child, plus the
+small files they copy in. Dockerfile.child starts from the local image:
+
+    FROM bench71709053-base:local
+    COPY app.txt /app.txt
+
+Building the child image does not work, even though the base image is right
+there:
+
+    $ cd /tmp/bench71709053
+    $ sudo nerdctl build -t bench71709053-child:local -f Dockerfile.child .
+    ...
+    error: failed to solve: bench71709053-base:local: failed to resolve source
+    metadata for docker.io/library/bench71709053-base:local: failed to do
+    request: ... (the exact wording depends on the versions)
+
+BuildKit goes looking for "bench71709053-base:local" on docker.io instead of
+using the image that nerdctl lists. Nothing may be pulled: that image does not
+exist on any registry.
+
+Your task is to get "bench71709053-child:local" built from
+/tmp/bench71709053/Dockerfile.child, on top of the local base image, and
+visible to nerdctl in its default namespace.
+
+Requirements:
+
+1. End state: the image "bench71709053-child:local" exists in nerdctl's
+   default namespace, built from /tmp/bench71709053/Dockerfile.child as it is
+   (its FROM line and everything else in the build context stay unchanged),
+   and its layers are the layers of the local base image plus the one added
+   by the COPY line.
+2. Nothing may be pulled from a registry, and no registry of your own may be
+   used. BuildKit and containerd are shared services on this host: do not
+   stop, restart or reconfigure them (buildkitd must stay the same running
+   process). Fix it at the level of images and nerdctl commands.
+3. Tools: use nerdctl (and ctr if you like) against containerd. Do not use
+   docker, podman, crictl or CRI-O.
+4. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime commands need `sudo`. containerd is already running.
+5. The names and paths are fixed, as given above. Any other value you need is
+   not given here; your commands must discover it themselves.
+6. Your script must finish by itself: no interactive prompts, and no command
+   that waits forever.
+
+Return the commands needed to complete the task.
