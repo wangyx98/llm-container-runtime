@@ -496,6 +496,42 @@
     "category": "compatibility",
     "model": "wrong_moves_image_deletes_from_node_a",
     "code": "sudo ctr -a /run/bench75568311/node-a/containerd.sock -n k8s.io images export /tmp/bench75568311-copy.tar docker.io/library/bench75568311-app:latest\nsudo ctr -a /run/bench75568311/node-b/containerd.sock -n k8s.io images import /tmp/bench75568311-copy.tar\nrm -f /tmp/bench75568311-copy.tar\nPOD_ID=$(sudo crictl pods --name bench75568311-pod -q)\nCTR_ID=$(sudo crictl create \"$POD_ID\" /tmp/bench75568311/container-config.json /tmp/bench75568311/pod-config.json)\nsudo crictl start \"$CTR_ID\"\nsudo ctr -a /run/bench75568311/node-a/containerd.sock -n k8s.io images rm docker.io/library/bench75568311-app:latest"
+  },
+    {
+    "case_id": "q78814823",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q78814823/reference_solution.sh"
+  },
+  {
+    "case_id": "q78814823",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q78814823",
+    "category": "compatibility",
+    "model": "naive_reports_default_namespace",
+    "code": "ID=$(sudo crictl images -o json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(i[\"id\"] for i in d[\"images\"] if any(\"bench78814823-app\" in t for t in (i.get(\"repoTags\") or []))))')\npython3 - \"$ID\" > /tmp/bench78814823/report.json <<'PYEOF'\nimport json, sys\nprint(json.dumps({\"namespace\": \"default\", \"image_id\": sys.argv[1], \"ctr_command\": \"sudo ctr images list\"}))\nPYEOF"
+  },
+  {
+    "case_id": "q78814823",
+    "category": "compatibility",
+    "model": "wrong_command_without_namespace",
+    "code": "ID=$(sudo crictl images -o json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(i[\"id\"] for i in d[\"images\"] if any(\"bench78814823-app\" in t for t in (i.get(\"repoTags\") or []))))')\npython3 - \"$ID\" > /tmp/bench78814823/report.json <<'PYEOF'\nimport json, sys\nprint(json.dumps({\"namespace\": \"k8s.io\", \"image_id\": sys.argv[1], \"ctr_command\": \"sudo ctr images list\"}))\nPYEOF"
+  },
+  {
+    "case_id": "q78814823",
+    "category": "compatibility",
+    "model": "guessed_image_id_without_looking",
+    "code": "python3 - \"sha256:a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4\" > /tmp/bench78814823/report.json <<'PYEOF'\nimport json, sys\nprint(json.dumps({\"namespace\": \"k8s.io\", \"image_id\": sys.argv[1], \"ctr_command\": \"sudo ctr -n k8s.io images list\"}))\nPYEOF"
+  },
+  {
+    "case_id": "q78814823",
+    "category": "compatibility",
+    "model": "alt_valid_env_var_command",
+    "code": "ID=$(sudo crictl images -o json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(i[\"id\"] for i in d[\"images\"] if any(\"bench78814823-app\" in t for t in (i.get(\"repoTags\") or []))))')\npython3 - \"$ID\" > /tmp/bench78814823/report.json <<'PYEOF'\nimport json, sys\nprint(json.dumps({\"namespace\": \"k8s.io\", \"image_id\": sys.argv[1], \"ctr_command\": \"sudo env CONTAINERD_NAMESPACE=k8s.io ctr images ls -q\"}))\nPYEOF"
   }
 
 

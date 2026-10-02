@@ -1,0 +1,53 @@
+This host runs containerd (no Docker daemon, no CRI-O), already installed and
+running, with its CRI enabled and `crictl` configured to talk to it. An image
+named "bench78814823-app:latest" was pulled onto this host through the CRI,
+the way a kubelet or `crictl pull` does it. It is not in any registry that is
+reachable from here, and it is not started in this task.
+
+The CRI knows the image:
+
+    $ sudo crictl images
+    IMAGE                                   TAG      IMAGE ID       SIZE
+    docker.io/library/bench78814823-app     latest   ...            ...
+
+But a colleague who looked for the same image with containerd's own client
+got nothing at all:
+
+    $ sudo ctr images list
+    REF TYPE DIGEST SIZE PLATFORMS LABELS
+
+So the image is on this host, `crictl` lists it, yet `ctr images list` does
+not show it. Find out where the image really is, and write down what you
+found.
+
+Your task is to write the following report file. Create it with your script
+(the image ID is different every time this host is set up, so it has to be
+read from the system, not typed in):
+
+    /tmp/bench78814823/report.json
+
+It must be one JSON object with exactly these three string values:
+
+- "namespace": the name of the containerd namespace that holds the image.
+- "image_id": the full image ID that `crictl images` reports for the image
+  (64 hex characters, with or without a leading "sha256:"; not the
+  shortened form that `crictl images` prints by default).
+- "ctr_command": one `ctr` command line that lists the image. It will be run
+  exactly as written, by the current user, in a fresh shell, so it must
+  work on its own: include `sudo` if it is needed, and do not rely on
+  anything you set in your own shell session. Its output must show the
+  image's reference.
+
+Requirements:
+
+1. Use `ctr` and `crictl` to investigate. Do not use docker, podman, nerdctl
+   or CRI-O.
+2. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime commands need `sudo`. containerd is already running.
+3. The image name and the report path are fixed, as given above. Any other
+   value you need is not given here; your commands must discover it
+   themselves.
+4. Your script must finish by itself: no interactive prompts, and no command
+   that waits forever.
+
+Return the commands needed to complete the task.
