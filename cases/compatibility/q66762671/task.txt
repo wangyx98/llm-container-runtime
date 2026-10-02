@@ -1,0 +1,56 @@
+This host has a Docker daemon of its own for this task. The docker CLI talks to
+it through this API socket (always pass it, because the CLI's default socket is
+not this daemon):
+
+    /run/bench66762671/docker.sock
+
+A container named "bench66762671" is running under it, started from the image
+"bench66762671-app:latest". Docker sees it:
+
+    $ sudo docker -H unix:///run/bench66762671/docker.sock ps --no-trunc
+    CONTAINER ID   IMAGE                       COMMAND               ...   NAMES
+    ...            bench66762671-app:latest    "/b66762671-app"      ...   bench66762671
+
+Docker runs its containers through containerd. You want to look at this very
+container from containerd's side with ctr, containerd's own client, instead of
+going through Docker. But ctr shows nothing:
+
+    $ sudo ctr containers ls
+    CONTAINER    IMAGE    RUNTIME
+
+Find out where containerd really holds this container, and write down what you
+found.
+
+Your task is to write the following report file. Create it with your script
+(the container ID is different every time this host is set up, so it has to be
+read from the system, not typed in):
+
+    /tmp/bench66762671/report.json
+
+It must be one JSON object with exactly these four string values:
+
+- "address": the path of the unix socket of the containerd daemon that holds
+  the container (with or without a leading "unix://").
+- "namespace": the name of the containerd namespace that holds the container.
+- "container_id": the full container ID that `docker ps --no-trunc` reports
+  (64 hex characters, not the shortened form).
+- "ctr_command": one `ctr` command line that lists the container. It will be
+  run exactly as written, by the current user, in a fresh shell, so it must
+  work on its own: include `sudo` if it is needed, and do not rely on
+  anything you set in your own shell session. Its output must show the
+  container's ID.
+
+Requirements:
+
+1. Use ctr for the containerd side. The docker CLI may be used to look at what
+   Docker itself reports. Do not use nerdctl or crictl.
+2. Only look: do not stop, restart, reconfigure or recreate Docker, containerd
+   or the container. Everything must keep running as it is.
+3. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime commands need `sudo`.
+4. The names and paths above are fixed. Any other value you need is not given
+   here; your commands must discover it themselves.
+5. Your script must finish by itself: no interactive prompts, and no command
+   that waits forever.
+
+Return the commands needed to complete the task.
