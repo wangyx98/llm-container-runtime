@@ -1,0 +1,61 @@
+A containerd node (no Docker daemon, no CRI-O, no nerdctl) runs a hardened
+container through containerd's CRI (containerd namespace "k8s.io"). The
+container "bench75757759-ping" runs in the pod "bench75757759-pod" and is
+created with every Linux capability dropped. The pod and the container were
+started from these two files, which are still on the node:
+
+    /tmp/bench75757759/pod.json
+    {
+      "metadata": {"name": "bench75757759-pod", "namespace": "default",
+                   "attempt": 1, "uid": "bench75757759-uid"},
+      "log_directory": "/tmp/bench75757759/logs",
+      "linux": {}
+    }
+
+    /tmp/bench75757759/container.json
+    {
+      "metadata": {"name": "bench75757759-ping"},
+      "image": {"image": "docker.io/library/bench75757759-ping:latest"},
+      "log_path": "bench75757759-ping.log",
+      "linux": {"security_context": {"capabilities": {"drop_capabilities": ["ALL"]}}}
+    }
+
+The image is a tiny, self-contained one (containerd runs with its CRI enabled
+and crictl is configured to talk to it, see /etc/crictl.yaml). Its /usr/bin/ping
+sends one ICMP echo request and prints a reply line; it takes an IPv4 address
+as its last argument, for example `ping -c 1 127.0.0.1` (the node has no
+network access to rely on, so loopback is the target). Inside the container
+it cannot even be started:
+
+    $ sudo crictl exec "$(sudo crictl ps --name bench75757759-ping -q)" /usr/bin/ping -c 1 127.0.0.1
+    exec /usr/bin/ping: operation not permitted
+
+(the same message you get as "bash: /usr/bin/ping: Operation not permitted"
+when you run ping from a shell inside such a container).
+
+Your task is to make ping work inside the container "bench75757759-ping",
+without giving the container more privileges than that needs.
+
+Requirements:
+
+1. At the end exactly one container named "bench75757759-ping" is running, it
+   is created from the same image, and running `/usr/bin/ping -c 1 127.0.0.1`
+   inside it with `crictl exec` succeeds. The check runs that command after
+   your script has finished. A container that is still running next to your
+   fixed one with the old, broken setup does not count.
+2. Do not make the container privileged, and do not widen what it may do
+   beyond what ping needs: the container has to keep every capability
+   dropped except the single one that ping needs. The check looks at the
+   container's privileged flag and at the capability bounding set of its
+   main process.
+3. Tools: use crictl against containerd's CRI, plus ordinary shell commands
+   (python3 is installed). Do not use docker, podman, nerdctl or CRI-O.
+4. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime commands need `sudo`.
+5. The names, image and files above are fixed. Any other value you need (the
+   container ID, the pod ID) is not given here; your commands must discover it
+   themselves.
+6. Your script must finish by itself: no interactive prompts, and no command
+   that waits forever.
+
+Return the commands needed to complete the task.

@@ -1,0 +1,59 @@
+A containerd node (no Docker daemon, no CRI-O, no nerdctl) runs Kubernetes
+workloads through containerd's CRI (images and containers in the containerd
+namespace "k8s.io"). Over time unused images and stopped containers pile up
+and take disk space. With Docker this is one command, `docker system prune`;
+here you need the containerd equivalent: remove the unused images and the
+stopped containers, and leave everything that is in use alone.
+
+The node is in this state (containerd runs with its CRI enabled and crictl is
+configured to talk to it, see /etc/crictl.yaml):
+
+    $ sudo crictl ps -a
+    CONTAINER   IMAGE                                          STATE     NAME
+    ...         docker.io/library/bench71218538-active:latest  Exited    bench71218538-old
+    ...         docker.io/library/bench71218538-stopped:latest Exited    bench71218538-job
+    ...         docker.io/library/bench71218538-active:latest  Running   bench71218538-active
+
+    $ sudo crictl images
+    IMAGE                                     TAG      IMAGE ID
+    docker.io/library/bench71218538-active    latest   ...
+    docker.io/library/bench71218538-stopped   latest   ...
+    docker.io/library/bench71218538-unused    latest   ...
+    registry.k8s.io/pause                     3.10.1   ...
+
+All three containers belong to the pod "bench71218538-pod". The container
+"bench71218538-active" is a running workload (it writes a heartbeat file, a
+counter that grows once a second, to /tmp/bench71218538/data/status on the
+host). "bench71218538-old" is a stopped earlier run of the same image, and
+"bench71218538-job" is a finished one-shot container. No container has ever
+used the image "bench71218538-unused". The image "registry.k8s.io/pause" is the
+sandbox image of the pod; the check does not look at it, nor at any image or
+container that is not named above.
+
+Your task is to prune the node: afterwards the stopped containers and the
+images that no container needs any more must be gone, while the running
+workload (the same container and process, still running) and the image it runs
+must be untouched.
+
+Requirements:
+
+1. Remove the stopped containers and the unused images from the CRI's view
+   of the node. An image is unused when no container, once the stopped ones
+   are removed, uses it; the image of a stopped container that is not used by
+   anything else counts as unused, an image the running container uses does
+   not. Removing only an image's name is not enough: the image itself must be
+   gone ("crictl images" must not list it, not even as a nameless image).
+2. Do not stop, remove or restart the running container or its pod, and do not
+   remove the image it runs. The check looks at the container and its
+   process, at the heartbeat counter, and at the images, after your script
+   has finished.
+3. Tools: use crictl (and ctr if you like) against containerd, plus ordinary
+   shell commands. Do not use docker, podman, nerdctl or CRI-O.
+4. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime commands need `sudo`.
+5. The names above are fixed. Any other value you need (container IDs, image
+   IDs) is not given here; your commands must discover it themselves.
+6. Your script must finish by itself: no interactive prompts, and no command
+   that waits forever.
+
+Return the commands needed to complete the task.

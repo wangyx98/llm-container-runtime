@@ -754,6 +754,90 @@
     "category": "filesystem",
     "model": "alt_valid_export_file_then_import",
     "code": "for attempt in 1 2 3 4 5; do\n    sudo rm -f /tmp/bench74595501/moved.tar\n    if sudo ctr -n default images export /tmp/bench74595501/moved.tar docker.io/library/bench74595501-app:latest \\\n       && sudo ctr -n k8s.io images import /tmp/bench74595501/moved.tar; then\n        break\n    fi\n    sleep 1\ndone"
+  },
+    {
+    "case_id": "q71218538",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q71218538/reference_solution.sh"
+  },
+  {
+    "case_id": "q71218538",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q71218538",
+    "category": "filesystem",
+    "model": "naive_prune_only",
+    "code": "sudo crictl rmi --prune"
+  },
+  {
+    "case_id": "q71218538",
+    "category": "filesystem",
+    "model": "naive_remove_stopped_containers_only",
+    "code": "sudo crictl rm $(sudo crictl ps -a -q --state exited)"
+  },
+  {
+    "case_id": "q71218538",
+    "category": "filesystem",
+    "model": "cheat_remove_everything_then_prune",
+    "code": "sudo crictl rm -f $(sudo crictl ps -a -q --name bench71218538)\nsudo crictl rmi --prune"
+  },
+  {
+    "case_id": "q71218538",
+    "category": "filesystem",
+    "model": "cheat_remove_all_images",
+    "code": "sudo crictl rm $(sudo crictl ps -a -q --state exited)\nsudo crictl rmi docker.io/library/bench71218538-active:latest docker.io/library/bench71218538-stopped:latest docker.io/library/bench71218538-unused:latest"
+  },
+  {
+    "case_id": "q71218538",
+    "category": "filesystem",
+    "model": "naive_ctr_remove_names_only",
+    "code": "sudo crictl rm $(sudo crictl ps -a -q --state exited)\nsudo ctr -n k8s.io images rm docker.io/library/bench71218538-stopped:latest docker.io/library/bench71218538-unused:latest"
+  },
+  {
+    "case_id": "q71218538",
+    "category": "filesystem",
+    "model": "alt_valid_explicit_unused_images",
+    "code": "set -e\nfor id in $(sudo crictl ps -a -q --state exited); do sudo crictl rm \"$id\"; done\nUSED=$(for c in $(sudo crictl ps -a -q); do sudo crictl inspect -o go-template --template '{{.status.imageRef}}' \"$c\"; echo; done | sort -u)\nsudo crictl images -o json | USED=\"$USED\" python3 -c '\nimport json, os, sys\nused = set(os.environ[\"USED\"].split())\nfor img in json.load(sys.stdin)[\"images\"]:\n    names = \" \".join(img.get(\"repoTags\") or [\"<none>\"])\n    if \"bench71218538\" in names and img[\"id\"] not in used:\n        print(img[\"id\"])\n' | while read -r id; do sudo crictl rmi \"$id\"; done"
+  },
+   {
+    "case_id": "q75757759",
+    "category": "isolation",
+    "model": "reference_solution",
+    "code": "bash cases/isolation/q75757759/reference_solution.sh"
+  },
+  {
+    "case_id": "q75757759",
+    "category": "isolation",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q75757759",
+    "category": "isolation",
+    "model": "naive_privileged_container_in_plain_pod",
+    "code": "POD=$(sudo crictl pods --name bench75757759-pod --state ready -q | head -1)\ncat > /tmp/bench75757759/container-priv.json <<'EOF'\n{\n  \"metadata\": {\"name\": \"bench75757759-ping\"},\n  \"image\": {\"image\": \"docker.io/library/bench75757759-ping:latest\"},\n  \"log_path\": \"bench75757759-ping.log\",\n  \"linux\": {\"security_context\": {\"privileged\": true}}\n}\nEOF\nfor id in $(sudo crictl ps -a -q --name '^bench75757759-ping$'); do\n    sudo crictl stop --timeout 1 \"$id\"\n    sudo crictl rm -f \"$id\"\ndone\nCID=$(sudo crictl create \"$POD\" /tmp/bench75757759/container-priv.json /tmp/bench75757759/pod.json)\nsudo crictl start \"$CID\"\nsudo crictl exec \"$CID\" /usr/bin/ping -c 1 127.0.0.1"
+  },
+  {
+    "case_id": "q75757759",
+    "category": "isolation",
+    "model": "cheat_privileged_pod_and_container",
+    "code": "set -e\npython3 - <<'PY'\nimport json\nw = \"/tmp/bench75757759\"\np = json.load(open(w + \"/pod.json\"))\np[\"metadata\"][\"attempt\"] = 2\np[\"metadata\"][\"uid\"] = \"bench75757759-uid-2\"\np[\"linux\"] = {\"security_context\": {\"privileged\": True}}\njson.dump(p, open(w + \"/pod-priv.json\", \"w\"))\nc = json.load(open(w + \"/container.json\"))\nc[\"linux\"] = {\"security_context\": {\"privileged\": True}}\njson.dump(c, open(w + \"/container-priv.json\", \"w\"))\nPY\nfor p in $(sudo crictl pods --name bench75757759-pod -q); do\n    sudo crictl stopp \"$p\"\n    sudo crictl rmp -f \"$p\"\ndone\nPOD=$(sudo crictl runp /tmp/bench75757759/pod-priv.json)\nCID=$(sudo crictl create \"$POD\" /tmp/bench75757759/container-priv.json /tmp/bench75757759/pod-priv.json)\nsudo crictl start \"$CID\"\nsudo crictl exec \"$CID\" /usr/bin/ping -c 1 127.0.0.1"
+  },
+  {
+    "case_id": "q75757759",
+    "category": "isolation",
+    "model": "naive_drop_the_capability_restriction",
+    "code": "set -e\nPOD=$(sudo crictl pods --name bench75757759-pod --state ready -q | head -1)\npython3 - <<'PY'\nimport json\nw = \"/tmp/bench75757759\"\nc = json.load(open(w + \"/container.json\"))\nc[\"linux\"] = {}\njson.dump(c, open(w + \"/container-default.json\", \"w\"))\nPY\nfor id in $(sudo crictl ps -a -q --name '^bench75757759-ping$'); do\n    sudo crictl stop --timeout 1 \"$id\"\n    sudo crictl rm -f \"$id\"\ndone\nCID=$(sudo crictl create \"$POD\" /tmp/bench75757759/container-default.json /tmp/bench75757759/pod.json)\nsudo crictl start \"$CID\"\nsudo crictl exec \"$CID\" /usr/bin/ping -c 1 127.0.0.1"
+  },
+  {
+    "case_id": "q75757759",
+    "category": "isolation",
+    "model": "alt_valid_new_pod_with_net_raw",
+    "code": "set -e\npython3 - <<'PY'\nimport json\nw = \"/tmp/bench75757759\"\np = json.load(open(w + \"/pod.json\"))\np[\"metadata\"][\"attempt\"] = 2\np[\"metadata\"][\"uid\"] = \"bench75757759-uid-2\"\njson.dump(p, open(w + \"/pod-new.json\", \"w\"))\nc = json.load(open(w + \"/container.json\"))\nc[\"linux\"][\"security_context\"][\"capabilities\"][\"add_capabilities\"] = [\"NET_RAW\"]\njson.dump(c, open(w + \"/container-new.json\", \"w\"))\nPY\nfor p in $(sudo crictl pods --name bench75757759-pod -q); do\n    sudo crictl stopp \"$p\"\n    sudo crictl rmp -f \"$p\"\ndone\nPOD=$(sudo crictl runp /tmp/bench75757759/pod-new.json)\nCID=$(sudo crictl create \"$POD\" /tmp/bench75757759/container-new.json /tmp/bench75757759/pod-new.json)\nsudo crictl start \"$CID\"\nsudo crictl exec \"$CID\" /usr/bin/ping -c 1 127.0.0.1"
   }
 
 
