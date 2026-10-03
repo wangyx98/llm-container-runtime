@@ -724,6 +724,36 @@
     "category": "filesystem",
     "model": "alt_valid_patch_repotags",
     "code": "python3 - <<'EOF'\nimport json, tarfile\nsrc = '/tmp/bench75385049/hello.tar'\ndst = '/tmp/bench75385049/hello-tagged.tar'\nwith tarfile.open(src) as tin, tarfile.open(dst, 'w') as tout:\n    for m in tin.getmembers():\n        data = tin.extractfile(m).read() if m.isfile() else None\n        if m.name == 'manifest.json':\n            mf = json.loads(data)\n            for e in mf:\n                e['RepoTags'] = ['docker.io/library/bench75385049-hello:latest']\n            data = json.dumps(mf).encode()\n            m.size = len(data)\n        import io\n        tout.addfile(m, io.BytesIO(data) if data is not None else None)\nEOF\nsudo ctr -n bench75385049 images import /tmp/bench75385049/hello-tagged.tar"
+  },
+    {
+    "case_id": "q74595501",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q74595501/reference_solution.sh"
+  },
+  {
+    "case_id": "q74595501",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q74595501",
+    "category": "filesystem",
+    "model": "naive_ctr_tag_across_namespaces",
+    "code": "sudo ctr -n k8s.io images tag --force docker.io/library/bench74595501-app:latest docker.io/library/bench74595501-app:latest"
+  },
+  {
+    "case_id": "q74595501",
+    "category": "filesystem",
+    "model": "cheat_retag_other_image",
+    "code": "SRC=$(sudo ctr -n k8s.io images ls -q | grep -v '^sha256:' | head -1)\nsudo ctr -n k8s.io images tag --force \"$SRC\" docker.io/library/bench74595501-app:latest"
+  },
+  {
+    "case_id": "q74595501",
+    "category": "filesystem",
+    "model": "alt_valid_export_file_then_import",
+    "code": "for attempt in 1 2 3 4 5; do\n    sudo rm -f /tmp/bench74595501/moved.tar\n    if sudo ctr -n default images export /tmp/bench74595501/moved.tar docker.io/library/bench74595501-app:latest \\\n       && sudo ctr -n k8s.io images import /tmp/bench74595501/moved.tar; then\n        break\n    fi\n    sleep 1\ndone"
   }
 
 

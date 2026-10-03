@@ -1,0 +1,47 @@
+A containerd node (no Docker daemon, no CRI-O, no nerdctl) runs Kubernetes
+workloads through containerd's CRI, and the CRI keeps its images in the
+containerd namespace "k8s.io". A local image was created by accident in the
+namespace "default" instead. It is called
+
+    docker.io/library/bench74595501-app:latest
+
+and the archive it was imported from is gone, so the only copy of the image is
+the one inside containerd. Kubernetes cannot find it:
+
+    $ sudo ctr -n default images ls -q
+    docker.io/library/bench74595501-app:latest
+    $ sudo ctr -n k8s.io images ls -q | grep bench74595501
+    $ sudo crictl inspecti docker.io/library/bench74595501-app:latest
+    FATA[0000] ... no such image "docker.io/library/bench74595501-app:latest" present
+
+(a pod that uses this image with imagePullPolicy Never cannot start).
+
+Your task is to make the same image available in the namespace "k8s.io", under
+the same name, so that the CRI finds it and a container can be run from it:
+
+    $ sudo ctr -n k8s.io run --rm docker.io/library/bench74595501-app:latest bench74595501-check
+
+The program in the image prints one line and exits.
+
+Requirements:
+
+1. The image in "k8s.io" has to be the very image that sits in "default" now
+   (same image ID). There is no network access to rely on, and a different
+   image under the same name does not count. The check lists the images of
+   "k8s.io", asks the CRI (crictl inspecti) for the image, and runs a container
+   from it, after your script has finished. It does not care whether the copy
+   in "default" is still there afterwards.
+2. Tools: use ctr and crictl against containerd, plus ordinary shell tools. Do
+   not use docker, podman, nerdctl or CRI-O.
+3. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime commands need `sudo`.
+4. On this node a `ctr images export` occasionally aborts midway, with a
+   message like "error copying stream ... file already closed", and what it
+   wrote is cut short. Make sure the image really is in "k8s.io" when your
+   script ends, and repeat the step if it is not.
+5. The namespaces and the image name above are fixed. Any other value you need
+   is not given here; your commands must discover it themselves.
+6. Your script must finish by itself: no interactive prompts, and no command
+   that waits forever.
+
+Return the commands needed to complete the task.
