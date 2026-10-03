@@ -48,8 +48,14 @@ def _to_text(data) -> str:
 
 def _run(cmd: list[str], timeout: int) -> ShellResult:
     try:
+        # stdin is /dev/null on purpose: without it the child inherits the
+        # terminal the harness was started from, and tools that touch stdin
+        # (sudo, runc exec, ctr tasks exec, ...) can intermittently get stopped
+        # or block on it, which showed up as 180s timeouts that depended on
+        # nothing but timing. No case script or solution is meant to read input.
         proc = subprocess.run(
             cmd,
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             timeout=timeout,

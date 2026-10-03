@@ -1,0 +1,45 @@
+A containerd node (no Docker daemon, no CRI-O, no nerdctl) runs a container
+through containerd's CRI (containerd namespace "k8s.io"). The container
+"bench65393959-app" runs in the pod "bench65393959-pod" with the image's
+default user, root, and its main process has to keep running that way. The
+host directory /tmp/bench65393959/data is mounted at /data inside it.
+
+The image has several users in its /etc/passwd (root, bench65393959-web,
+bench65393959-owner, bench65393959-other). The file /data/state, and so the
+directory /tmp/bench65393959/data on the host, belongs to the user
+"bench65393959-owner". The image's program /usr/bin/rotate is a script of the
+kind the question describes: it refuses to run unless the user that starts it
+owns the data in /data. When it runs, it writes its result file /data/done
+(on the host: /tmp/bench65393959/data/done) and prints a line. As root it
+does not run:
+
+    $ sudo crictl exec "$(sudo crictl ps --name bench65393959-app -q)" /usr/bin/rotate
+    rotate: refusing to run: the data in /data belongs to uid ..., but this is uid 0 (root)
+
+(a docker user would run `docker exec -u ...` here; crictl exec has no such
+option, and su and sudo do not exist in the image).
+
+Your task is to run /usr/bin/rotate once inside the running container
+"bench65393959-app", as the user "bench65393959-owner", so that it completes
+and writes /data/done.
+
+Requirements:
+
+1. The command has to run inside the running container, as a new process in
+   it, with the user id and the primary group id of "bench65393959-owner".
+   Do not stop, remove, restart or re-create the container or the pod, and do
+   not change who owns the data or what the container's main process runs as.
+   The check looks at /tmp/bench65393959/data/done (which user and group
+   wrote it, and in which container) and at the container's main process,
+   after your script has finished.
+2. Tools: use ctr, crictl and runc against containerd, plus ordinary shell
+   commands. Do not use docker, podman, nerdctl or CRI-O.
+3. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime commands need `sudo`.
+4. The names and paths above are fixed. Any other value you need (the
+   container ID, the numeric user and group id of "bench65393959-owner") is not
+   given here; your commands must discover it themselves.
+5. Your script must finish by itself: no interactive prompts, and no command
+   that waits forever.
+
+Return the commands needed to complete the task.
