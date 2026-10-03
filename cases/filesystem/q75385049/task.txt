@@ -1,0 +1,44 @@
+A containerd node (no Docker daemon, no CRI-O, no nerdctl) has to get an image
+from an archive file into containerd. The archive is /tmp/bench75385049/hello.tar,
+an image saved in docker-archive format (the kind of file that
+`skopeo copy docker://... docker-archive:hello.tar` writes). The work happens
+in the containerd namespace "bench75385049" (every ctr command below uses
+`-n bench75385049`).
+
+Importing the archive the obvious way finishes without any error or output,
+yet nothing shows up:
+
+    $ sudo ctr -n bench75385049 images import /tmp/bench75385049/hello.tar
+    $ sudo ctr -n bench75385049 images ls
+    REF TYPE DIGEST SIZE PLATFORMS LABELS
+
+Your task is to get the image in that archive into containerd, in the namespace
+"bench75385049", so that it is listed there under the name
+
+    docker.io/library/bench75385049-hello:latest
+
+and a container can be run from it:
+
+    $ sudo ctr -n bench75385049 run --rm docker.io/library/bench75385049-hello:latest bench75385049-check
+
+The program in the image prints one line and exits.
+
+Requirements:
+
+1. The image has to come from /tmp/bench75385049/hello.tar. There is no
+   network access to rely on, and a different image under the same name does
+   not count: the check runs a container from the image and compares its
+   output with what the program in the archive prints. The check does the
+   listing and the run itself, after your script has finished.
+2. Tools: use ctr against containerd, plus ordinary file and archive tools
+   (tar, python3, jq and the like). Do not use docker, podman, nerdctl or
+   CRI-O.
+3. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime commands need `sudo`.
+4. The archive path, the namespace and the image name above are fixed. Any
+   other value you need is not given here; your commands must discover it
+   themselves.
+5. Your script must finish by itself: no interactive prompts, and no command
+   that waits forever.
+
+Return the commands needed to complete the task.

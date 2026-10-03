@@ -694,6 +694,36 @@
     "category": "configuration",
     "model": "naive_recreate_container",
     "code": "POD=$(sudo crictl pods --name bench74849789-pod -q | head -1)\nCID=$(sudo crictl ps --name bench74849789 -q | head -1)\nsudo crictl stop \"$CID\"\nsudo crictl rm \"$CID\"\nD=/tmp/bench74849789/recreate\nmkdir -p \"$D\"\ncat > \"$D/pod.json\" <<'EOF'\n{\"metadata\":{\"name\":\"bench74849789-pod\",\"namespace\":\"default\",\"attempt\":1,\"uid\":\"bench74849789-uid\"},\"linux\":{}}\nEOF\ncat > \"$D/container.json\" <<'EOF'\n{\"metadata\":{\"name\":\"bench74849789\"},\"image\":{\"image\":\"bench74849789-app:latest\"},\"log_path\":\"bench74849789.log\",\"mounts\":[{\"container_path\":\"/data\",\"host_path\":\"/tmp/bench74849789/data\",\"readonly\":false}],\"linux\":{\"resources\":{\"memory_limit_in_bytes\":16777216}}}\nEOF\nNEW=$(sudo crictl create \"$POD\" \"$D/container.json\" \"$D/pod.json\")\nsudo crictl start \"$NEW\""
+  },
+    {
+    "case_id": "q75385049",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q75385049/reference_solution.sh"
+  },
+  {
+    "case_id": "q75385049",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q75385049",
+    "category": "filesystem",
+    "model": "naive_plain_import",
+    "code": "sudo ctr -n bench75385049 images import /tmp/bench75385049/hello.tar"
+  },
+  {
+    "case_id": "q75385049",
+    "category": "filesystem",
+    "model": "naive_wrong_namespace",
+    "code": "sudo ctr -n k8s.io images import --index-name docker.io/library/bench75385049-hello:latest /tmp/bench75385049/hello.tar"
+  },
+  {
+    "case_id": "q75385049",
+    "category": "filesystem",
+    "model": "alt_valid_patch_repotags",
+    "code": "python3 - <<'EOF'\nimport json, tarfile\nsrc = '/tmp/bench75385049/hello.tar'\ndst = '/tmp/bench75385049/hello-tagged.tar'\nwith tarfile.open(src) as tin, tarfile.open(dst, 'w') as tout:\n    for m in tin.getmembers():\n        data = tin.extractfile(m).read() if m.isfile() else None\n        if m.name == 'manifest.json':\n            mf = json.loads(data)\n            for e in mf:\n                e['RepoTags'] = ['docker.io/library/bench75385049-hello:latest']\n            data = json.dumps(mf).encode()\n            m.size = len(data)\n        import io\n        tout.addfile(m, io.BytesIO(data) if data is not None else None)\nEOF\nsudo ctr -n bench75385049 images import /tmp/bench75385049/hello-tagged.tar"
   }
 
 
