@@ -1,0 +1,50 @@
+A containerd host (no Docker daemon, no CRI-O, no nerdctl, no Kubernetes) runs
+containers directly with containerd's own client, ctr, in containerd's
+"default" namespace. The image docker.io/library/bench66478456:latest has
+already been imported there. It holds one small program: as /usr/bin/idle it
+writes the file /data/inside.txt when the container starts (the user id and
+group id it runs as inside the container, a token and the time) and then
+idles; as /usr/bin/id it prints the user id and group id it runs as.
+
+An engineer wants root inside the container to be an unprivileged user on the
+host, with a user namespace (ctr's --uidmap option). The host directory
+/tmp/bench66478456/data, which is mounted at /data in the container, belongs to
+uid 5000 and gid 5000 on the host (these ids do not have to exist in
+/etc/passwd). The engineer tried:
+
+    $ sudo ctr run -d --uidmap 0:5000:4999 --mount type=bind,src=/tmp/bench66478456/data,dst=/data,options=rbind:rw docker.io/library/bench66478456:latest bench66478456
+
+The container starts and `ctr task ls` shows it RUNNING, but on the host its
+main process is still root (`ps -eo uid,gid,cmd` shows 0 0 for it), and the
+file it wrote, /tmp/bench66478456/data/inside.txt, belongs to root on the host.
+That container, named "bench66478456", is still there.
+
+Your task is to get the container "bench66478456" running so that root inside
+it (uid 0, gid 0) is uid 5000 and gid 5000 on the host.
+
+Requirements:
+
+1. When your script has finished, a container named "bench66478456", made from
+   docker.io/library/bench66478456:latest, has to be running in containerd's
+   "default" namespace (started detached, so that your command returns), with
+   the host directory /tmp/bench66478456/data mounted read-write at /data.
+   Inside it, its main process has to run as uid 0 and gid 0; on the host the
+   same process has to run as uid 5000 and gid 5000, in a user namespace of its
+   own. The container that is there now cannot be changed while it runs; your
+   script has to deal with it.
+2. The check looks at the container's main process on the host (its user and
+   group id and its uid and gid maps), at the output of /usr/bin/id run inside
+   the container, and at /tmp/bench66478456/data/inside.txt (who owns it on the
+   host, and that the container's own program wrote it after your script
+   started). Do not write that file yourself.
+3. Tools: use ctr against containerd, plus ordinary shell commands. Do not use
+   docker, nerdctl, podman, crictl or CRI-O.
+4. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime commands need `sudo`.
+5. The names, paths and ids above are fixed; there is nothing else you need to
+   look up.
+6. Your script must finish by itself: no interactive prompts, no command that
+   runs in the foreground until the container exits, and no command that waits
+   forever.
+
+Return the commands needed to complete the task.
