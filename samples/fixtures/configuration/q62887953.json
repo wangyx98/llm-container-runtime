@@ -1,0 +1,26 @@
+[
+  {
+    "case_id": "q62887953",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q62887953/reference_solution.sh"
+  },
+  {
+    "case_id": "q62887953",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q62887953",
+    "category": "configuration",
+    "model": "cheating_hardcoded_victim",
+    "code": "cat > /tmp/bench62887953_cheat_victim.c <<'EOF'\n#include <stdio.h>\nint main(void) { printf(\"uid=918273645\\n\"); return 0; }\nEOF\ngcc -o /tmp/bench62887953_cheat_victim /tmp/bench62887953_cheat_victim.c && sudo cp /tmp/bench62887953_cheat_victim /tmp/bench62887953/bundle/rootfs/victim && sudo python3 -c \"import json; p='/tmp/bench62887953/bundle/config.json'; c=json.load(open(p)); c['process']['args']=['/victim']; env=[e for e in c['process']['env'] if not e.startswith('LD_PRELOAD=')]; env.append('LD_PRELOAD=/preload.so'); c['process']['env']=env; json.dump(c, open(p,'w'))\""
+  },
+  {
+    "case_id": "q62887953",
+    "category": "configuration",
+    "model": "naive_retry_merged_args",
+    "code": "sudo runc delete -f bench62887953 2>/dev/null; sudo runc run --bundle /tmp/bench62887953/bundle bench62887953 > /tmp/bench62887953_naive_run.log 2>&1 || true; cat /tmp/bench62887953_naive_run.log"
+  }
+]

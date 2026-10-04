@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "q74562978",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q74562978/reference_solution.sh"
+  },
+  {
+    "case_id": "q74562978",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q74562978",
+    "category": "configuration",
+    "model": "naive_https_skip_verify",
+    "code": "sudo mkdir -p \"/etc/containerd/certs.d/registry.bench74562978.test:25562\"\nsudo tee \"/etc/containerd/certs.d/registry.bench74562978.test:25562\"/hosts.toml >/dev/null <<'EOF'\nserver = \"https://registry.bench74562978.test:25562\"\n\n[host.\"https://registry.bench74562978.test:25562\"]\n  capabilities = [\"pull\", \"resolve\"]\n  skip_verify = true\nEOF"
+  },
+  {
+    "case_id": "q74562978",
+    "category": "configuration",
+    "model": "naive_deprecated_mirrors_block",
+    "code": "sudo tee -a /etc/containerd/config.toml >/dev/null <<'EOF'\n\n[plugins.\"io.containerd.grpc.v1.cri\".registry]\n  [plugins.\"io.containerd.grpc.v1.cri\".registry.mirrors]\n    [plugins.\"io.containerd.grpc.v1.cri\".registry.mirrors.\"registry.bench74562978.test:25562\"]\n      endpoint = [\"http://registry.bench74562978.test:25562\"]\n  [plugins.\"io.containerd.grpc.v1.cri\".registry.configs]\n    [plugins.\"io.containerd.grpc.v1.cri\".registry.configs.\"registry.bench74562978.test:25562\".tls]\n      insecure_skip_verify = true\nEOF\nsudo systemctl restart containerd"
+  },
+  {
+    "case_id": "q74562978",
+    "category": "configuration",
+    "model": "cheat_ctr_plain_http_pull",
+    "code": "sudo ctr -n k8s.io images pull --plain-http registry.bench74562978.test:25562/bench74562978/app:latest"
+  },
+  {
+    "case_id": "q74562978",
+    "category": "configuration",
+    "model": "alt_valid_host_table_only",
+    "code": "sudo mkdir -p \"/etc/containerd/certs.d/registry.bench74562978.test:25562\"\nsudo tee \"/etc/containerd/certs.d/registry.bench74562978.test:25562\"/hosts.toml >/dev/null <<'EOF'\n[host.\"http://registry.bench74562978.test:25562\"]\n  capabilities = [\"pull\", \"resolve\"]\nEOF"
+  }
+]

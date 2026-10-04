@@ -1,0 +1,32 @@
+[
+  {
+    "case_id": "q74595635",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q74595635/reference_solution.sh"
+  },
+  {
+    "case_id": "q74595635",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q74595635",
+    "category": "configuration",
+    "model": "naive_so_answer_commands",
+    "code": "sudo mkdir -p /etc/containerd/certs.d/docker.io\necho 'plugins.\"io.containerd.grpc.v1.cri\".registry.config_path = \"/etc/containerd/certs.d\"' | sudo tee -a /etc/containerd/config.toml\nprintf 'server = \"https://registry-1.docker.io\"\\nhost.\"http://127.0.0.1:25635\".capabilities = [\"pull\", \"resolve\"]\\n' | sudo tee /etc/containerd/certs.d/docker.io/hosts.toml\nsudo systemctl restart containerd"
+  },
+  {
+    "case_id": "q74595635",
+    "category": "configuration",
+    "model": "cheat_ctr_pull_from_mirror_and_tag",
+    "code": "sudo ctr -n k8s.io images pull --plain-http 127.0.0.1:25635/library/bench74595635-app:latest\nsudo ctr -n k8s.io images tag 127.0.0.1:25635/library/bench74595635-app:latest docker.io/library/bench74595635-app:latest"
+  },
+  {
+    "case_id": "q74595635",
+    "category": "configuration",
+    "model": "alt_valid_default_hosts_dir",
+    "code": "sudo sed -i -E \"s|^([[:space:]]*config_path[[:space:]]*=[[:space:]]*)(''\\|\\\"\\\")|\\1'/etc/containerd/certs.d'|\" /etc/containerd/config.toml\nsudo mkdir -p /etc/containerd/certs.d/_default\nprintf '[host.\"http://127.0.0.1:25635\"]\\n  capabilities = [\"pull\", \"resolve\"]\\n' | sudo tee /etc/containerd/certs.d/_default/hosts.toml\nsudo systemctl restart containerd"
+  }
+]

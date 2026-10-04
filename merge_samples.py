@@ -20,6 +20,11 @@ Usage:
 
     # or merge every run under samples/generated/ in one shot
     python3 merge_samples.py samples/generated/*.json --out samples/generated/all_runs.json
+    python3 merge_samples.py samples/generated --out samples/generated/all_runs.json   # same, a directory works too
+
+    # rebuild one flat file from the per-case fixtures tree (e.g. for a tool that
+    # still wants the old samples/llm_outputs.json)
+    python3 merge_samples.py samples/fixtures --out samples/llm_outputs.json
 
 Then:
     python3 run_benchmark.py --samples samples/generated/compare_2026-09-20.json
@@ -39,21 +44,35 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(REPO_ROOT))  # so "src.xxx" imports work
+
+from src.utils import samples_io  # noqa: E402
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("inputs", nargs="+", help="samples JSON files to merge, in order")
+    parser.add_argument("inputs", nargs="+",
+                         help="samples JSON files and/or directories (every *.json below a "
+                              "directory, in sorted order) to merge, in order")
     parser.add_argument("--out", required=True, help="path to write the merged samples file")
     args = parser.parse_args()
 
     merged: dict[tuple, dict] = {}
     order: list[tuple] = []
 
-    for path_str in args.inputs:
-        path = Path(path_str)
-        if not path.exists():
-            parser.error(f"input file not found: {path}")
+    out_resolved = Path(args.out).resolve()
+    input_files: list[Path] = []
+    try:
+        for arg in args.inputs:
+            files = samples_io.expand_sources([arg])
+            if Path(arg).is_dir():
+                # a directory that contains --out must not feed the previous merge back in
+                files = [f for f in files if f.resolve() != out_resolved]
+            input_files.extend(files)
+    except samples_io.SampleLoadError as exc:
+        parser.error(str(exc))
+
+    for path in input_files:
         with open(path, "r", encoding="utf-8") as f:
             samples = json.load(f)
 
@@ -74,8 +93,9 @@ def main():
         json.dump(out_samples, f, indent=2, ensure_ascii=False)
 
     models = sorted({s.get("model") for s in out_samples})
-    print(f"merged {len(args.inputs)} file(s) -> {len(out_samples)} sample(s) across "
-          f"{len(models)} model(s): {models}")
+    shown = models if len(models) <= 12 else f"{models[:6]} ... {models[-3:]}"
+    print(f"merged {len(input_files)} file(s) -> {len(out_samples)} sample(s) across "
+          f"{len(models)} model(s): {shown}")
     print(f"wrote {out_path}")
 
 

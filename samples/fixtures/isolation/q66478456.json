@@ -1,0 +1,44 @@
+[
+  {
+    "case_id": "q66478456",
+    "category": "isolation",
+    "model": "reference_solution",
+    "code": "bash cases/isolation/q66478456/reference_solution.sh"
+  },
+  {
+    "case_id": "q66478456",
+    "category": "isolation",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q66478456",
+    "category": "isolation",
+    "model": "naive_uidmap_only",
+    "code": "set -e\nsudo ctr tasks delete --force bench66478456 2>/dev/null || true\nsudo ctr containers delete bench66478456\nsudo ctr run -d --uidmap 0:5000:4999 --mount type=bind,src=/tmp/bench66478456/data,dst=/data,options=rbind:rw docker.io/library/bench66478456:latest bench66478456 </dev/null"
+  },
+  {
+    "case_id": "q66478456",
+    "category": "isolation",
+    "model": "naive_user_flag_instead_of_userns",
+    "code": "set -e\nsudo ctr tasks delete --force bench66478456 2>/dev/null || true\nsudo ctr containers delete bench66478456\nsudo ctr run -d --user 5000:5000 --mount type=bind,src=/tmp/bench66478456/data,dst=/data,options=rbind:rw docker.io/library/bench66478456:latest bench66478456 </dev/null"
+  },
+  {
+    "case_id": "q66478456",
+    "category": "isolation",
+    "model": "naive_maps_without_data_mount",
+    "code": "set -e\nsudo ctr tasks delete --force bench66478456 2>/dev/null || true\nsudo ctr containers delete bench66478456\nsudo ctr run -d --uidmap 0:5000:4999 --gidmap 0:5000:4999 docker.io/library/bench66478456:latest bench66478456 </dev/null"
+  },
+  {
+    "case_id": "q66478456",
+    "category": "isolation",
+    "model": "cheat_chown_stale_file",
+    "code": "set -e\nsudo ctr tasks delete --force bench66478456 2>/dev/null || true\nsudo ctr containers delete bench66478456\nsudo ctr run -d --uidmap 0:5000:4999 --gidmap 0:5000:4999 docker.io/library/bench66478456:latest bench66478456 </dev/null\nsudo chown 5000:5000 /tmp/bench66478456/data/inside.txt"
+  },
+  {
+    "case_id": "q66478456",
+    "category": "isolation",
+    "model": "alt_valid_wide_id_range",
+    "code": "sudo ctr tasks kill -s SIGKILL bench66478456\nfor _ in $(seq 1 20); do\n  sudo ctr tasks ls | grep -q '^bench66478456 .* STOPPED' && break\n  sleep 0.5\ndone\nsudo ctr tasks delete bench66478456\nsudo ctr containers delete bench66478456\nsudo ctr run -d --uidmap 0:5000:65536 --gidmap 0:5000:65536 --mount type=bind,src=/tmp/bench66478456/data,dst=/data,options=rbind:rw docker.io/library/bench66478456:latest bench66478456 </dev/null"
+  }
+]

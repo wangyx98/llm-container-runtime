@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "q66762671",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q66762671/reference_solution.sh"
+  },
+  {
+    "case_id": "q66762671",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q66762671",
+    "category": "compatibility",
+    "model": "naive_system_socket_moby_namespace",
+    "code": "ID=$(sudo docker -H unix:///run/bench66762671/docker.sock ps --no-trunc --filter name=bench66762671 --format '{{.ID}}')\npython3 - \"/run/containerd/containerd.sock\" \"$ID\" > /tmp/bench66762671/report.json <<'PYEOF'\nimport json, sys\naddr, cid = sys.argv[1], sys.argv[2]\ncmd = 'sudo ctr -n moby containers ls'.replace(\"{A}\", addr)\nprint(json.dumps({\"address\": addr, \"namespace\": \"moby\", \"container_id\": cid, \"ctr_command\": cmd}))\nPYEOF"
+  },
+  {
+    "case_id": "q66762671",
+    "category": "compatibility",
+    "model": "wrong_command_without_namespace",
+    "code": "ID=$(sudo docker -H unix:///run/bench66762671/docker.sock ps --no-trunc --filter name=bench66762671 --format '{{.ID}}')\nADDR=$(ps -eo args | sed -nE 's/^dockerd .*--containerd[= ]([^ ]+).*/\\1/p' | grep bench66762671 | head -1)\npython3 - \"$ADDR\" \"$ID\" > /tmp/bench66762671/report.json <<'PYEOF'\nimport json, sys\naddr, cid = sys.argv[1], sys.argv[2]\ncmd = 'sudo ctr --address {A} containers ls'.replace(\"{A}\", addr)\nprint(json.dumps({\"address\": addr, \"namespace\": \"moby\", \"container_id\": cid, \"ctr_command\": cmd}))\nPYEOF"
+  },
+  {
+    "case_id": "q66762671",
+    "category": "compatibility",
+    "model": "cheat_docker_cli_as_ctr_command",
+    "code": "ID=$(sudo docker -H unix:///run/bench66762671/docker.sock ps --no-trunc --filter name=bench66762671 --format '{{.ID}}')\nADDR=$(ps -eo args | sed -nE 's/^dockerd .*--containerd[= ]([^ ]+).*/\\1/p' | grep bench66762671 | head -1)\npython3 - \"$ADDR\" \"$ID\" > /tmp/bench66762671/report.json <<'PYEOF'\nimport json, sys\naddr, cid = sys.argv[1], sys.argv[2]\ncmd = 'sudo docker -H unix:///run/bench66762671/docker.sock ps --no-trunc'.replace(\"{A}\", addr)\nprint(json.dumps({\"address\": addr, \"namespace\": \"moby\", \"container_id\": cid, \"ctr_command\": cmd}))\nPYEOF"
+  },
+  {
+    "case_id": "q66762671",
+    "category": "compatibility",
+    "model": "alt_valid_env_command",
+    "code": "ID=$(sudo docker -H unix:///run/bench66762671/docker.sock ps --no-trunc --filter name=bench66762671 --format '{{.ID}}')\nADDR=$(sudo find /run/bench66762671 -name containerd.sock | head -1)\npython3 - \"$ADDR\" \"$ID\" > /tmp/bench66762671/report.json <<'PYEOF'\nimport json, sys\naddr, cid = sys.argv[1], sys.argv[2]\ncmd = 'sudo env CONTAINERD_ADDRESS={A} CONTAINERD_NAMESPACE=moby ctr containers ls -q'.replace(\"{A}\", addr)\nprint(json.dumps({\"address\": addr, \"namespace\": \"moby\", \"container_id\": cid, \"ctr_command\": cmd}))\nPYEOF"
+  }
+]

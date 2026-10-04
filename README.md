@@ -51,7 +51,7 @@ llm-container-runtime-benchmark/
 ├── README.md
 ├── SO_questions_tasks_mapping.csv
 ├── conf/
-│   └── config.yaml              # timeout, samples_file, results_dir — single source of config
+│   └── config.yaml              # timeout, samples_path, results_dir — single source of config
 │
 ├── cases/
 │   ├── compatibility/
@@ -72,7 +72,8 @@ llm-container-runtime-benchmark/
 │   ├── cfg_reader/
 │   │   └── primary.py           # load(path) -> dict, reads conf/config.yaml
 │   ├── utils/
-│   │   └── shell.py             # subprocess wrapper shared by all cases
+│   │   ├── shell.py             # subprocess wrapper shared by all cases
+│   │   └── samples_io.py        # the one place that knows how samples are stored on disk
 │   └── test_suites/
 │       ├── compatibility/
 │       ├── configuration/
@@ -87,7 +88,9 @@ llm-container-runtime-benchmark/
 │       └── diagnostics/
 │
 ├── samples/
-│   ├── llm_outputs.json          # hand-written reference_solution/no_op_baseline/cheating_*
+│   ├── fixtures/                 # hand-written samples that test the ORACLES, one JSON file
+│   │   └── <category>/           # per case: reference_solution, no_op_baseline, naive_*,
+│   │       └── <case_id>.json    # cheat_*, alt_valid_* ... (a JSON list of samples)
 │   └── generated/                # real LLM outputs, one auto-named file per run (see below):
 │       └── <provider>__<model>__<timestamp>.json
 │
@@ -97,9 +100,12 @@ llm-container-runtime-benchmark/
 ├── requirements.txt
 ├── generate_llm_samples.py       # calls a real LLM API (Claude/GPT/HF/OpenAI-compatible) on
 │                                  # each case's task.txt, writes samples/generated/...
-├── merge_samples.py              # combine several samples/generated/*.json files into one,
+├── merge_samples.py              # combine several sample files (or directories) into one,
 │                                  # for a single run_benchmark.py pass across multiple models
-├── compute_pass_at_1.py          # aggregate a results.csv into a per-model pass@1 table
+├── migrate_samples.py            # one-time: split the old samples/llm_outputs.json into
+│                                  # samples/fixtures/<category>/<case_id>.json (verifies itself)
+├── compute_pass_at_1.py          # results.csv -> per-model pass@1 table (real models only),
+│                                  # or --fixtures: do the hand-written samples behave as named?
 ├── run_benchmark.py              # top-level driver: loads config + samples, calls the
 │                                  # right test_suites module, writes timestamped results
 └── run_single_case.py            # run the full 5-stage lifecycle for ONE case only,
@@ -119,12 +125,29 @@ pip install -r requirements.txt
 python3 run_benchmark.py
 ```
 
-By default this reads `conf/config.yaml` and `samples/llm_outputs.json`.
-Override either on the command line:
+By default this reads `conf/config.yaml` and the samples under
+`samples/fixtures/` (key `samples_path`; a file or a directory). Choose and
+narrow the samples on the command line:
 
 ```bash
-python3 run_benchmark.py --config conf/config.yaml --samples samples/llm_outputs.json
+python3 run_benchmark.py --fixtures                       # every hand-written sample
+python3 run_benchmark.py --generated                      # every real-model sample in samples/generated/
+python3 run_benchmark.py --samples FILE_OR_DIR [...]      # exactly these files / directories
+python3 run_benchmark.py --fixtures --exclude q72392812   # leave a case out
+python3 run_benchmark.py --fixtures --category isolation
+python3 run_benchmark.py --fixtures --case q66478456,q65393959
+python3 run_benchmark.py --fixtures --model "reference_solution,no_op_baseline"   # smoke run
+python3 run_benchmark.py --fixtures --model "naive_*"     # --model takes names or patterns
 ```
+
+Samples are stored one JSON file per case, grouped by category:
+`samples/fixtures/<category>/<case_id>.json`, each file a list of
+`{case_id, category, model, code}`. A file's path must agree with the
+`category` / `case_id` of the samples in it, otherwise the run stops with a
+message naming the file. Each row of `results.csv` also records
+`sample_kind` (`fixture` for hand-written samples, `model` for real LLM
+output from `samples/generated/`), which is what lets `compute_pass_at_1.py`
+score real models without the hand-written samples mixed in.
 
 For every sample, it will:
 1. `cleanup.sh` (reset environment)
@@ -136,14 +159,14 @@ For every sample, it will:
 
 Results are written to a **timestamped** folder so previous runs are never
 overwritten: `results/2026-09-08_00-41-12/results.csv`, with columns like
-`case_id, category, model, setup_ok, precondition_passed,
+`case_id, category, model, sample_kind, setup_ok, precondition_passed,
 solution_executed, oracle_passed, error_message`.
 
 ### A single case only
 
 `run_single_case.py` runs the exact same 5-stage lifecycle as
-`run_benchmark.py`, but for just one case, without editing
-`samples/llm_outputs.json` and without manually running the 4 bash
+`run_benchmark.py`, but for just one case, without editing any
+samples file and without manually running the 4 bash
 scripts by hand. It auto-detects which taxonomy category a case belongs
 to by scanning `src/test_suites/*/<case_id>.py`, so you never need to
 type the category yourself.
@@ -152,13 +175,19 @@ type the category yourself.
 # run the case's reference_solution sample (default if present)
 python3 run_single_case.py q61058619
 
-# run a specific named sample already defined in samples/llm_outputs.json
+# which samples does the case have?
+python3 run_single_case.py q61058619 --list
+
+# run a specific named sample from samples/fixtures/<category>/q61058619.json
 python3 run_single_case.py q61058619 --model cheating_allow_all_profile
 python3 run_single_case.py q70714501 --model no_op_baseline
 
-# run arbitrary ad-hoc shell code without touching samples/llm_outputs.json
+# run arbitrary ad-hoc shell code without touching any samples file
 python3 run_single_case.py q75798292 --code "echo hello world"
 ```
+
+It runs exactly one case, so there is no `--exclude` here (that option
+belongs to `run_benchmark.py`, which runs many).
 
 It prints the same structured result dict `run_tests()` produces
 (`setup_ok`, `precondition_passed`, `oracle_passed`, etc.), a final
@@ -175,8 +204,10 @@ is for when you want a persisted, aggregated CSV across many samples.
 3. Add `src/test_suites/<category>/<case_id>.py` implementing
    `run_tests(sample, cfg) -> (cases, error_message)` — copy an existing
    one (e.g. `q75798292.py`) and change the script names / `CASE_DIR`.
-4. Add samples for it to `samples/llm_outputs.json` with
-   `"category": "<category>"`.
+4. Add `samples/fixtures/<category>/<case_id>.json`: a JSON list of
+   `{"case_id", "category", "model", "code"}` samples (reference_solution,
+   no_op_baseline, ...). One new file per case — nothing to merge into a
+   shared file.
 5. Smoke-test just this case with `python3 run_single_case.py <case_id>`
    before running the full batch — much faster than waiting for
    `run_benchmark.py` to cycle through every other case too.
@@ -199,7 +230,7 @@ wrong state will fail. This is what makes the benchmark "dynamic":
 correctness is judged by execution, not by resemblance.
 
 To evaluate a real LLM instead of the hand-written baseline/cheating
-samples in `samples/llm_outputs.json`, use `generate_llm_samples.py`.
+samples in `samples/fixtures/`, use `generate_llm_samples.py`.
 It supports four provider backends via `--provider`, so the same
 workflow covers a proprietary API (Claude, ChatGPT) or an open-weight
 model (anything on the Hugging Face Inference API, or a self-hosted
@@ -258,9 +289,9 @@ vLLM/TGI/Ollama server):
    sample inside the file also carries `"provider"`, `"model"`, and
    `"generated_at"` fields, so a file is self-describing even if you
    rename or move it later. (This is kept separate from
-   `samples/llm_outputs.json`, which holds the hand-written
+   `samples/fixtures/`, which holds the hand-written
    `reference_solution` / `no_op_baseline` / `cheating_*` samples used to
-   validate the oracle itself — that file is never touched by this
+   validate the oracle itself — those files are never touched by this
    script.) Each generated sample is written incrementally (after every
    case, not just at the end), so a `--all` run that fails partway
    through (rate limit, network error) doesn't lose everything already
@@ -287,10 +318,14 @@ vLLM/TGI/Ollama server):
    # full batch, one model's run
    python3 run_benchmark.py \
        --samples samples/generated/anthropic__claude-sonnet-4-5__2026-09-20_21-15-03.json
+
+   # every real-model file under samples/generated/ in one pass
+   python3 run_benchmark.py --generated
 ```
    To compare **multiple** models' separate per-run files in one
    `results.csv` (and therefore one `compute_pass_at_1.py` table), merge
-   them first with `merge_samples.py` — it only reads the inputs and
+   them first with `merge_samples.py` (or skip the merge and use
+   `run_benchmark.py --generated`, which reads them all) — it only reads the inputs and
    writes a new combined file, so the individual per-run backups are
    never modified:
 ```bash
@@ -311,13 +346,25 @@ vLLM/TGI/Ollama server):
    # save the summary table too:
    python3 compute_pass_at_1.py --latest --out results/pass_at_1_summary.csv
 ```
-   Each row in `samples_file` is a single, unretried attempt at a case,
+   Each real-model sample is a single, unretried attempt at a case,
    so `oracle_passed` per `(case_id, model)` **is** the pass@1 signal for
    that attempt — `compute_pass_at_1.py` just aggregates it into
    `passed / attempted` per model and lists which case_ids failed.
    Pass `--strict` to also require `setup_ok`/`precondition_passed`,
    excluding cases where the harness environment itself misbehaved
-   rather than the model's solution being wrong.
+   rather than the model's solution being wrong. Only rows with
+   `sample_kind == model` are counted; hand-written fixtures are left out
+   (pass `--include-fixtures` to see them in the table anyway).
+
+   To check the **oracles** instead of a model, run the hand-written samples
+   and ask whether each behaved as its name promises (`reference_solution`
+   and `alt_valid_*` must pass; `no_op_baseline`, `naive_*`, `cheat*`,
+   `wrong_*` must fail). It prints one line per role and exits 1 on any
+   mismatch:
+```bash
+   python3 run_benchmark.py --fixtures --exclude q72392812
+   python3 compute_pass_at_1.py --latest --fixtures --exclude q72392812
+```
 
 `run_single_case.py` and `run_benchmark.py` don't care whether a sample
 came from a human or a model — they just run whatever `code` string is

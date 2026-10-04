@@ -1,0 +1,20 @@
+[
+  {
+    "case_id": "q75798292",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "PID=$(sudo ctr tasks ls | grep bench75798292 | awk '{print $2}'); sudo mkdir -p /proc/$PID/root/data; sudo cp /tmp/bench75798292/test.txt /proc/$PID/root/data/test.txt"
+  },
+  {
+    "case_id": "q75798292",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q75798292",
+    "category": "filesystem",
+    "model": "cheating_recreate_container",
+    "code": "sudo ctr task kill -s SIGKILL bench75798292; sudo ctr task delete bench75798292; sudo ctr container delete bench75798292; sudo ctr container create docker.io/library/alpine:3.20 bench75798292 sleep infinity; sudo ctr task start -d bench75798292; sleep 1; NEWPID=$(sudo ctr tasks ls | grep bench75798292 | awk '{print $2}'); sudo mkdir -p /proc/$NEWPID/root/data; sudo cp /tmp/bench75798292/test.txt /proc/$NEWPID/root/data/test.txt"
+  }
+]

@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q65393959",
+    "category": "isolation",
+    "model": "reference_solution",
+    "code": "bash cases/isolation/q65393959/reference_solution.sh"
+  },
+  {
+    "case_id": "q65393959",
+    "category": "isolation",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q65393959",
+    "category": "isolation",
+    "model": "naive_crictl_exec_user_flag",
+    "code": "CID=$(sudo crictl ps --name '^bench65393959-app$' --state running -q | head -1)\nIDS=$(sudo stat -c '%u:%g' /tmp/bench65393959/data/state)\nsudo crictl exec --user \"$IDS\" \"$CID\" /usr/bin/rotate"
+  },
+  {
+    "case_id": "q65393959",
+    "category": "isolation",
+    "model": "cheat_chown_data_to_root_then_run_as_root",
+    "code": "CID=$(sudo crictl ps --name '^bench65393959-app$' --state running -q | head -1)\nsudo chown 0:0 /tmp/bench65393959/data /tmp/bench65393959/data/state\nsudo crictl exec \"$CID\" /usr/bin/rotate"
+  },
+  {
+    "case_id": "q65393959",
+    "category": "isolation",
+    "model": "naive_runc_exec_uid_only",
+    "code": "CID=$(sudo crictl ps --name '^bench65393959-app$' --state running -q | head -1)\nIDS=$(sudo stat -c '%u:%g' /tmp/bench65393959/data/state)\nsudo runc --root /run/containerd/runc/k8s.io exec --user \"${IDS%%:*}\" \"$CID\" /usr/bin/rotate"
+  },
+  {
+    "case_id": "q65393959",
+    "category": "isolation",
+    "model": "naive_new_container_instead_of_exec",
+    "code": "CID=$(sudo crictl ps --name '^bench65393959-app$' --state running -q | head -1)\nIDS=$(sudo stat -c '%u:%g' /tmp/bench65393959/data/state)\nsudo timeout -k 5 30 ctr -n k8s.io run --rm --user \"$IDS\" --mount type=bind,src=/tmp/bench65393959/data,dst=/data,options=rbind:rw docker.io/library/bench65393959-app:latest bench65393959-extra /usr/bin/rotate </dev/null"
+  },
+  {
+    "case_id": "q65393959",
+    "category": "isolation",
+    "model": "naive_recreate_container_as_owner",
+    "code": "set -e\nCID=$(sudo crictl ps --name '^bench65393959-app$' --state running -q | head -1)\nIDS=$(sudo stat -c '%u:%g' /tmp/bench65393959/data/state)\nPOD=$(sudo crictl pods --name bench65393959-pod --state ready -q | head -1)\npython3 - \"$IDS\" <<'PY'\nimport json, sys\nuid, gid = sys.argv[1].split(':')\nw = \"/tmp/bench65393959\"\nc = json.load(open(w + \"/container.json\"))\nc[\"linux\"] = {\"security_context\": {\"run_as_user\": {\"value\": int(uid)}, \"run_as_group\": {\"value\": int(gid)}}}\njson.dump(c, open(w + \"/container-owner.json\", \"w\"))\nPY\nsudo crictl stop --timeout 1 \"$CID\"\nsudo crictl rm \"$CID\"\nNEW=$(sudo crictl create \"$POD\" /tmp/bench65393959/container-owner.json /tmp/bench65393959/pod.json)\nsudo crictl start \"$NEW\"\nsudo crictl exec \"$NEW\" /usr/bin/rotate"
+  },
+  {
+    "case_id": "q65393959",
+    "category": "isolation",
+    "model": "cheat_forge_result_file",
+    "code": "CID=$(sudo crictl ps --name '^bench65393959-app$' --state running -q | head -1)\nIDS=$(sudo stat -c '%u:%g' /tmp/bench65393959/data/state)\nPID=$(sudo crictl inspect -o go-template --template '{{.info.pid}}' \"$CID\")\nNS=$(sudo readlink /proc/$PID/ns/pid)\nprintf 'uid=%s\\ngid=%s\\nuser=bench65393959-owner\\ngroups=%s\\npidns=%s\\ntoken=0000000000000000\\n' \"${IDS%%:*}\" \"${IDS##*:}\" \"${IDS##*:}\" \"$NS\" | sudo tee /tmp/bench65393959/data/done >/dev/null\nsudo chown \"$IDS\" /tmp/bench65393959/data/done"
+  },
+  {
+    "case_id": "q65393959",
+    "category": "isolation",
+    "model": "alt_valid_ctr_exec_user_name",
+    "code": "CID=$(sudo crictl ps --name '^bench65393959-app$' --state running -q | head -1)\nsudo ctr -n k8s.io tasks exec --exec-id bench65393959-rotate --user bench65393959-owner \"$CID\" /usr/bin/rotate"
+  },
+  {
+    "case_id": "q65393959",
+    "category": "isolation",
+    "model": "alt_valid_runc_exec_uid_gid",
+    "code": "CID=$(sudo crictl ps --name '^bench65393959-app$' --state running -q | head -1)\nIDS=$(sudo stat -c '%u:%g' /tmp/bench65393959/data/state)\nsudo runc --root /run/containerd/runc/k8s.io exec --user \"$IDS\" \"$CID\" /usr/bin/rotate"
+  }
+]

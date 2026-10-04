@@ -1,0 +1,32 @@
+[
+  {
+    "case_id": "q74849789",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q74849789/reference_solution.sh"
+  },
+  {
+    "case_id": "q74849789",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q74849789",
+    "category": "configuration",
+    "model": "naive_direct_update",
+    "code": "CID=$(sudo crictl ps --name bench74849789 -q | head -1)\nsudo crictl update --memory 16777216 \"$CID\""
+  },
+  {
+    "case_id": "q74849789",
+    "category": "configuration",
+    "model": "naive_wrong_limit",
+    "code": "CID=$(sudo crictl ps --name bench74849789 -q | head -1)\nPID=$(sudo crictl inspect -o go-template --template '{{.info.pid}}' \"$CID\")\nsudo kill -USR1 \"$PID\"\nsleep 1\nsudo crictl update --memory 67108864 \"$CID\""
+  },
+  {
+    "case_id": "q74849789",
+    "category": "configuration",
+    "model": "naive_recreate_container",
+    "code": "POD=$(sudo crictl pods --name bench74849789-pod -q | head -1)\nCID=$(sudo crictl ps --name bench74849789 -q | head -1)\nsudo crictl stop \"$CID\"\nsudo crictl rm \"$CID\"\nD=/tmp/bench74849789/recreate\nmkdir -p \"$D\"\ncat > \"$D/pod.json\" <<'EOF'\n{\"metadata\":{\"name\":\"bench74849789-pod\",\"namespace\":\"default\",\"attempt\":1,\"uid\":\"bench74849789-uid\"},\"linux\":{}}\nEOF\ncat > \"$D/container.json\" <<'EOF'\n{\"metadata\":{\"name\":\"bench74849789\"},\"image\":{\"image\":\"bench74849789-app:latest\"},\"log_path\":\"bench74849789.log\",\"mounts\":[{\"container_path\":\"/data\",\"host_path\":\"/tmp/bench74849789/data\",\"readonly\":false}],\"linux\":{\"resources\":{\"memory_limit_in_bytes\":16777216}}}\nEOF\nNEW=$(sudo crictl create \"$POD\" \"$D/container.json\" \"$D/pod.json\")\nsudo crictl start \"$NEW\""
+  }
+]

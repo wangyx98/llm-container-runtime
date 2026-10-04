@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q73420677",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q73420677/reference_solution.sh"
+  },
+  {
+    "case_id": "q73420677",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q73420677",
+    "category": "compatibility",
+    "model": "naive_retry_create_unchanged",
+    "code": "POD_ID=$(sudo crictl pods --name bench73420677-pod -q)\nCTR_ID=$(sudo crictl create \"$POD_ID\" /tmp/bench73420677/container-config.json /tmp/bench73420677/pod-config.json)\nsudo crictl start \"$CTR_ID\""
+  },
+  {
+    "case_id": "q73420677",
+    "category": "compatibility",
+    "model": "naive_crictl_pull_from_registry",
+    "code": "sudo crictl pull bench73420677-app:latest || true\nPOD_ID=$(sudo crictl pods --name bench73420677-pod -q)\nCTR_ID=$(sudo crictl create \"$POD_ID\" /tmp/bench73420677/container-config.json /tmp/bench73420677/pod-config.json)\nsudo crictl start \"$CTR_ID\""
+  },
+  {
+    "case_id": "q73420677",
+    "category": "compatibility",
+    "model": "wrong_ctr_import_default_namespace",
+    "code": "sudo ctr images import /tmp/bench73420677/app.tar\nPOD_ID=$(sudo crictl pods --name bench73420677-pod -q)\nCTR_ID=$(sudo crictl create \"$POD_ID\" /tmp/bench73420677/container-config.json /tmp/bench73420677/pod-config.json)\nsudo crictl start \"$CTR_ID\""
+  },
+  {
+    "case_id": "q73420677",
+    "category": "compatibility",
+    "model": "alt_valid_export_default_import_k8s_io",
+    "code": "sudo ctr -n default images export /tmp/bench73420677/moved.tar docker.io/library/bench73420677-app:latest\nsudo ctr -n k8s.io images import /tmp/bench73420677/moved.tar\nPOD_ID=$(sudo crictl pods --name bench73420677-pod -q)\nCTR_ID=$(sudo crictl create \"$POD_ID\" /tmp/bench73420677/container-config.json /tmp/bench73420677/pod-config.json)\nsudo crictl start \"$CTR_ID\""
+  },
+  {
+    "case_id": "q73420677",
+    "category": "compatibility",
+    "model": "cheating_rebuild_image_same_name",
+    "code": "python3 - <<'EOF'\nimport hashlib, io, json, tarfile\nsrc = \"/tmp/bench73420677/app.tar\"\ndst = \"/tmp/bench73420677/app-rebuilt.tar\"\nwith tarfile.open(src) as t:\n    files = {m.name: t.extractfile(m).read() for m in t.getmembers() if m.isfile()}\nmanifest = json.loads(files[\"manifest.json\"])\nold_cfg_name = manifest[0][\"Config\"]\ncfg = json.loads(files[old_cfg_name])\ncfg[\"config\"][\"Labels\"] = {\"rebuilt\": \"yes\"}\nnew_cfg = json.dumps(cfg, sort_keys=True, separators=(\",\", \":\")).encode()\nnew_name = hashlib.sha256(new_cfg).hexdigest() + \".json\"\nmanifest[0][\"Config\"] = new_name\ndel files[old_cfg_name]\nfiles[new_name] = new_cfg\nfiles[\"manifest.json\"] = json.dumps(manifest).encode()\nwith tarfile.open(dst, \"w\") as t:\n    for name, data in files.items():\n        ti = tarfile.TarInfo(name); ti.size = len(data)\n        t.addfile(ti, io.BytesIO(data))\nEOF\nsudo ctr -n k8s.io images import /tmp/bench73420677/app-rebuilt.tar\nPOD_ID=$(sudo crictl pods --name bench73420677-pod -q)\nCTR_ID=$(sudo crictl create \"$POD_ID\" /tmp/bench73420677/container-config.json /tmp/bench73420677/pod-config.json)\nsudo crictl start \"$CTR_ID\""
+  },
+  {
+    "case_id": "q73420677",
+    "category": "compatibility",
+    "model": "wrong_recreates_pod_sandbox",
+    "code": "sudo ctr -n k8s.io images import /tmp/bench73420677/app.tar\nOLD=$(sudo crictl pods --name bench73420677-pod -q)\nsudo crictl stopp \"$OLD\"; sudo crictl rmp \"$OLD\"\nPOD_ID=$(sudo crictl runp /tmp/bench73420677/pod-config.json)\nCTR_ID=$(sudo crictl create \"$POD_ID\" /tmp/bench73420677/container-config.json /tmp/bench73420677/pod-config.json)\nsudo crictl start \"$CTR_ID\""
+  }
+]

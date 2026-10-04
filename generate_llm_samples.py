@@ -2,7 +2,8 @@
 """
 Calls an LLM API with each case's task.txt as the prompt, extracts the
 shell command(s) it proposes, and writes them as samples into a JSON file
-shaped exactly like samples/llm_outputs.json -- so they run through the
+shaped like the per-case files under samples/fixtures/ (a JSON list of
+{case_id, category, model, code, ...}) -- so they run through the
 SAME five-stage harness (run_single_case.py / run_benchmark.py) as the
 hand-written reference_solution / no_op_baseline / cheating_* samples.
 
@@ -30,14 +31,16 @@ Output goes to a SEPARATE file per run by default --
 samples/generated/<provider>__<model>__<timestamp>.json -- so successive
 runs (different models, or re-runs of the same model at a different
 time) never clobber each other or the hand-written baseline samples used
-to sanity-check the oracles themselves (samples/llm_outputs.json). Every
+to sanity-check the oracles themselves (samples/fixtures/<category>/<case_id>.json). Every
 sample also carries "provider", "model", and "generated_at" fields, so a
 run is self-describing even if a file gets renamed or merged later.
 Pass --out explicitly to opt back into writing/merging into one shared
 file instead (e.g. to accumulate several models into a single file
 before running the harness once). See merge_samples.py to combine
 several already-generated run files into one for a single
-run_benchmark.py pass across multiple models.
+run_benchmark.py pass across multiple models -- or skip merging and run
+`python3 run_benchmark.py --generated`, which reads every file under
+samples/generated/ itself.
 
 Usage:
     # Claude

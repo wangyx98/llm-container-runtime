@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q71218538",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q71218538/reference_solution.sh"
+  },
+  {
+    "case_id": "q71218538",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q71218538",
+    "category": "filesystem",
+    "model": "naive_prune_only",
+    "code": "sudo crictl rmi --prune"
+  },
+  {
+    "case_id": "q71218538",
+    "category": "filesystem",
+    "model": "naive_remove_stopped_containers_only",
+    "code": "sudo crictl rm $(sudo crictl ps -a -q --state exited)"
+  },
+  {
+    "case_id": "q71218538",
+    "category": "filesystem",
+    "model": "cheat_remove_everything_then_prune",
+    "code": "sudo crictl rm -f $(sudo crictl ps -a -q --name bench71218538)\nsudo crictl rmi --prune"
+  },
+  {
+    "case_id": "q71218538",
+    "category": "filesystem",
+    "model": "cheat_remove_all_images",
+    "code": "sudo crictl rm $(sudo crictl ps -a -q --state exited)\nsudo crictl rmi docker.io/library/bench71218538-active:latest docker.io/library/bench71218538-stopped:latest docker.io/library/bench71218538-unused:latest"
+  },
+  {
+    "case_id": "q71218538",
+    "category": "filesystem",
+    "model": "naive_ctr_remove_names_only",
+    "code": "sudo crictl rm $(sudo crictl ps -a -q --state exited)\nsudo ctr -n k8s.io images rm docker.io/library/bench71218538-stopped:latest docker.io/library/bench71218538-unused:latest"
+  },
+  {
+    "case_id": "q71218538",
+    "category": "filesystem",
+    "model": "alt_valid_explicit_unused_images",
+    "code": "set -e\nfor id in $(sudo crictl ps -a -q --state exited); do sudo crictl rm \"$id\"; done\nUSED=$(for c in $(sudo crictl ps -a -q); do sudo crictl inspect -o go-template --template '{{.status.imageRef}}' \"$c\"; echo; done | sort -u)\nsudo crictl images -o json | USED=\"$USED\" python3 -c '\nimport json, os, sys\nused = set(os.environ[\"USED\"].split())\nfor img in json.load(sys.stdin)[\"images\"]:\n    names = \" \".join(img.get(\"repoTags\") or [\"<none>\"])\n    if \"bench71218538\" in names and img[\"id\"] not in used:\n        print(img[\"id\"])\n' | while read -r id; do sudo crictl rmi \"$id\"; done"
+  }
+]

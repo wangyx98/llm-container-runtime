@@ -1,0 +1,26 @@
+[
+  {
+    "case_id": "q74903831",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q74903831/reference_solution.sh"
+  },
+  {
+    "case_id": "q74903831",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q74903831",
+    "category": "compatibility",
+    "model": "naive_retry_same_command",
+    "code": "sudo podman run --rm localhost/bench74903831-wasm:latest || true\nsudo podman run --rm --runtime runc localhost/bench74903831-wasm:latest || true\nsudo podman run --rm --runtime crun localhost/bench74903831-wasm:latest || true"
+  },
+  {
+    "case_id": "q74903831",
+    "category": "compatibility",
+    "model": "cheating_rebuild_native_as_wasm",
+    "code": "mkdir -p /tmp/bench74903831-cheat\ncat > /tmp/bench74903831-cheat/native_cheat.c <<'EOF'\n#include <stdio.h>\nint main(void) { printf(\"bench74903831-wasm-ok\\n\"); return 0; }\nEOF\ngcc -static -O2 -o /tmp/bench74903831-cheat/native_cheat /tmp/bench74903831-cheat/native_cheat.c\ncat > /tmp/bench74903831-cheat/Dockerfile <<'EOF'\nFROM scratch\nCOPY native_cheat /hellor.wasm\nCMD [\"/hellor.wasm\"]\nEOF\nsudo buildah build -f /tmp/bench74903831-cheat/Dockerfile -t localhost/bench74903831-wasm:latest /tmp/bench74903831-cheat"
+  }
+]

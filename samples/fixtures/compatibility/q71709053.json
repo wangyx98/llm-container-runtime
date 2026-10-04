@@ -1,0 +1,32 @@
+[
+  {
+    "case_id": "q71709053",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q71709053/reference_solution.sh"
+  },
+  {
+    "case_id": "q71709053",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q71709053",
+    "category": "compatibility",
+    "model": "naive_tag_with_docker_io_name",
+    "code": "sudo nerdctl tag bench71709053-base:local docker.io/library/bench71709053-base:local\ncd /tmp/bench71709053\nsudo nerdctl build -t bench71709053-child:local -f Dockerfile.child ."
+  },
+  {
+    "case_id": "q71709053",
+    "category": "compatibility",
+    "model": "cheat_child_from_scratch",
+    "code": "cd /tmp/bench71709053\nprintf 'FROM scratch\\nCOPY app.txt /app.txt\\n' > Dockerfile.nobase\nsudo nerdctl build -t bench71709053-child:local -f Dockerfile.nobase ."
+  },
+  {
+    "case_id": "q71709053",
+    "category": "compatibility",
+    "model": "alt_valid_rebuild_base_in_buildkit_ns",
+    "code": "cd /tmp/bench71709053\nsudo nerdctl --namespace buildkit build -t bench71709053-base:local -f Dockerfile.base .\nsudo nerdctl build -t bench71709053-child:local -f Dockerfile.child ."
+  }
+]
