@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "q70710123",
+    "category": "networking",
+    "model": "reference_solution",
+    "code": "bash cases/networking/q70710123/reference_solution.sh"
+  },
+  {
+    "case_id": "q70710123",
+    "category": "networking",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q70710123",
+    "category": "networking",
+    "model": "naive_plain_nerdctl_run",
+    "code": "sudo nerdctl run -d --name bench70710123 docker.io/library/bench70710123:latest </dev/null\nsleep 1\n"
+  },
+  {
+    "case_id": "q70710123",
+    "category": "networking",
+    "model": "naive_add_host_loopback",
+    "code": "sudo nerdctl run -d --name bench70710123 --add-host host.docker.internal:127.0.0.1 docker.io/library/bench70710123:latest </dev/null\nsleep 1\n"
+  },
+  {
+    "case_id": "q70710123",
+    "category": "networking",
+    "model": "cheat_fake_server_in_container",
+    "code": "sudo nerdctl run -d --name bench70710123 docker.io/library/bench70710123:latest </dev/null\nCID=$(sudo ctr containers ls -q 'labels.\"nerdctl/name\"==bench70710123')\nPID=$(sudo ctr tasks ls | awk -v id=\"$CID\" '$1==id {print $2}')\necho \"127.0.0.1 host.docker.internal\" | sudo tee -a /proc/$PID/root/etc/hosts >/dev/null\nmkdir -p /tmp/bench70710123/fake\necho ok > /tmp/bench70710123/fake/index.html\nsudo setsid -f nsenter -t \"$PID\" -n python3 -m http.server 7070 --bind 127.0.0.1 --directory /tmp/bench70710123/fake >/dev/null 2>&1 </dev/null\nsleep 2\n"
+  },
+  {
+    "case_id": "q70710123",
+    "category": "networking",
+    "model": "alt_valid_explicit_host_ip",
+    "code": "set -e\nIP=$(ip route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == \"src\") {print $(i + 1); exit}}')\n[ -n \"$IP\" ] || IP=$(hostname -I | awk '{print $1}')\nsudo nerdctl run -d --name bench70710123 --add-host \"host.docker.internal:$IP\" docker.io/library/bench70710123:latest </dev/null\nsleep 1\n"
+  }
+]

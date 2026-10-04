@@ -1,0 +1,64 @@
+A Linux host runs containerd (no Docker daemon, no CRI-O, no Kubernetes) and has
+nerdctl installed as its Docker-compatible command line. Containers live in
+containerd's "default" namespace, and the CNI plugins and nerdctl's default
+bridge network are in place.
+
+An engineer's application talks to a service that runs on the host machine, and
+it is configured to reach it as http://host.docker.internal:7070/ . With Docker
+Desktop that name resolves inside a container to the host, so it worked there.
+After switching to nerdctl, the application inside the container cannot reach
+the host service any more.
+
+What is on the machine:
+
+- On the host, a test service listens on TCP port 7070 on all interfaces
+  (0.0.0.0). It answers every GET with HTTP 200 and a few lines of text. On the
+  host, `curl http://127.0.0.1:7070/` works.
+- The image docker.io/library/bench70710123:latest has already been imported
+  into containerd. It holds one small program, /usr/bin/probe, which is the
+  application: started without arguments (the image's default command) it
+  requests http://host.docker.internal:7070/ every two seconds and prints what
+  happened. That URL is built into the image and cannot be changed. The image
+  has no shell and no other tools.
+- No container has been created from the image yet.
+
+Starting it the way one would with Docker gives a container whose application
+cannot reach the host service:
+
+    $ sudo nerdctl run -d --name bench70710123 docker.io/library/bench70710123:latest
+    $ sudo nerdctl logs bench70710123
+    probe: GET http://host.docker.internal:7070/
+    probe: cannot resolve 'host.docker.internal'
+    probe: request failed (3)
+
+Your task is to start the application container with nerdctl so that, from
+inside that container, http://host.docker.internal:7070/ reaches the test
+service on the host.
+
+Requirements:
+
+1. When your script has finished, a container named "bench70710123", made from
+   docker.io/library/bench70710123:latest, has to be running in containerd's
+   "default" namespace (started detached, so that your command returns), and a
+   request to http://host.docker.internal:7070/ made from inside that very
+   container has to be answered by the host's test service. Answering from
+   somewhere else (a server started inside the container's network namespace, a
+   second container under another name, another image) does not count.
+2. The check runs the image's own program, `/usr/bin/probe fetch
+   http://host.docker.internal:7070/`, in the network and filesystem
+   namespaces of the container, which is exactly what the application does, and
+   then looks at who answered.
+3. Tools: nerdctl against containerd, plus ordinary shell commands (ip, curl,
+   and so on). Do not use docker, podman, crictl or CRI-O.
+4. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime and network commands need `sudo`.
+5. The names, the image, the URL and the port are fixed. Anything your approach
+   needs that is only known at runtime (for example the host's own IP address,
+   which differs from machine to machine) is not given here; your script has to
+   find it itself.
+6. Your script must finish by itself: no interactive prompts, no command that
+   runs in the foreground until the container exits, and no command that waits
+   forever (start anything long-running in the background with its output
+   redirected).
+
+Return the commands needed to complete the task.
