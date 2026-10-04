@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "q71513719",
+    "category": "networking",
+    "model": "reference_solution",
+    "code": "bash cases/networking/q71513719/reference_solution.sh"
+  },
+  {
+    "case_id": "q71513719",
+    "category": "networking",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q71513719",
+    "category": "networking",
+    "model": "naive_ctr_p_flag",
+    "code": "set -e\nsudo ctr tasks kill -s SIGKILL bench71513719 || true\nsudo ctr tasks delete --force bench71513719 || true\nsudo ctr containers delete bench71513719\nsudo ctr run -d -p 8085:8085 docker.io/library/bench71513719:latest bench71513719 </dev/null\n"
+  },
+  {
+    "case_id": "q71513719",
+    "category": "networking",
+    "model": "naive_second_container_other_name",
+    "code": "sudo ctr run -d --net-host docker.io/library/bench71513719:latest bench71513719-web </dev/null\nsleep 1\n"
+  },
+  {
+    "case_id": "q71513719",
+    "category": "networking",
+    "model": "cheat_host_http_server",
+    "code": "mkdir -p /tmp/bench71513719/fake\necho ok > /tmp/bench71513719/fake/index.html\nnohup python3 -m http.server 8085 --bind 127.0.0.1 --directory /tmp/bench71513719/fake >/dev/null 2>&1 </dev/null &\nsleep 1\n"
+  },
+  {
+    "case_id": "q71513719",
+    "category": "networking",
+    "model": "alt_valid_nerdctl_publish",
+    "code": "set -e\nsudo ctr tasks kill -s SIGKILL bench71513719 || true\nsudo ctr tasks delete --force bench71513719 || true\nsudo ctr containers delete bench71513719\nsudo nerdctl run -d --name bench71513719 -p 8085:8085 docker.io/library/bench71513719:latest </dev/null\nfor _ in $(seq 1 20); do\n  curl -fsS --noproxy '*' --max-time 2 http://127.0.0.1:8085/ >/dev/null 2>&1 && break\n  sleep 0.5\ndone\n"
+  }
+]

@@ -1,0 +1,129 @@
+case_id,category,model,sample_kind,error_message,setup_ok,precondition_passed,solution_executed,solution_stdout,solution_stderr,oracle_passed,oracle_output
+q71513719,networking,reference_solution,fixture,,True,True,True,"[solution] ctr has no -p/--publish option (the mapping a Docker user expects is something
+[solution] nerdctl or CNI's portmap plugin provides). The container started by plain 'ctr run'
+[solution] has a network namespace of its own with only a loopback device, and a running
+[solution] container's namespaces cannot be changed. So remove it and start it again in the
+[solution] host's network namespace (--net-host): its server then listens on host port 8085.
+[solution] waiting until the host gets an answer on port 8085...
+[solution] done.
+",,True,"[oracle] check 0: containerd must be up and answering...
+  -> OK
+[oracle] check 1: a container named 'bench71513719' must exist in the default namespace, made
+[oracle]          from the image, with a RUNNING task...
+  -> OK (id bench71513719, host pid 3102)
+[oracle] check 2: a plain request from the host to http://127.0.0.1:8085/ must be answered
+[oracle]          with HTTP 200...
+  -> OK
+[oracle] check 3: the answer must come from the server of THAT container: it carries the
+[oracle]          image's token and names the pid namespace of the container's main process...
+  -> OK (answered from inside pid:[4026532219])
+[oracle] ALL CHECKS PASSED
+"
+q71513719,networking,no_op_baseline,fixture,"oracle failed: K
+[oracle] check 1: a container named 'bench71513719' must exist in the default namespace, made
+[oracle]          from the image, with a RUNNING task...
+  -> OK (id bench71513719, host pid 3585)
+[oracle] check 2: a plain request from the host to http://127.0.0.1:8085/ must be answered
+[oracle]          with HTTP 200...
+  -> FAIL: curl http://127.0.0.1:8085/ from the host got no HTTP 200 (curl exit 7, status '000'): curl: (7) Failed to connect to 127.0.0.1 port 8085 after 0 ms: Connection refused",True,True,False,,no code provided (no-op sample),False,"[oracle] check 0: containerd must be up and answering...
+  -> OK
+[oracle] check 1: a container named 'bench71513719' must exist in the default namespace, made
+[oracle]          from the image, with a RUNNING task...
+  -> OK (id bench71513719, host pid 3585)
+[oracle] check 2: a plain request from the host to http://127.0.0.1:8085/ must be answered
+[oracle]          with HTTP 200...
+  -> FAIL: curl http://127.0.0.1:8085/ from the host got no HTTP 200 (curl exit 7, status '000'): curl: (7) Failed to connect to 127.0.0.1 port 8085 after 0 ms: Connection refused 
+"
+q71513719,networking,naive_ctr_p_flag,fixture,"oracle failed: [oracle] check 0: containerd must be up and answering...
+  -> OK
+[oracle] check 1: a container named 'bench71513719' must exist in the default namespace, made
+[oracle]          from the image, with a RUNNING task...
+  -> FAIL: no container named 'bench71513719' in the default namespace (containers: )",True,True,False,"t profile with the specified name, e.g. ""cri-containerd.apparmor.d""
+   --apparmor-profile value                                                           Enable AppArmor with an existing custom profile
+   --blockio-config-file value                                                        File path to blockio class definitions. By default class definitions are not loaded.
+   --blockio-class value                                                              Name of the blockio class to associate the container with
+   --rdt-class value                                                                  Name of the RDT class to associate the container with. Specifies a Class of Service (CLOS) for cache and memory bandwidth management.
+   --hostname value                                                                   Set the container's host name
+   --user value, -u value                                                             Username or user id, group optional (format: <name|uid>[:<group|gid>])
+   --rootfs                                                                           Use custom rootfs that is not managed by containerd snapshotter (default: false)
+   --no-pivot                                                                         Disable use of pivot-root (linux only) (default: false)
+   --cpu-quota value                                                                  Limit CPU CFS quota (default: -1)
+   --cpu-period value                                                                 Limit CPU CFS period (default: 0)
+   --rootfs-propagation value                                                         Set the propagation of the container rootfs
+   --device value [ --device value ]                                                  File path to a device to add to the container; or a path to a directory tree of devices to add to the container
+   --help, -h                                                                         Show help (default: false)
+","time=""2026-10-04T14:34:35-05:00"" level=warning msg=""task bench71513719 exit with non-zero exit code 137""
+ctr: flag provided but not defined: -p
+",False,"[oracle] check 0: containerd must be up and answering...
+  -> OK
+[oracle] check 1: a container named 'bench71513719' must exist in the default namespace, made
+[oracle]          from the image, with a RUNNING task...
+  -> FAIL: no container named 'bench71513719' in the default namespace (containers: )
+"
+q71513719,networking,naive_second_container_other_name,fixture,"oracle failed: ask...
+  -> OK (id bench71513719, host pid 4677)
+[oracle] check 2: a plain request from the host to http://127.0.0.1:8085/ must be answered
+[oracle]          with HTTP 200...
+  -> OK
+[oracle] check 3: the answer must come from the server of THAT container: it carries the
+[oracle]          image's token and names the pid namespace of the container's main process...
+  -> FAIL: the answer comes from a process in pid namespace 'pid:[4026532285]', not from container 'bench71513719' (pid:[4026532219])",True,True,True,,,False,"[oracle] check 0: containerd must be up and answering...
+  -> OK
+[oracle] check 1: a container named 'bench71513719' must exist in the default namespace, made
+[oracle]          from the image, with a RUNNING task...
+  -> OK (id bench71513719, host pid 4677)
+[oracle] check 2: a plain request from the host to http://127.0.0.1:8085/ must be answered
+[oracle]          with HTTP 200...
+  -> OK
+[oracle] check 3: the answer must come from the server of THAT container: it carries the
+[oracle]          image's token and names the pid namespace of the container's main process...
+  -> FAIL: the answer comes from a process in pid namespace 'pid:[4026532285]', not from container 'bench71513719' (pid:[4026532219])
+"
+q71513719,networking,cheat_host_http_server,fixture,"oracle failed: NING task...
+  -> OK (id bench71513719, host pid 5352)
+[oracle] check 2: a plain request from the host to http://127.0.0.1:8085/ must be answered
+[oracle]          with HTTP 200...
+  -> OK
+[oracle] check 3: the answer must come from the server of THAT container: it carries the
+[oracle]          image's token and names the pid namespace of the container's main process...
+  -> FAIL: the answer on port 8085 does not carry the token of the image's server (got 'nothing'): something else answers there",True,True,True,,,False,"[oracle] check 0: containerd must be up and answering...
+  -> OK
+[oracle] check 1: a container named 'bench71513719' must exist in the default namespace, made
+[oracle]          from the image, with a RUNNING task...
+  -> OK (id bench71513719, host pid 5352)
+[oracle] check 2: a plain request from the host to http://127.0.0.1:8085/ must be answered
+[oracle]          with HTTP 200...
+  -> OK
+[oracle] check 3: the answer must come from the server of THAT container: it carries the
+[oracle]          image's token and names the pid namespace of the container's main process...
+  -> FAIL: the answer on port 8085 does not carry the token of the image's server (got 'nothing'): something else answers there
+"
+q71513719,networking,alt_valid_ctr_cni_dnat,fixture,,True,True,True,,"time=""2026-10-04T14:34:40-05:00"" level=warning msg=""task bench71513719 exit with non-zero exit code 137""
+",True,"[oracle] check 0: containerd must be up and answering...
+  -> OK
+[oracle] check 1: a container named 'bench71513719' must exist in the default namespace, made
+[oracle]          from the image, with a RUNNING task...
+  -> OK (id bench71513719, host pid 6054)
+[oracle] check 2: a plain request from the host to http://127.0.0.1:8085/ must be answered
+[oracle]          with HTTP 200...
+  -> OK
+[oracle] check 3: the answer must come from the server of THAT container: it carries the
+[oracle]          image's token and names the pid namespace of the container's main process...
+  -> OK (answered from inside pid:[4026532219])
+[oracle] ALL CHECKS PASSED
+"
+q71513719,networking,alt_valid_nerdctl_publish,fixture,,True,True,True,"996fd5f4d84c3bd807b2b275cef34ce66f1218e4c276309659cfcb87cc23ec4d
+","time=""2026-10-04T14:34:41-05:00"" level=warning msg=""task bench71513719 exit with non-zero exit code 137""
+",True,"[oracle] check 0: containerd must be up and answering...
+  -> OK
+[oracle] check 1: a container named 'bench71513719' must exist in the default namespace, made
+[oracle]          from the image, with a RUNNING task...
+  -> OK (id 996fd5f4d84c3bd807b2b275cef34ce66f1218e4c276309659cfcb87cc23ec4d, host pid 6841)
+[oracle] check 2: a plain request from the host to http://127.0.0.1:8085/ must be answered
+[oracle]          with HTTP 200...
+  -> OK
+[oracle] check 3: the answer must come from the server of THAT container: it carries the
+[oracle]          image's token and names the pid namespace of the container's main process...
+  -> OK (answered from inside pid:[4026532219])
+[oracle] ALL CHECKS PASSED
+"

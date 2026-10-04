@@ -1,0 +1,51 @@
+A containerd host (no Docker daemon, no CRI-O, no Kubernetes) runs containers in
+containerd's "default" namespace. Both ctr and nerdctl are installed, and the
+CNI plugins (bridge, portmap, firewall and the others) are in /opt/cni/bin. The
+image docker.io/library/bench71513719:latest has already been imported there.
+It holds one small program, /usr/bin/webd, an HTTP server that listens on TCP
+port 8085 inside the container and answers every request with a few lines of
+text.
+
+An engineer who is used to Docker (docker run -p 8085:8085 imageId:version) wants
+the server's API to be reachable from the host. They started the container with
+ctr:
+
+    $ sudo ctr run -d docker.io/library/bench71513719:latest bench71513719
+
+`ctr task ls` shows it RUNNING, but a request from the host is refused:
+
+    $ curl http://127.0.0.1:8085/
+    curl: (7) Failed to connect to 127.0.0.1 port 8085: Couldn't connect to server
+
+ctr has no option like Docker's -p. That container, named "bench71513719", is
+still there.
+
+Your task is to make the web server of the container "bench71513719" reachable
+from the host itself, on port 8085.
+
+Requirements:
+
+1. When your script has finished, a container named "bench71513719", made from
+   docker.io/library/bench71513719:latest, has to be running in containerd's
+   "default" namespace (started detached, so that your command returns), and a
+   plain `curl http://127.0.0.1:8085/` on the host has to get HTTP 200 from the
+   server inside that very container. Whether you keep the container that is
+   there now or start it again is up to you. Answering from somewhere else (a
+   second container under another name, a process on the host that imitates the
+   server, another image) does not count.
+2. The check runs `curl http://127.0.0.1:8085/` on the host and looks at who
+   answers: the reply has to come from the program of that container itself.
+3. Tools: ctr and nerdctl against containerd, CNI, plus ordinary shell commands
+   (ip, iptables, curl and so on). Do not use docker, podman, crictl or CRI-O.
+4. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime and network commands need `sudo`.
+5. The names, the image and the port are fixed. Anything your approach needs
+   that is only known at runtime (for example an IP address that a network
+   plugin assigns to the container) is not given here; your script has to find
+   it itself.
+6. Your script must finish by itself: no interactive prompts, no command that
+   runs in the foreground until the container exits, and no command that waits
+   forever (start anything long-running in the background with its output
+   redirected).
+
+Return the commands needed to complete the task.
