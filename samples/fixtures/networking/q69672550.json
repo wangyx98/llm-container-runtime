@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "q69672550",
+    "category": "networking",
+    "model": "reference_solution",
+    "code": "bash cases/networking/q69672550/reference_solution.sh"
+  },
+  {
+    "case_id": "q69672550",
+    "category": "networking",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q69672550",
+    "category": "networking",
+    "model": "naive_plain_ctr_run",
+    "code": "sudo ctr run -d docker.io/library/bench69672550:latest bench69672550 </dev/null\nsleep 1\n"
+  },
+  {
+    "case_id": "q69672550",
+    "category": "networking",
+    "model": "naive_nerdctl_publish",
+    "code": "sudo nerdctl run -d --name bench69672550 -p 5000:5000 docker.io/library/bench69672550:latest </dev/null\nsleep 2\n"
+  },
+  {
+    "case_id": "q69672550",
+    "category": "networking",
+    "model": "cheat_host_http_server",
+    "code": "sudo ctr run -d docker.io/library/bench69672550:latest bench69672550 </dev/null\nmkdir -p /tmp/bench69672550/fake\necho ok > /tmp/bench69672550/fake/index.html\nnohup python3 -m http.server 5000 --bind 127.0.0.1 --directory /tmp/bench69672550/fake >/dev/null 2>&1 </dev/null &\nsleep 1\n"
+  },
+  {
+    "case_id": "q69672550",
+    "category": "networking",
+    "model": "alt_valid_cni_dnat",
+    "code": "set -e\nsudo ctr run -d --cni docker.io/library/bench69672550:latest bench69672550 </dev/null\nPID=$(sudo ctr tasks ls | awk '$1==\"bench69672550\" {print $2}')\nIP=\"\"\nfor _ in $(seq 1 20); do\n  IP=$(sudo nsenter -t \"$PID\" -n hostname -I | awk '{print $1}')\n  [ -n \"$IP\" ] && break\n  sleep 0.5\ndone\necho 1 | sudo tee /proc/sys/net/ipv4/ip_forward >/dev/null\necho 1 | sudo tee /proc/sys/net/ipv4/conf/all/route_localnet >/dev/null\nsudo iptables -t nat -A OUTPUT -d 127.0.0.1 -p tcp --dport 5000 -j DNAT --to-destination \"$IP:5000\"\nsudo iptables -t nat -A PREROUTING -p tcp --dport 5000 -j DNAT --to-destination \"$IP:5000\"\nsudo iptables -t nat -A POSTROUTING -d \"$IP\" -p tcp --dport 5000 -j MASQUERADE\n"
+  }
+]
