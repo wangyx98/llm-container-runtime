@@ -1,0 +1,47 @@
+A host with containerd (no Docker daemon, no CRI-O, no Kubernetes) uses cgroup
+v2 only. Three containers are running in containerd's default namespace. Their
+IDs are random 64-character hex strings and are not given here (to list them:
+`sudo ctr containers ls`). Each container's user-land is the host's /usr,
+mounted into it read-only, so the usual tools (sh, grep, sed, awk, cut, tr, ...)
+are there.
+
+An engineer needs the process inside a container to find out the ID of its own
+container, for telemetry. On cgroup v1 the ID was in /sys/fs/cgroup/devices and
+in /proc/self/mountinfo. On this host it is in neither:
+
+    / # more /sys/fs/cgroup/devices
+    more: /sys/fs/cgroup/devices: No such file or directory
+    / # more /proc/self/mountinfo
+    (the root overlay, /proc, /dev, /sys, ... the container ID is not in any line)
+
+and they do not know where else, from inside the container, the ID can be
+found.
+
+Your task is to write a shell script to /tmp/bench75533491/get_container_id.sh
+that, run inside a container, prints the full ID of the container it runs in,
+as containerd knows it (the ID `sudo ctr containers ls` shows for that
+container), on one line and nothing else on stdout. The directory
+/tmp/bench75533491 already exists.
+
+Requirements:
+
+1. The check runs the contents of your file inside containers with
+   `sudo ctr tasks exec ... /bin/sh -c "<contents of the file>"` (so it is run
+   by the container's /bin/sh, as root, with no terminal), and compares what
+   the script prints with the ID of the container it ran in. It runs it in
+   each of the three containers and in one more container that does not exist
+   yet. It has to print the right ID in every one of them, so the script must
+   work out the ID itself and must not contain any ID.
+2. The three containers must keep running as they are: do not stop, delete,
+   restart or recreate them. You may use `ctr` (with `sudo`) to look at them
+   and to try your script inside them.
+3. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime and network commands need `sudo`.
+4. The IDs of the containers are not given here; the script must not rely on
+   anything that is only known on the host.
+5. Your commands must finish by themselves: no interactive prompts, no command
+   that runs in the foreground until it is interrupted, and no command that
+   waits forever (start anything long-running in the background with its output
+   redirected).
+
+Return the commands needed to complete the task.

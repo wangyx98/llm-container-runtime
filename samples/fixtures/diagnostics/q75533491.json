@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "q75533491",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q75533491/reference_solution.sh"
+  },
+  {
+    "case_id": "q75533491",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q75533491",
+    "category": "diagnostics",
+    "model": "naive_cgroup_v1_devices_path",
+    "code": "cat > /tmp/bench75533491/get_container_id.sh <<'EOF'\n#!/bin/sh\ngrep ':devices:' /proc/self/cgroup | cut -d/ -f3\nEOF"
+  },
+  {
+    "case_id": "q75533491",
+    "category": "diagnostics",
+    "model": "naive_last_path_component",
+    "code": "cat > /tmp/bench75533491/get_container_id.sh <<'EOF'\n#!/bin/sh\nbasename \"$(cut -d: -f3 /proc/self/cgroup | tail -n 1)\"\nEOF"
+  },
+  {
+    "case_id": "q75533491",
+    "category": "diagnostics",
+    "model": "cheat_hardcoded_first_container_id",
+    "code": "ID=$(sudo ctr -n default containers ls -q 'labels.bench75533491==1' | head -n 1)\nprintf '#!/bin/sh\\necho %s\\n' \"$ID\" > /tmp/bench75533491/get_container_id.sh"
+  },
+  {
+    "case_id": "q75533491",
+    "category": "diagnostics",
+    "model": "alt_valid_proc1_cgroup_sed",
+    "code": "cat > /tmp/bench75533491/get_container_id.sh <<'EOF'\n#!/bin/sh\nsed -n 's/.*\\([0-9a-f]\\{64\\}\\).*/\\1/p' /proc/1/cgroup | tail -n 1\nEOF"
+  }
+]
