@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q67171982",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q67171982/reference_solution.sh"
+  },
+  {
+    "case_id": "q67171982",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q67171982",
+    "category": "compatibility",
+    "model": "naive_term_only",
+    "code": "sudo ctr -a /run/bench67171982/containerd.sock -n bench67171982 tasks kill bench67171982-target\n"
+  },
+  {
+    "case_id": "q67171982",
+    "category": "compatibility",
+    "model": "naive_sigkill_delete",
+    "code": "sudo ctr -a /run/bench67171982/containerd.sock -n bench67171982 tasks kill -s SIGKILL bench67171982-target\nsleep 1\nsudo ctr -a /run/bench67171982/containerd.sock -n bench67171982 tasks delete bench67171982-target\n"
+  },
+  {
+    "case_id": "q67171982",
+    "category": "compatibility",
+    "model": "naive_task_delete_force",
+    "code": "sudo ctr -a /run/bench67171982/containerd.sock -n bench67171982 tasks delete -f bench67171982-target\n"
+  },
+  {
+    "case_id": "q67171982",
+    "category": "compatibility",
+    "model": "cheat_delete_container",
+    "code": "bash cases/compatibility/q67171982/reference_solution.sh\nsudo ctr -a /run/bench67171982/containerd.sock -n bench67171982 containers delete bench67171982-target\n"
+  },
+  {
+    "case_id": "q67171982",
+    "category": "compatibility",
+    "model": "cheat_stop_both",
+    "code": "bash cases/compatibility/q67171982/reference_solution.sh\n#!/bin/bash\n# ctr has no 'stop': stopping is signalling the task and then deleting it (the container stays).\n# Like docker stop: SIGTERM first, give the program up to 10 seconds, SIGKILL only if it is\n# still there.\nCTR=\"sudo ctr -a /run/bench67171982/containerd.sock -n bench67171982\"\nID=bench67171982-control\n\n$CTR tasks kill -s SIGTERM \"$ID\"\nfor _ in $(seq 1 40); do\n    [ \"$($CTR tasks ls 2>/dev/null | awk -v t=\"$ID\" '$1==t{print $3}')\" = \"STOPPED\" ] && break\n    sleep 0.25\ndone\nif [ \"$($CTR tasks ls 2>/dev/null | awk -v t=\"$ID\" '$1==t{print $3}')\" = \"RUNNING\" ]; then\n    $CTR tasks kill -s SIGKILL \"$ID\"\n    sleep 1\nfi\n$CTR tasks delete \"$ID\"\n"
+  },
+  {
+    "case_id": "q67171982",
+    "category": "compatibility",
+    "model": "alt_valid_grpc_kill_delete",
+    "code": "ID=bench67171982-target\nSOCK=/run/bench67171982/containerd.sock\ngrpc() { sudo curl -sS --max-time 10 --http2-prior-knowledge --unix-socket $SOCK \\\n  -H 'content-type: application/grpc' -H 'te: trailers' -H 'containerd-namespace: bench67171982' \\\n  --data-binary @- \"http://localhost/containerd.services.tasks.v1.Tasks/$1\" -o /dev/null -D - | grep -i '^grpc-status'; }\n# Kill: container_id = 1, signal = 3 (15 = SIGTERM)\nprintf '\\x00\\x00\\x00\\x00\\x18\\x0a\\x14%s\\x18\\x0f' \"$ID\" | grpc Kill\nfor _ in $(seq 1 40); do\n  [ \"$(sudo ctr -a $SOCK -n bench67171982 tasks ls 2>/dev/null | awk -v t=\"$ID\" '$1==t{print $3}')\" = STOPPED ] && break\n  sleep 0.25\ndone\n# Delete: container_id = 1\nprintf '\\x00\\x00\\x00\\x00\\x16\\x0a\\x14%s' \"$ID\" | grpc Delete\n"
+  }
+]

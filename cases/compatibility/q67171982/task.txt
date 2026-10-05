@@ -1,0 +1,42 @@
+A private containerd runs on this machine for this task: its socket is
+/run/bench67171982/containerd.sock (owned by root), and it is not the
+containerd of the machine. In its namespace bench67171982 two containers are
+running, each with a running task: bench67171982-target and
+bench67171982-control. The program in each of them counts, ten times a second,
+and writes the current count (twelve digits) to a file you can read on the
+host: /tmp/bench67171982/shared/target/count for bench67171982-target and
+/tmp/bench67171982/shared/control/count for bench67171982-control. The program
+handles SIGTERM like a well-behaved service: it stops counting, takes a couple
+of seconds to clean up, and then ends by itself. There is no Docker daemon on
+this machine.
+
+An engineer used to Docker wants the equivalent of docker stop for the
+container bench67171982-target: ask the program to end with SIGTERM, give it
+time to finish, and use SIGKILL only if it has not ended after 10 seconds.
+Neither the containers nor the tasks sub-commands of ctr, containerd's own
+client, include a command called stop.
+
+Your task is to stop the container bench67171982-target.
+
+Requirements:
+
+1. When your script has finished, the program of bench67171982-target must
+   have ended and its task must no longer exist in containerd, not even as a
+   stopped one. The container itself, that is its definition in containerd,
+   must be kept (it is stopped, not removed): the engineer starts it again
+   later.
+2. The program must have been given the chance to clean up: the check looks
+   for the file it writes only when it ends because of SIGTERM, so SIGKILL
+   without SIGTERM first does not do.
+3. The container bench67171982-control must not be affected: it must keep
+   running and counting.
+4. Use any tool or API of containerd you like.
+5. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime and network commands need `sudo`.
+6. Your script must finish by itself: no interactive prompts, no command that
+   runs in the foreground until it is interrupted, and no command that waits
+   forever (start anything long-running in the background with its output
+   redirected). Do not leave waiting to the check: when the script ends,
+   everything above must already hold.
+
+Return the commands needed to complete the task.
