@@ -1,0 +1,50 @@
+An engineer wants to pull a container image into a containerd, talking to its
+socket with grpcurl instead of ctr or crictl. The containerd is a private one
+for this task: its socket is /run/bench78400979/containerd.sock (owned by
+root), and it is not the containerd of the machine. The image is served by a
+registry running on this machine, over plain HTTP, at 127.0.0.1:15078 as
+127.0.0.1:15078/bench78400979/app:latest. containerd has been set up to accept
+that registry, and grpcurl is installed. The containerd API definitions, as
+.proto files for this containerd, are in /tmp/bench78400979/proto (the files
+are containerd/services/images/v1/images.proto and runtime/v1/api.proto below
+that directory; use that directory as grpcurl's import path). containerd has no
+gRPC reflection.
+
+The engineer's attempt was a call of containerd's native image API,
+containerd.services.images.v1.Images/Create (made with grpcurl, the .proto file
+containerd/services/images/v1/images.proto and the gRPC header
+containerd-namespace: k8s.io, because that API is scoped to a namespace and
+k8s.io is the namespace where Kubernetes' CRI keeps its images). It registered
+the name 127.0.0.1:15078/bench78400979/app:latest with the digest of the
+manifest the registry serves, and it succeeded: grpcurl printed the new image
+record and the image is now listed in the k8s.io namespace. But it cannot be
+used: starting a container from it fails with an error saying that a content
+digest was not found. That is the current state of the containerd.
+
+Your task is to make containerd really have the image
+127.0.0.1:15078/bench78400979/app:latest, pulled from that registry, in the
+k8s.io namespace. Which API to call for that is up to you.
+
+Requirements:
+
+1. When your script has finished, the image 127.0.0.1:15078/bench78400979/app:latest
+   must be an image of the k8s.io namespace of that containerd, with its
+   manifest, its config and its layer completely in containerd's content store
+   (the check reads the store's files and verifies sizes and sha256 digests),
+   and a container started from it must run its default command and print the
+   line the image prints. An image record alone does not pass.
+2. containerd itself must have downloaded the content from the local registry
+   (the check looks at the registry's request log). Do not stop, restart or
+   reconfigure the containerd or the registry.
+3. Do this by calling containerd's gRPC API on that socket: with grpcurl, or
+   with any other gRPC client you write yourself (curl and python3 are
+   installed). Do not use ctr, nerdctl or crictl for this task (the check looks
+   for signs that one of them was run).
+4. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime and network commands need `sudo`.
+5. Your script must finish by itself: no interactive prompts, no command that
+   runs in the foreground until it is interrupted, and no command that waits
+   forever (start anything long-running in the background with its output
+   redirected).
+
+Return the commands needed to complete the task.

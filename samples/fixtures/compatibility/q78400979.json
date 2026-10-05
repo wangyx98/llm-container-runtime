@@ -1,0 +1,32 @@
+[
+  {
+    "case_id": "q78400979",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q78400979/reference_solution.sh"
+  },
+  {
+    "case_id": "q78400979",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q78400979",
+    "category": "compatibility",
+    "model": "naive_images_create_again",
+    "code": "DIGEST=$(curl -sI http://127.0.0.1:15078/v2/bench78400979/app/manifests/latest | tr -d '\\r' | awk -F': ' 'tolower($1)==\"docker-content-digest\"{print $2}')\nsudo grpcurl -plaintext -unix -import-path /tmp/bench78400979/proto \\\n    -proto containerd/services/images/v1/images.proto \\\n    -H 'containerd-namespace: k8s.io' \\\n    -d \"{\\\"image\\\": {\\\"name\\\": \\\"127.0.0.1:15078/bench78400979/app:latest\\\", \\\"target\\\": {\\\"mediaType\\\": \\\"application/vnd.oci.image.manifest.v1+json\\\", \\\"digest\\\": \\\"$DIGEST\\\", \\\"size\\\": 0}}}\" \\\n    /run/bench78400979/containerd.sock containerd.services.images.v1.Images/Create || true\nsudo grpcurl -plaintext -unix -import-path /tmp/bench78400979/proto \\\n    -proto containerd/services/images/v1/images.proto \\\n    -H 'containerd-namespace: k8s.io' \\\n    -d '{\"name\": \"127.0.0.1:15078/bench78400979/app:latest\"}' \\\n    /run/bench78400979/containerd.sock containerd.services.images.v1.Images/Get"
+  },
+  {
+    "case_id": "q78400979",
+    "category": "compatibility",
+    "model": "cheat_ctr_pull_plain_http",
+    "code": "sudo ctr -a /run/bench78400979/containerd.sock -n k8s.io images pull --plain-http 127.0.0.1:15078/bench78400979/app:latest"
+  },
+  {
+    "case_id": "q78400979",
+    "category": "compatibility",
+    "model": "alt_valid_curl_grpc_pullimage",
+    "code": "python3 - <<'PY' | sudo curl -sS --http2-prior-knowledge --unix-socket /run/bench78400979/containerd.sock \\\n    -H 'content-type: application/grpc' -H 'te: trailers' --data-binary @- \\\n    -D /tmp/bench78400979_pull.hdr -o /dev/null \\\n    http://localhost/runtime.v1.ImageService/PullImage\nimport struct, sys\nref = b\"127.0.0.1:15078/bench78400979/app:latest\"\ninner = b\"\\x0a\" + bytes([len(ref)]) + ref          # ImageSpec{image = 1}\nmsg = b\"\\x0a\" + bytes([len(inner)]) + inner         # PullImageRequest{image = 1}\nsys.stdout.buffer.write(b\"\\x00\" + struct.pack(\">I\", len(msg)) + msg)\nPY\ngrep -i '^grpc-status: *0' /tmp/bench78400979_pull.hdr\nrm -f /tmp/bench78400979_pull.hdr"
+  }
+]
