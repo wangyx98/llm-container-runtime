@@ -1,0 +1,41 @@
+A containerd host (no Docker daemon, no CRI-O, no Kubernetes) holds several
+containers, some running and some only created, spread over more than one
+containerd namespace. An engineer wants to list all of them straight through
+containerd's socket, /run/containerd/containerd.sock, the way the Docker Engine
+API lists containers (GET /containers/json on Docker's socket). They looked up
+containerd's API, which is gRPC, and tried:
+
+    $ grpcurl -proto /containerd/api/services/containers/v1/containers.proto -unix /run/containerd/containerd.sock containerd.services.containers.v1.Containers/List
+    Failed to dial target host "/run/containerd/containerd.sock": tls: first record does not look like a TLS handshake
+
+and do not know what they are doing wrong.
+
+Your task is to list every container that containerd has, in every namespace
+(containers that are not running count too), by querying the containerd socket,
+and to write the list to the file /tmp/bench75009921/containers.txt, one line
+per container: the namespace name, one space, the container ID. The directory
+/tmp/bench75009921 already exists.
+
+Requirements:
+
+1. When your script has finished, /tmp/bench75009921/containers.txt has to hold
+   exactly one line per container of this containerd instance (namespace, one
+   space, container ID) and no other lines. The order does not matter.
+2. The check compares the file with the containers containerd really has. The
+   containers must all still be there: do not create, delete or change any
+   container.
+3. Get the list by talking to the containerd socket with a client of your own.
+   curl and python3 are installed; no gRPC client such as grpcurl is installed,
+   and the containerd API definition (.proto) files are not on this machine. Do
+   not use ctr, nerdctl or crictl for this task (the check looks for signs that
+   one of them was run).
+4. The socket belongs to root. The current user has passwordless sudo. Unless
+   stated otherwise, assume container-runtime and network commands need `sudo`.
+5. The names of the namespaces and the IDs of the containers are not given
+   here; your script has to find them itself.
+6. Your script must finish by itself: no interactive prompts, no command that
+   runs in the foreground until it is interrupted, and no command that waits
+   forever (start anything long-running in the background with its output
+   redirected).
+
+Return the commands needed to complete the task.

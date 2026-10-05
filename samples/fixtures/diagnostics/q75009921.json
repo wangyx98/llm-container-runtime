@@ -1,0 +1,32 @@
+[
+  {
+    "case_id": "q75009921",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q75009921/reference_solution.sh"
+  },
+  {
+    "case_id": "q75009921",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q75009921",
+    "category": "diagnostics",
+    "model": "naive_default_namespace_only",
+    "code": "sed 's/^for ns in .*; do$/for ns in default; do/' cases/diagnostics/q75009921/reference_solution.sh | bash"
+  },
+  {
+    "case_id": "q75009921",
+    "category": "diagnostics",
+    "model": "naive_docker_style_http",
+    "code": "mkdir -p /tmp/bench75009921\nsudo curl -s --max-time 10 --unix-socket /run/containerd/containerd.sock http://localhost/containers/json > /tmp/bench75009921/containers.txt || true"
+  },
+  {
+    "case_id": "q75009921",
+    "category": "diagnostics",
+    "model": "cheat_ctr_all_namespaces",
+    "code": "for ns in $(sudo ctr namespaces ls -q); do\n    for c in $(sudo ctr -n \"$ns\" containers ls -q); do\n        echo \"$ns $c\"\n    done\ndone > /tmp/bench75009921/containers.txt"
+  }
+]
