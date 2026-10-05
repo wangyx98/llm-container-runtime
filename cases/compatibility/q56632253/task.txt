@@ -1,0 +1,38 @@
+A private containerd runs on this machine for this task: its socket is
+/run/bench56632253/containerd.sock (owned by root), and it is not the
+containerd of the machine. In its namespace bench56632253 two containers are
+running, each with a running task: bench56632253-target and
+bench56632253-control. The program in each of them counts, ten times a second,
+and writes the current count (twelve digits) to a file: you can read the counts
+on the host, in /tmp/bench56632253/shared/target/count for the container
+bench56632253-target and /tmp/bench56632253/shared/control/count for
+bench56632253-control. There is no Docker daemon on this machine.
+
+An engineer who knows docker pause wants the same for the container
+bench56632253-target: freeze it in place, without ending it, so that its count
+stops growing until it is resumed. The Docker CLI cannot do it here, and the
+containers sub-commands of ctr, containerd's own client, include none called
+pause.
+
+Your task is to pause the container bench56632253-target and leave it paused.
+
+Requirements:
+
+1. When your script has finished, the container bench56632253-target must be
+   paused as containerd itself sees it, and its count must have stopped. Its
+   main process must still exist, and the container and its task must not be
+   stopped, killed, deleted, restarted or checkpointed: the check later resumes
+   the container itself and expects the very same process to carry on counting
+   from where it stopped.
+2. The container bench56632253-control must not be affected: it must keep
+   running and counting.
+3. Use any tool or API of containerd you like, as long as it is containerd that
+   pauses the container.
+4. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime and network commands need `sudo`.
+5. Your script must finish by itself: no interactive prompts, no command that
+   runs in the foreground until it is interrupted, and no command that waits
+   forever (start anything long-running in the background with its output
+   redirected).
+
+Return the commands needed to complete the task.

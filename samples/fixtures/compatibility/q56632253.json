@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "q56632253",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q56632253/reference_solution.sh"
+  },
+  {
+    "case_id": "q56632253",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q56632253",
+    "category": "compatibility",
+    "model": "naive_kill_stop_pid",
+    "code": "PID=$(sudo ctr -a /run/bench56632253/containerd.sock -n bench56632253 tasks ls | awk '$1==\"bench56632253-target\"{print $2}')\nsudo kill -STOP \"$PID\"\n"
+  },
+  {
+    "case_id": "q56632253",
+    "category": "compatibility",
+    "model": "naive_task_kill",
+    "code": "sudo ctr -a /run/bench56632253/containerd.sock -n bench56632253 tasks kill -s SIGKILL bench56632253-target\nsleep 1\n"
+  },
+  {
+    "case_id": "q56632253",
+    "category": "compatibility",
+    "model": "cheat_pause_both",
+    "code": "sudo ctr -a /run/bench56632253/containerd.sock -n bench56632253 tasks pause bench56632253-target\nsudo ctr -a /run/bench56632253/containerd.sock -n bench56632253 tasks pause bench56632253-control\n"
+  },
+  {
+    "case_id": "q56632253",
+    "category": "compatibility",
+    "model": "alt_valid_grpc_tasks_pause",
+    "code": "ID=bench56632253-target\nprintf '\\x00\\x00\\x00\\x00\\x16\\x0a\\x14%s' \"$ID\" | sudo curl -sS --max-time 10 --http2-prior-knowledge --unix-socket /run/bench56632253/containerd.sock \\\n  -H 'content-type: application/grpc' -H 'te: trailers' -H 'containerd-namespace: bench56632253' \\\n  --data-binary @- http://localhost/containerd.services.tasks.v1.Tasks/Pause -o /dev/null -D - | grep -i '^grpc-status'\n"
+  }
+]
