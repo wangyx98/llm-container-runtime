@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q71419398",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q71419398/reference_solution.sh"
+  },
+  {
+    "case_id": "q71419398",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q71419398",
+    "category": "compatibility",
+    "model": "naive_container_delete",
+    "code": "sudo ctr -a /run/bench71419398/containerd.sock -n bench71419398 containers delete bench71419398-target\n"
+  },
+  {
+    "case_id": "q71419398",
+    "category": "compatibility",
+    "model": "naive_kill_only",
+    "code": "sudo ctr -a /run/bench71419398/containerd.sock -n bench71419398 tasks kill -s SIGKILL bench71419398-target\n"
+  },
+  {
+    "case_id": "q71419398",
+    "category": "compatibility",
+    "model": "naive_task_delete_force_only",
+    "code": "sudo ctr -a /run/bench71419398/containerd.sock -n bench71419398 tasks delete -f bench71419398-target\n"
+  },
+  {
+    "case_id": "q71419398",
+    "category": "compatibility",
+    "model": "cheat_restart_daemon",
+    "code": "sudo kill \"$(cat /run/bench71419398/containerd.pid)\"\nfor _ in $(seq 1 40); do sudo ctr -a /run/bench71419398/containerd.sock version >/dev/null 2>&1 || break; sleep 0.25; done\nsudo setsid -f bash -c 'echo $$ > /run/bench71419398/containerd.pid; exec containerd --config /run/bench71419398/config.toml >>/run/bench71419398/containerd.log 2>&1 </dev/null' </dev/null >/dev/null 2>&1\nfor _ in $(seq 1 40); do sudo ctr -a /run/bench71419398/containerd.sock version >/dev/null 2>&1 && break; sleep 0.25; done\n"
+  },
+  {
+    "case_id": "q71419398",
+    "category": "compatibility",
+    "model": "cheat_delete_control_too",
+    "code": "sudo ctr -a /run/bench71419398/containerd.sock -n bench71419398 tasks delete -f bench71419398-target\nsudo ctr -a /run/bench71419398/containerd.sock -n bench71419398 containers delete bench71419398-target\nsudo ctr -a /run/bench71419398/containerd.sock -n bench71419398 tasks delete -f bench71419398-control\nsudo ctr -a /run/bench71419398/containerd.sock -n bench71419398 containers delete bench71419398-control\n"
+  },
+  {
+    "case_id": "q71419398",
+    "category": "compatibility",
+    "model": "alt_valid_grpc_kill_delete",
+    "code": "ID=bench71419398-target\nSOCK=/run/bench71419398/containerd.sock\ngrpc() { sudo curl -sS --max-time 20 --http2-prior-knowledge --unix-socket $SOCK \\\n  -H 'content-type: application/grpc' -H 'te: trailers' -H 'containerd-namespace: bench71419398' \\\n  --data-binary @- \"http://localhost/$1\" -o /dev/null -D - | grep -i '^grpc-status'; }\n# Tasks.Kill: container_id = 1, signal = 3 (9 = SIGKILL)\nprintf '\\x00\\x00\\x00\\x00\\x18\\x0a\\x14%s\\x18\\x09' \"$ID\" | grpc containerd.services.tasks.v1.Tasks/Kill\nfor _ in $(seq 1 40); do\n  [ \"$(sudo ctr -a $SOCK -n bench71419398 tasks ls 2>/dev/null | awk -v t=\"$ID\" '$1==t{print $3}')\" = STOPPED ] && break\n  sleep 0.25\ndone\n# Tasks.Delete and Containers.Delete: container_id / id = 1\nprintf '\\x00\\x00\\x00\\x00\\x16\\x0a\\x14%s' \"$ID\" | grpc containerd.services.tasks.v1.Tasks/Delete\nprintf '\\x00\\x00\\x00\\x00\\x16\\x0a\\x14%s' \"$ID\" | grpc containerd.services.containers.v1.Containers/Delete\n"
+  }
+]

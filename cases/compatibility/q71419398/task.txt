@@ -1,0 +1,40 @@
+A private containerd runs on this machine for this task: its socket is
+/run/bench71419398/containerd.sock (owned by root), and it is not the
+containerd of the machine. In its namespace bench71419398 there are two
+containers. bench71419398-control is healthy: its task is running and its
+program counts into /tmp/bench71419398/shared/control/count. The other,
+bench71419398-target, was set up by some tooling that created its task but
+never started it: the task sits in state CREATED, with its shim and its init
+process waiting. There is no Docker daemon on this machine.
+
+An engineer wants to get rid of the container bench71419398-target, but the
+obvious command is refused:
+
+    sudo ctr -a /run/bench71419398/containerd.sock -n bench71419398 containers delete bench71419398-target
+
+fails with "task must be stopped before deletion", and the same happens when
+deleting the task.
+
+Your task is to remove the container bench71419398-target completely.
+
+Requirements:
+
+1. When your script has finished, containerd must know nothing of
+   bench71419398-target: neither a container nor a task of that name. What the
+   task held must be reclaimed as well: its shim process, its init process, its
+   bundle and runc state directories and its cgroup. Hiding it from a listing
+   does not count.
+2. The containerd of this task must be the process that was running when you
+   started: restarting or replacing it does not count.
+3. The container bench71419398-control must not be affected: its container,
+   task and shim stay, and it keeps counting.
+4. Use any tool or API of containerd you like, including starting the task
+   first, as long as it is containerd that does the removal.
+5. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime and network commands need `sudo`.
+6. Your script must finish by itself: no interactive prompts, no command that
+   runs in the foreground until it is interrupted, and no command that waits
+   forever (start anything long-running in the background with its output
+   redirected).
+
+Return the commands needed to complete the task.
