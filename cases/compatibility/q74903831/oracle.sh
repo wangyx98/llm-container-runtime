@@ -79,24 +79,108 @@ check_wasm_run() {
     return 1
 }
 
+# Every runtime name the solution registered in podman's configuration (the admin and root user
+# containers.conf files), one "name path ..." line per entry; a later file overrides an earlier one.
+registered_runtimes() {
+    sudo python3 - <<'PYEOF'
+import glob
+import re
+
+files = (["/etc/containers/containers.conf"] + sorted(glob.glob("/etc/containers/containers.conf.d/*.conf"))
+         + ["/root/.config/containers/containers.conf"]
+         + sorted(glob.glob("/root/.config/containers/containers.conf.d/*.conf")))
+entries = {}
+for f in files:
+    try:
+        lines = open(f).read().splitlines()
+    except OSError:
+        continue
+    section = None
+    for line in lines:
+        s = line.strip()
+        m = re.match(r"^\[([^\]]+)\]", s)
+        if m:
+            section = m.group(1).strip()
+            continue
+        if section == "engine.runtimes":
+            m = re.match(r'^"?([A-Za-z0-9_.+-]+)"?\s*=\s*\[(.*)', s)
+            if m:
+                entries[m.group(1)] = re.findall(r'"([^"]+)"', m.group(2))
+for name, paths in entries.items():
+    print(name, *paths)
+PYEOF
+}
+
+RUNTIMES=$(registered_runtimes 2>/dev/null || true)
+
+# the runtime podman would use for "--runtime NAME" (empty NAME: its default one): the path of the
+# first binary of the registered list that exists
+runtime_path() {
+    local name="$1" line path
+    if [ -z "$name" ]; then
+        sudo podman info --format '{{.Host.OCIRuntime.Path}}' 2>/dev/null
+        return 0
+    fi
+    line=$(echo "$RUNTIMES" | awk -v n="$name" '$1==n {print; exit}')
+    for path in ${line#"$name"}; do
+        if sudo test -x "$path"; then
+            echo "$path"
+            return 0
+        fi
+    done
+    return 1
+}
+
 WASM_OK=0
+WASM_NAME=""
 if check_wasm_run ""; then
     echo "  -> OK: plain 'podman run' (no --runtime override) already executes" \
          "the wasm image as WebAssembly"
     WASM_OK=1
-elif check_wasm_run "--runtime crun-wasm"; then
-    echo "  -> OK: 'podman run --runtime crun-wasm' executes the wasm image as" \
-         "WebAssembly (a separately-named runtime, which is fine per" \
-         "requirement 2 in task.txt)"
-    WASM_OK=1
+else
+    CANDIDATES=$(printf '%s\n' crun-wasm $(echo "$RUNTIMES" | awk '{print $1}') | awk 'NF && !seen[$0]++')
+    for name in $CANDIDATES; do
+        if check_wasm_run "--runtime $name"; then
+            echo "  -> OK: 'podman run --runtime $name' executes the wasm image as" \
+                 "WebAssembly (a separately-named runtime, which is fine per" \
+                 "requirement 2 in task.txt)"
+            WASM_OK=1
+            WASM_NAME="$name"
+            break
+        fi
+    done
 fi
 
 if [ "$WASM_OK" -ne 1 ]; then
     echo "  -> FAIL: could not get the wasm image to print '$EXPECTED_MARKER'" \
          "and exit 0, neither via a plain 'podman run' nor via" \
-         "'podman run --runtime crun-wasm'"
+         "'podman run --runtime NAME' for a runtime registered in" \
+         "/etc/containers/containers.conf(.d) (tried: crun-wasm $(echo "$RUNTIMES" | awk '{print $1}' | tr '\n' ' '))"
     echo "  -> last attempt's output: $(tail -c 300 /tmp/bench74903831-wasm-oracle.log)"
     exit 1
 fi
+
+echo "[oracle] check 4: the OCI runtime podman used for the wasm image must be a real runtime binary"
+echo "[oracle]          with WebAssembly support built in (an ELF file whose '--version' lists +WASM),"
+echo "[oracle]          not a Wasm engine run directly on the host and not a script posing as a runtime..."
+RT_PATH=$(runtime_path "$WASM_NAME") || RT_PATH=""
+if [ -z "$RT_PATH" ] || ! sudo test -f "$RT_PATH"; then
+    echo "  -> FAIL: could not find the binary of the runtime used for the wasm image" \
+         "(name '${WASM_NAME:-default}', path '${RT_PATH}')"
+    exit 1
+fi
+RT_REAL=$(sudo readlink -f "$RT_PATH")
+if [ "$(sudo head -c4 "$RT_REAL" | od -An -tx1 | tr -d ' \n')" != "7f454c46" ]; then
+    echo "  -> FAIL: the runtime used for the wasm image ($RT_PATH) is not a compiled binary" \
+         "(a script or wrapper does not count)"
+    exit 1
+fi
+RT_VERSION=$(sudo "$RT_REAL" --version 2>&1 || true)
+if ! echo "$RT_VERSION" | grep -qi '+WASM'; then
+    echo "  -> FAIL: the runtime used for the wasm image ($RT_PATH) does not report WebAssembly" \
+         "support in '--version': $(echo "$RT_VERSION" | tr '\n' ' ' | cut -c1-200)"
+    exit 1
+fi
+echo "  -> OK: $RT_PATH is a compiled runtime with WebAssembly support ($(echo "$RT_VERSION" | grep -i 'wasm' | head -n 1))"
 
 echo "[oracle] ALL CHECKS PASSED"

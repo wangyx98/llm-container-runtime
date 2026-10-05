@@ -85,7 +85,11 @@ Requirements:
    distinct name (e.g. `crun-wasm`) in podman's configuration and invoking
    the wasm image with `podman run --rm --runtime crun-wasm
    localhost/bench74903831-wasm:latest` is an entirely acceptable, and
-   arguably safer, way to satisfy this.
+   arguably safer, way to satisfy this. The check runs the image with a
+   plain `podman run` and then with `--runtime NAME` for every runtime name
+   registered under [engine.runtimes] in /etc/containers/containers.conf or
+   in a file of /etc/containers/containers.conf.d/ (a path given directly to
+   `--runtime` is not looked at).
 3. `podman run --rm localhost/bench74903831-native:latest` (no special
    flags at all) must still succeed and still exit with status code 43
    after your fix -- ordinary containers, run the exact same way users run
@@ -98,7 +102,11 @@ Requirements:
    not enough (see the SO thread this is drawn from) -- the OCI runtime
    specifically needs to be built with WebAssembly support (e.g.
    `--with-wasmedge`) and podman needs to actually be configured to reach
-   that build somehow.
+   that build somehow. The OCI runtime that podman uses to run the wasm
+   image must be a compiled binary whose `--version` output lists `+WASM`.
+   Running a Wasm engine directly on the host (for example `wasmedge
+   hellor.wasm`), or registering a script that merely pretends to be a
+   runtime, does not count.
 5. Retrying the exact same `podman run wtest5:latest` invocation, or any
    trivial variant of it, will not work -- the runtime genuinely lacks
    Wasm execution support until you add it.

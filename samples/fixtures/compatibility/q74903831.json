@@ -22,5 +22,17 @@
     "category": "compatibility",
     "model": "cheating_rebuild_native_as_wasm",
     "code": "mkdir -p /tmp/bench74903831-cheat\ncat > /tmp/bench74903831-cheat/native_cheat.c <<'EOF'\n#include <stdio.h>\nint main(void) { printf(\"bench74903831-wasm-ok\\n\"); return 0; }\nEOF\ngcc -static -O2 -o /tmp/bench74903831-cheat/native_cheat /tmp/bench74903831-cheat/native_cheat.c\ncat > /tmp/bench74903831-cheat/Dockerfile <<'EOF'\nFROM scratch\nCOPY native_cheat /hellor.wasm\nCMD [\"/hellor.wasm\"]\nEOF\nsudo buildah build -f /tmp/bench74903831-cheat/Dockerfile -t localhost/bench74903831-wasm:latest /tmp/bench74903831-cheat"
+  },
+  {
+    "case_id": "q74903831",
+    "category": "compatibility",
+    "model": "naive_host_wasmedge_direct",
+    "code": "CID=$(sudo podman create localhost/bench74903831-wasm:latest)\nsudo podman cp \"$CID:/hellor.wasm\" /tmp/bench74903831/host.wasm\nsudo podman rm \"$CID\" >/dev/null\nwasmedge /tmp/bench74903831/host.wasm || true"
+  },
+  {
+    "case_id": "q74903831",
+    "category": "compatibility",
+    "model": "alt_valid_other_runtime_name",
+    "code": "sed -e 's/^crun-wasm = /wasmedge-crun = /' -e 's/--runtime crun-wasm/--runtime wasmedge-crun/' cases/compatibility/q74903831/reference_solution.sh | bash"
   }
 ]

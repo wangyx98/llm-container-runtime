@@ -8,6 +8,13 @@ Installing a newer crun release on its own does not fix this -- crun has to
 be built with a Wasm handler (e.g. --with-wasmedge) and podman has to
 actually be using that build.
 
+oracle.sh checks, in order: podman works; neither fixture image was rebuilt or
+retagged; the native image still exits 43 with a plain `podman run`; the wasm image
+prints its marker and exits 0 with a plain `podman run` or with `--runtime NAME` for
+a runtime registered in containers.conf(.d); and the runtime podman used for it is
+a compiled binary (ELF, not a script) whose `--version` lists +WASM -- so a Wasm engine
+run directly on the host, or a script posing as a runtime, does not pass.
+
 This module does NOT reimplement the test logic in Python. It just
 orchestrates the existing bash scripts under
 cases/compatibility/q74903831/ and converts their exit codes / output into
