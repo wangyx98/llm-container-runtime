@@ -1,0 +1,32 @@
+[
+  {
+    "case_id": "q77221042",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q77221042/reference_solution.sh"
+  },
+  {
+    "case_id": "q77221042",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q77221042",
+    "category": "compatibility",
+    "model": "naive_whoami_root",
+    "code": "sudo runc exec -u 0 bench77221042 whoami"
+  },
+  {
+    "case_id": "q77221042",
+    "category": "compatibility",
+    "model": "naive_tmpfs_for_apt_dirs",
+    "code": "B=/tmp/bench77221042/bundle\nsudo runc delete --force bench77221042\npython3 - \"$B/config.json\" <<'PY'\nimport json, sys\np = sys.argv[1]\nc = json.load(open(p))\nfor d in (\"/var/lib/apt\", \"/var/cache/apt\", \"/var/log\", \"/tmp\"):\n    c[\"mounts\"].append({\"destination\": d, \"type\": \"tmpfs\", \"source\": \"tmpfs\", \"options\": [\"nosuid\", \"nodev\"]})\njson.dump(c, open(p, \"w\"), indent=2)\nPY\n(cd \"$B\" && timeout -k 5 60 sudo runc run -d --bundle \"$B\" bench77221042 </dev/null >/dev/null 2>&1)\nsleep 2\nsudo runc exec -u 0 bench77221042 apt-get update\nsudo runc exec -u 0 bench77221042 apt-get install -y bench77221042-hello"
+  },
+  {
+    "case_id": "q77221042",
+    "category": "compatibility",
+    "model": "alt_valid_remount_rw",
+    "code": "sudo runc exec -u 0 --cap CAP_SYS_ADMIN bench77221042 mount -o remount,rw /\nsudo runc exec -u 0 bench77221042 apt-get update\nsudo runc exec -u 0 bench77221042 apt-get install -y bench77221042-hello"
+  }
+]

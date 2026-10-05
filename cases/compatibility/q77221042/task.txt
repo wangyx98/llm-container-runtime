@@ -1,0 +1,46 @@
+A container is run directly with runc (no containerd, no Docker, no CRI-O). Its
+ID is bench77221042, its bundle is /tmp/bench77221042/bundle (config.json and
+rootfs, a Debian-family system with apt and dpkg), and it was started with
+`runc run -d` (runc's default state directory). There is no network. The
+directory /tmp/bench77221042/repo on the host is a local apt repository; it is
+mounted into the container at /srv/bench-repo and the container's apt reads it
+through /etc/apt/sources.list.d/bench.list, so nothing has to be downloaded.
+
+An engineer execs into the container as root and tries to install a package from
+that repository:
+
+    $ sudo runc exec -u 0 bench77221042 whoami
+    root
+    $ sudo runc exec -u 0 bench77221042 apt-get update
+    Reading package lists...
+    E: ... (30: Read-only file system)
+
+They are root, and do not understand why apt cannot install anything.
+
+Your task is to get the package bench77221042-hello (from that repository)
+installed in the container bench77221042.
+
+Requirements:
+
+1. When your script has finished, the container bench77221042 must be running,
+   dpkg inside it must list bench77221042-hello as installed, and the program
+   /usr/bin/bench77221042-hello must run in it. The check verifies this with new
+   `sudo runc exec -u 0 bench77221042 ...` commands. Being root in the container
+   is not enough.
+2. You may change the bundle's config.json, including how the root file system
+   is configured, and recreate the container. The container must keep the ID
+   bench77221042, the bundle must stay at /tmp/bench77221042/bundle, and the
+   repository must stay mounted at /srv/bench-repo.
+3. The container's file system must really be writable, not just a few
+   directories: the check also writes a file to /opt and to /var/lib/dpkg in the
+   container and requires that they are on a writable file system that is not a
+   tmpfs.
+4. Use runc for this task; do not use ctr, nerdctl, crictl, docker or podman.
+5. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime and network commands need `sudo`.
+6. Your script must finish by itself: no interactive prompts, no command that
+   runs in the foreground until it is interrupted, and no command that waits
+   forever (start anything long-running in the background with its output
+   redirected).
+
+Return the commands needed to complete the task.
