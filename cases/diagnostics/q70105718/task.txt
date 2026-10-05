@@ -1,0 +1,45 @@
+A containerd host (no Docker daemon, no CRI-O, no Kubernetes) runs containers in
+containerd's "default" namespace, which is used through its own client, ctr. The
+containers use containerd's standard runtime, io.containerd.runc.v2: for every
+container containerd starts a shim, and the shim calls the low-level runtime
+runc to create and start it. The runc binary is installed on the host. The
+image docker.io/library/bench70105718:latest has already been imported into
+containerd. It holds one small program, /usr/bin/workload, which starts and
+then sleeps. No container has been created from the image yet.
+
+An engineer wants to see runc's own debug log, the output runc produces when it
+is run with its --debug option, for a container that containerd starts. They
+never run runc by hand, only through containerd, and they have found no place
+where runc's log shows up or a way to switch its debug level on from there.
+
+Your task is to start the workload container with ctr so that runc's debug log
+of creating and starting that container ends up in the file
+/var/log/bench70105718/runc.log . The directory /var/log/bench70105718 already
+exists and is empty.
+
+Requirements:
+
+1. When your script has finished, a container named "bench70105718", made from
+   docker.io/library/bench70105718:latest, has to be running in containerd's
+   "default" namespace (started detached, so that your command returns), and
+   the file /var/log/bench70105718/runc.log has to hold the debug-level log
+   lines that runc itself wrote while it created and started that very
+   container.
+2. The check reads the file and looks for the debug lines runc prints when it
+   sets a container up; they name the container's init process. Lines that are
+   not runc's debug output, or that belong to another container (an earlier
+   test container, say), do not count.
+3. Tools: ctr against containerd, runc, plus ordinary shell commands. Do not
+   use docker, nerdctl, podman, crictl or CRI-O.
+4. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime commands need `sudo`.
+5. The names, the image and the log file path are fixed. Anything your approach
+   needs that is only known at runtime (for example where the runc binary is
+   installed on this host, or the host process ID of the container) is not
+   given here; your script has to find it itself.
+6. Your script must finish by itself: no interactive prompts, no command that
+   runs in the foreground until the container exits, and no command that waits
+   forever (start anything long-running in the background with its output
+   redirected).
+
+Return the commands needed to complete the task.

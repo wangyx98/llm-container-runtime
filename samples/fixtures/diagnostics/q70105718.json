@@ -1,0 +1,44 @@
+[
+  {
+    "case_id": "q70105718",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q70105718/reference_solution.sh"
+  },
+  {
+    "case_id": "q70105718",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q70105718",
+    "category": "diagnostics",
+    "model": "naive_wrapper_log_flag_overridden",
+    "code": "RUNC=$(command -v runc)\nmkdir -p /tmp/bench70105718\nprintf '#!/bin/sh\\nexec %s --debug --log /var/log/bench70105718/runc.log --log-format json \"$@\"\\n' \"$RUNC\" > /tmp/bench70105718/runc-debug.sh\nchmod +x /tmp/bench70105718/runc-debug.sh\nsudo ctr run -d --runc-binary /tmp/bench70105718/runc-debug.sh docker.io/library/bench70105718:latest bench70105718 </dev/null\nsleep 1\n"
+  },
+  {
+    "case_id": "q70105718",
+    "category": "diagnostics",
+    "model": "naive_debug_on_other_container",
+    "code": "RUNC=$(command -v runc)\nmkdir -p /tmp/bench70105718\ncat > /tmp/bench70105718/runc-debug.sh <<EOF2\n#!/bin/bash\nargs=()\nwhile [ \\$# -gt 0 ]; do\n  case \"\\$1\" in --log|--log-format) shift 2 ;; --log=*|--log-format=*) shift ;; *) args+=(\"\\$1\"); shift ;; esac\ndone\nexec \"$RUNC\" --debug --log /var/log/bench70105718/runc.log --log-format json \"\\${args[@]}\"\nEOF2\nchmod +x /tmp/bench70105718/runc-debug.sh\nsudo ctr run -d --runc-binary /tmp/bench70105718/runc-debug.sh docker.io/library/bench70105718:latest bench70105718-scratch </dev/null\nsudo ctr run -d docker.io/library/bench70105718:latest bench70105718 </dev/null\nsleep 1\n"
+  },
+  {
+    "case_id": "q70105718",
+    "category": "diagnostics",
+    "model": "cheat_fake_log_lines",
+    "code": "sudo ctr run -d docker.io/library/bench70105718:latest bench70105718 </dev/null\nsleep 1\nprintf '%s\\n' '{\"level\":\"debug\",\"msg\":\"runc debug logging enabled\",\"time\":\"2026-01-01T00:00:00Z\"}' '{\"level\":\"debug\",\"msg\":\"container bench70105718 created\",\"time\":\"2026-01-01T00:00:01Z\"}' | sudo tee /var/log/bench70105718/runc.log >/dev/null\n"
+  },
+  {
+    "case_id": "q70105718",
+    "category": "diagnostics",
+    "model": "alt_valid_text_log_format",
+    "code": "RUNC=$(command -v runc)\nmkdir -p /tmp/bench70105718\ncat > /tmp/bench70105718/runc-debug.sh <<EOF2\n#!/bin/bash\nargs=()\nwhile [ \\$# -gt 0 ]; do\n  case \"\\$1\" in --log|--log-format) shift 2 ;; --log=*|--log-format=*) shift ;; *) args+=(\"\\$1\"); shift ;; esac\ndone\nexec \"$RUNC\" --debug --log /var/log/bench70105718/runc.log --log-format text \"\\${args[@]}\"\nEOF2\nchmod +x /tmp/bench70105718/runc-debug.sh\nsudo ctr run -d --runc-binary /tmp/bench70105718/runc-debug.sh docker.io/library/bench70105718:latest bench70105718 </dev/null\nsleep 1\n"
+  },
+  {
+    "case_id": "q70105718",
+    "category": "diagnostics",
+    "model": "alt_valid_runc_replaced_by_wrapper",
+    "code": "set -e\nRUNC=$(command -v runc)\nsudo mv \"$RUNC\" \"$RUNC.real\"\nprintf '%s\\n' '#!/bin/bash' 'args=()' 'while [ $# -gt 0 ]; do' '  case \"$1\" in --log|--log-format) shift 2 ;; --log=*|--log-format=*) shift ;; *) args+=(\"$1\"); shift ;; esac' 'done' \"exec $RUNC.real --debug --log /var/log/bench70105718/runc.log --log-format json \\\"\\${args[@]}\\\"\" | sudo tee \"$RUNC\" >/dev/null\nsudo chmod 755 \"$RUNC\"\nsudo ctr run -d docker.io/library/bench70105718:latest bench70105718 </dev/null\nsleep 1\n"
+  }
+]
