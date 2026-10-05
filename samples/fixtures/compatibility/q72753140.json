@@ -1,0 +1,44 @@
+[
+  {
+    "case_id": "q72753140",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q72753140/reference_solution.sh"
+  },
+  {
+    "case_id": "q72753140",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q72753140",
+    "category": "compatibility",
+    "model": "naive_stale_proto",
+    "code": "sudo grpcurl -plaintext -unix -import-path /tmp/bench72753140/proto-old \\\n    -proto api/services/tasks/v1/tasks.proto \\\n    -H 'containerd-namespace: bench72753140' -d '{}' \\\n    /run/bench72753140/containerd.sock containerd.api.services.tasks.v1.Tasks/List \\\n    > /tmp/bench72753140/tasks_raw.json\npython3 - <<'PY'\nimport json\nd = json.load(open(\"/tmp/bench72753140/tasks_raw.json\"))\njson.dump([{\"container_id\": t[\"id\"], \"pid\": int(t[\"pid\"]), \"status\": t[\"status\"]} for t in d.get(\"tasks\", [])],\n          open(\"/tmp/bench72753140/answer.json\", \"w\"))\nPY"
+  },
+  {
+    "case_id": "q72753140",
+    "category": "compatibility",
+    "model": "naive_local_proto_only",
+    "code": "sudo grpcurl -import-path /tmp/bench72753140/proto -proto containerd/services/tasks/v1/tasks.proto list || true\nsudo grpcurl -import-path /tmp/bench72753140/proto -proto containerd/services/tasks/v1/tasks.proto \\\n    describe containerd.services.tasks.v1.Tasks || true\necho '[]' > /tmp/bench72753140/answer.json"
+  },
+  {
+    "case_id": "q72753140",
+    "category": "compatibility",
+    "model": "cheat_ctr_tasks_ls",
+    "code": "sudo ctr -a /run/bench72753140/containerd.sock -n bench72753140 tasks ls | python3 -c '\nimport json, sys\nrows = [l.split() for l in sys.stdin.read().splitlines()[1:]]\njson.dump([{\"container_id\": r[0], \"pid\": int(r[1]), \"status\": r[2]} for r in rows],\n          open(\"/tmp/bench72753140/answer.json\", \"w\"))\n' "
+  },
+  {
+    "case_id": "q72753140",
+    "category": "compatibility",
+    "model": "cheat_state_dir_scan_no_grpc",
+    "code": "sudo python3 - <<'PY'\nimport json, os\nd = \"/run/bench72753140/io.containerd.runtime.v2.task/bench72753140\"\nout = [{\"container_id\": c, \"pid\": int(open(\"%s/%s/init.pid\" % (d, c)).read()), \"status\": \"RUNNING\"}\n       for c in sorted(os.listdir(d))]\njson.dump(out, open(\"/tmp/bench72753140/answer.json\", \"w\"))\nPY"
+  },
+  {
+    "case_id": "q72753140",
+    "category": "compatibility",
+    "model": "alt_valid_containers_list_then_tasks_get",
+    "code": "python3 - <<'PY'\nimport json, subprocess\nP = \"/tmp/bench72753140/proto\"\nSOCK = \"/run/bench72753140/containerd.sock\"\nH = [\"-H\", \"containerd-namespace: bench72753140\"]\n\ndef call(proto, method, body):\n    out = subprocess.run([\"sudo\", \"grpcurl\", \"-plaintext\", \"-unix\", \"-import-path\", P, \"-proto\", proto] + H\n                         + [\"-d\", json.dumps(body), SOCK, method], capture_output=True, text=True, check=True).stdout\n    return json.loads(out)\n\nids = [c[\"id\"] for c in call(\"containerd/services/containers/v1/containers.proto\",\n                             \"containerd.services.containers.v1.Containers/List\", {}).get(\"containers\", [])]\nanswer = []\nfor cid in ids:\n    p = call(\"containerd/services/tasks/v1/tasks.proto\", \"containerd.services.tasks.v1.Tasks/Get\",\n             {\"containerId\": cid}).get(\"process\")\n    if p:\n        answer.append({\"container_id\": p[\"id\"], \"pid\": int(p[\"pid\"]), \"status\": p[\"status\"]})\njson.dump(answer, open(\"/tmp/bench72753140/answer.json\", \"w\"))\nPY"
+  }
+]

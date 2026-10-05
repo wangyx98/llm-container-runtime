@@ -1,0 +1,53 @@
+An engineer wants to read what a containerd is running by talking to its gRPC
+API with grpcurl instead of ctr. The containerd is a private one for this
+task: its socket is /run/bench72753140/containerd.sock (owned by root), and it
+is not the containerd of the machine. In its namespace bench72753140 two
+containers are running, each with a running task. Their IDs are different every
+time this machine is set up, and so are the process IDs of the tasks. A second
+namespace, bench72753140-other, has a container of its own. containerd has no
+gRPC reflection, so grpcurl needs the API definitions as .proto files.
+
+Two directories with .proto files are on this machine:
+/tmp/bench72753140/proto-old, which is what the engineer used, and
+/tmp/bench72753140/proto, which holds the definitions taken from the containerd
+of this machine. The engineer's attempt:
+
+    $ sudo grpcurl -plaintext -unix -import-path /tmp/bench72753140/proto-old \
+        -proto api/services/tasks/v1/tasks.proto \
+        -H 'containerd-namespace: bench72753140' -d '{}' \
+        /run/bench72753140/containerd.sock containerd.api.services.tasks.v1.Tasks/List
+    ERROR:
+      Code: Unimplemented
+      Message: unknown service containerd.api.services.tasks.v1.Tasks
+
+Your task is to get the tasks of the namespace bench72753140 from the daemon
+and write them to this file, which your script has to create:
+
+    /tmp/bench72753140/answer.json
+
+It must be one JSON array with one object for each task of the namespace
+bench72753140, each object with exactly these keys: "container_id" (string, the
+ID of the container the task belongs to), "pid" (number, the process ID of the
+task) and "status" (string, the status of the task as the daemon reports it).
+
+Requirements:
+
+1. The file must list all and only the tasks of the namespace bench72753140,
+   with the IDs, process IDs and status that containerd really has. The check
+   asks containerd itself and compares. Looking at the .proto files, or listing
+   them, does not pass.
+2. The containers and their tasks must all still be there and running: do not
+   create, stop, delete or change any container.
+3. Query the daemon with grpcurl (it is installed; the check looks for signs
+   that it was run). Do not use ctr, nerdctl or crictl for this task (the check
+   looks for signs that one of them was run).
+4. The IDs of the containers and the process IDs of the tasks are not given
+   here; your script has to find them itself.
+5. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime and network commands need `sudo`.
+6. Your script must finish by itself: no interactive prompts, no command that
+   runs in the foreground until it is interrupted, and no command that waits
+   forever (start anything long-running in the background with its output
+   redirected).
+
+Return the commands needed to complete the task.

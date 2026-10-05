@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q71557667",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q71557667/reference_solution.sh"
+  },
+  {
+    "case_id": "q71557667",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q71557667",
+    "category": "compatibility",
+    "model": "naive_default_namespace",
+    "code": "sudo ctr -a /run/bench71557667/containerd.sock tasks exec --exec-id bench71557667-shell bench71557667-fn \\\n    sh -c 'echo $$; readlink /proc/self/ns/pid; cat /run/marker' > /tmp/bench71557667/out.txt\npython3 - <<'PY'\nimport json\ninner_pid, pid_ns, marker = open(\"/tmp/bench71557667/out.txt\").read().split(\"\\n\")[:3]\njson.dump({\"marker\": marker, \"pid_ns\": pid_ns, \"inner_pid\": int(inner_pid)}, open(\"/tmp/bench71557667/answer.json\", \"w\"))\nPY"
+  },
+  {
+    "case_id": "q71557667",
+    "category": "compatibility",
+    "model": "naive_host_shell",
+    "code": "# a shell on the host: the marker is not on the host's disk, the PID namespace is the host's\nM=$(sudo cat /var/lib/bench71557667/rootfs/bench71557667-fn/run/marker 2>/dev/null || true)\npython3 - \"$M\" \"$(readlink /proc/self/ns/pid)\" \"$$\" <<'PY'\nimport json, sys\njson.dump({\"marker\": sys.argv[1], \"pid_ns\": sys.argv[2], \"inner_pid\": int(sys.argv[3])}, open(\"/tmp/bench71557667/answer.json\", \"w\"))\nPY"
+  },
+  {
+    "case_id": "q71557667",
+    "category": "compatibility",
+    "model": "naive_proc_root_marker_host_namespace",
+    "code": "# reads the marker through /proc/PID/root from a shell on the host, but labels it with the host's PID namespace\nPID=$(sudo ctr -a /run/bench71557667/containerd.sock -n openfaas-fn tasks ls | awk '$1==\"bench71557667-fn\"{print $2}')\nM=$(sudo cat /proc/$PID/root/run/marker)\npython3 - \"$M\" \"$(readlink /proc/self/ns/pid)\" \"$$\" <<'PY'\nimport json, sys\njson.dump({\"marker\": sys.argv[1], \"pid_ns\": sys.argv[2], \"inner_pid\": int(sys.argv[3])}, open(\"/tmp/bench71557667/answer.json\", \"w\"))\nPY"
+  },
+  {
+    "case_id": "q71557667",
+    "category": "compatibility",
+    "model": "cheat_proc_root_and_ns_host_shell_pid",
+    "code": "# marker and PID namespace both read through /proc/PID from a shell on the host; the shell's own PID is the host's\nPID=$(sudo ctr -a /run/bench71557667/containerd.sock -n openfaas-fn tasks ls | awk '$1==\"bench71557667-fn\"{print $2}')\nM=$(sudo cat /proc/$PID/root/run/marker)\npython3 - \"$M\" \"$(sudo readlink /proc/$PID/ns/pid)\" \"$$\" <<'PY'\nimport json, sys\njson.dump({\"marker\": sys.argv[1], \"pid_ns\": sys.argv[2], \"inner_pid\": int(sys.argv[3])}, open(\"/tmp/bench71557667/answer.json\", \"w\"))\nPY"
+  },
+  {
+    "case_id": "q71557667",
+    "category": "compatibility",
+    "model": "cheat_other_function",
+    "code": "OUT=$(sudo ctr -a /run/bench71557667/containerd.sock -n openfaas-fn tasks exec \\\n    --exec-id bench71557667-shell bench71557667-other-fn \\\n    sh -c 'echo $$; readlink /proc/self/ns/pid; cat /run/marker')\necho \"$OUT\" | python3 -c '\nimport json, sys\ninner_pid, pid_ns, marker = sys.stdin.read().split(\"\\n\")[:3]\njson.dump({\"marker\": marker, \"pid_ns\": pid_ns, \"inner_pid\": int(inner_pid)}, open(\"/tmp/bench71557667/answer.json\", \"w\"))\n' "
+  },
+  {
+    "case_id": "q71557667",
+    "category": "compatibility",
+    "model": "alt_valid_nsenter_main_process",
+    "code": "PID=$(sudo ctr -a /run/bench71557667/containerd.sock -n openfaas-fn tasks ls | awk '$1==\"bench71557667-fn\"{print $2}')\nOUT=$(sudo nsenter -t \"$PID\" -m -p sh -c 'echo $$; readlink /proc/self/ns/pid; cat /run/marker')\necho \"$OUT\" | python3 -c '\nimport json, sys\ninner_pid, pid_ns, marker = sys.stdin.read().split(\"\\n\")[:3]\njson.dump({\"marker\": marker, \"pid_ns\": pid_ns, \"inner_pid\": int(inner_pid)}, open(\"/tmp/bench71557667/answer.json\", \"w\"))\n' "
+  }
+]

@@ -1,0 +1,54 @@
+A private containerd runs on this machine for this task: its socket is
+/run/bench71557667/containerd.sock (owned by root), and it is not the
+containerd of the machine. It holds what a faasd installation holds for its
+functions: in the containerd namespace openfaas-fn, one container per function,
+named like the function, each running as a task. There are two functions,
+bench71557667-fn (the one this task is about) and bench71557667-other-fn. No
+Docker daemon manages these containers.
+
+An engineer wants a shell in the container of the function bench71557667-fn,
+the way docker exec gives one, and does not get it: the Docker CLI knows no
+container of that name, and listing containers with ctr on the socket shows
+nothing:
+
+    $ sudo ctr -a /run/bench71557667/containerd.sock containers ls
+    CONTAINER    IMAGE    RUNTIME
+
+Each function's main program wrote a marker (a random text, different for every
+function and for every time this machine is set up) to the file /run/marker in
+its own container. That file exists only inside the container. The container of
+a function has a shell (sh) and a few tools (cat, readlink, ls, id).
+
+Your task is to run commands inside the container of the function
+bench71557667-fn and write what they found to this file, which your script has
+to create:
+
+    /tmp/bench71557667/answer.json
+
+It must be one JSON object with exactly these three keys: "marker" (string, the
+content of /run/marker as seen from inside that container), "pid_ns" (string,
+the PID namespace the process that read the marker ran in, as
+`readlink /proc/self/ns/pid` prints it for that process) and "inner_pid"
+(number, the process ID of the shell that ran the commands, as numbered inside
+the container).
+
+Requirements:
+
+1. The values must come from a process that ran inside the container of
+   bench71557667-fn. The check compares them with what really is in that
+   container (its marker and its PID namespace), and rejects the marker or the
+   PID namespace of the other function and the PID namespace of the host.
+2. Both functions must still be running, untouched: do not stop, restart,
+   delete or change them.
+3. Docker cannot do this here. Use any other tool you like, as long as the
+   commands really run inside that container.
+4. The marker and the numbers are not given here; your script has to read them
+   from the container.
+5. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime and network commands need `sudo`.
+6. Your script must finish by itself: no interactive shell, no prompts, no
+   command that runs in the foreground until it is interrupted, and no command
+   that waits forever (start anything long-running in the background with its
+   output redirected).
+
+Return the commands needed to complete the task.
