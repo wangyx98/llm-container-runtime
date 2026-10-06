@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q74677606",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q74677606/reference_solution.sh"
+  },
+  {
+    "case_id": "q74677606",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q74677606",
+    "category": "compatibility",
+    "model": "naive_other_containerd_default_ns",
+    "code": "SOCK=/run/bench74677606/containerd/containerd.sock\nNS=default\nID=$(sudo ctr -a $SOCK containers ls -q | head -1)\nPID=$(sudo ctr -a $SOCK tasks ls | awk -v i=\"$ID\" '$1==i{print $2}')\nmkdir -p /tmp/bench74677606\nprintf '{\"namespace\": \"%s\", \"container_id\": \"%s\", \"pid\": %s, \"containerd_socket\": \"%s\"}\\n' \"$NS\" \"$ID\" \"$PID\" \"$SOCK\" > /tmp/bench74677606/answer.json\n"
+  },
+  {
+    "case_id": "q74677606",
+    "category": "compatibility",
+    "model": "naive_short_id",
+    "code": "SOCK=/run/bench74677606/docker/containerd/containerd.sock\nNS=moby\nCTR=\"sudo ctr -a $SOCK -n $NS\"\nID=\"\"\nfor c in $($CTR containers ls -q); do\n  $CTR containers info \"$c\" | grep -q '\"BENCH_NAME=bench74677606-app\"' && ID=\"$c\"\ndone\nPID=$($CTR tasks ls | awk -v i=\"$ID\" '$1==i{print $2}')\nID=${ID:0:12}\nmkdir -p /tmp/bench74677606\nprintf '{\"namespace\": \"%s\", \"container_id\": \"%s\", \"pid\": %s, \"containerd_socket\": \"%s\"}\\n' \"$NS\" \"$ID\" \"$PID\" \"$SOCK\" > /tmp/bench74677606/answer.json\n"
+  },
+  {
+    "case_id": "q74677606",
+    "category": "compatibility",
+    "model": "naive_wrong_docker_container",
+    "code": "SOCK=/run/bench74677606/docker/containerd/containerd.sock\nNS=moby\nCTR=\"sudo ctr -a $SOCK -n $NS\"\nID=\"\"\nfor c in $($CTR containers ls -q); do\n  $CTR containers info \"$c\" | grep -q '\"BENCH_NAME=bench74677606-other\"' && ID=\"$c\"\ndone\nPID=$($CTR tasks ls | awk -v i=\"$ID\" '$1==i{print $2}')\nmkdir -p /tmp/bench74677606\nprintf '{\"namespace\": \"%s\", \"container_id\": \"%s\", \"pid\": %s, \"containerd_socket\": \"%s\"}\\n' \"$NS\" \"$ID\" \"$PID\" \"$SOCK\" > /tmp/bench74677606/answer.json\n"
+  },
+  {
+    "case_id": "q74677606",
+    "category": "compatibility",
+    "model": "naive_shim_pid",
+    "code": "SOCK=/run/bench74677606/docker/containerd/containerd.sock\nNS=moby\nCTR=\"sudo ctr -a $SOCK -n $NS\"\nID=\"\"\nfor c in $($CTR containers ls -q); do\n  $CTR containers info \"$c\" | grep -q '\"BENCH_NAME=bench74677606-app\"' && ID=\"$c\"\ndone\nPID=$($CTR tasks ls | awk -v i=\"$ID\" '$1==i{print $2}')\nPID=$(ps -eo pid=,args= | awk -v id=\"$ID\" '/containerd-shim/ && index($0, \"-id \" id \" \") {print $1; exit}')\nmkdir -p /tmp/bench74677606\nprintf '{\"namespace\": \"%s\", \"container_id\": \"%s\", \"pid\": %s, \"containerd_socket\": \"%s\"}\\n' \"$NS\" \"$ID\" \"$PID\" \"$SOCK\" > /tmp/bench74677606/answer.json\n"
+  },
+  {
+    "case_id": "q74677606",
+    "category": "compatibility",
+    "model": "cheat_ask_docker",
+    "code": "SOCK=/run/bench74677606/docker/containerd/containerd.sock\nNS=moby\nDK=\"sudo docker -H unix:///run/bench74677606/docker.sock\"\nID=$($DK inspect --format '{{.Id}}' bench74677606-app)\nPID=$($DK inspect --format '{{.State.Pid}}' bench74677606-app)\nmkdir -p /tmp/bench74677606\nprintf '{\"namespace\": \"%s\", \"container_id\": \"%s\", \"pid\": %s, \"containerd_socket\": \"%s\"}\\n' \"$NS\" \"$ID\" \"$PID\" \"$SOCK\" > /tmp/bench74677606/answer.json\n"
+  },
+  {
+    "case_id": "q74677606",
+    "category": "compatibility",
+    "model": "alt_valid_discover_socket_from_dockerd",
+    "code": "DPID=\"\"\nfor p in $(pgrep -x dockerd); do\n  sudo tr '\\0' ' ' < /proc/$p/cmdline | grep -q bench74677606 && DPID=$p\ndone\nSOCK=$(sudo tr '\\0' '\\n' < /proc/$DPID/cmdline | grep -A1 -x -- '--containerd' | tail -1)\nID=\"\"; NS=\"\"\nfor n in $(sudo ctr -a $SOCK namespaces ls -q); do\n  for c in $(sudo ctr -a $SOCK -n $n containers ls -q); do\n    if sudo ctr -a $SOCK -n $n containers info \"$c\" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if \"BENCH_NAME=bench74677606-app\" in d[\"Spec\"][\"process\"][\"env\"] else 1)'; then\n      ID=$c; NS=$n\n    fi\n  done\ndone\nPID=$(sudo ctr -a $SOCK -n $NS tasks ls | awk -v i=\"$ID\" '$1==i{print $2}')\nmkdir -p /tmp/bench74677606\nprintf '{\"namespace\": \"%s\", \"container_id\": \"%s\", \"pid\": %s, \"containerd_socket\": \"%s\"}\\n' \"$NS\" \"$ID\" \"$PID\" \"$SOCK\" > /tmp/bench74677606/answer.json\n"
+  }
+]

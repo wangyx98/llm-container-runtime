@@ -1,0 +1,52 @@
+Docker is running on this machine for this task: a private Docker daemon whose
+API socket is /run/bench74677606/docker.sock (owned by root). It is not the
+Docker of the machine. Like every Docker, it starts its containers through a
+containerd, and that containerd is not the one a plain `ctr` is pointed to.
+
+Two containers were started with Docker and are running: the Docker names are
+bench74677606-app and bench74677606-other. The program of each has its name in
+its environment variable BENCH_NAME, for example BENCH_NAME=bench74677606-app.
+containerd knows nothing of Docker names; it only has the containers' IDs.
+
+An engineer who needs, without going through Docker, the full ID and the main
+process of the container bench74677606-app has already tried the obvious:
+
+- the ctr of this machine is pointed to the containerd at
+  /run/bench74677606/containerd/containerd.sock, and
+  `sudo ctr -a /run/bench74677606/containerd/containerd.sock containers ls`
+  lists one container only, named bench74677606-decoy, which is no Docker
+  container;
+- `sudo crictl --runtime-endpoint unix:///run/bench74677606/docker.sock ps`
+  fails with "unknown service runtime.v1.RuntimeService": crictl speaks CRI,
+  and Docker does not.
+
+Your task is to find the container bench74677606-app in containerd, and write
+the result to the file /tmp/bench74677606/answer.json as a JSON object with
+these four keys:
+
+- namespace: the containerd namespace the container is in (a string);
+- container_id: the full ID of the container in containerd, all 64 characters
+  (a string);
+- pid: the process ID, seen from the host, of the container's main process,
+  that is the PID of the container's task in containerd (an integer);
+- containerd_socket: the path of the socket of the containerd that holds the
+  container (a string).
+
+Requirements:
+
+1. Find the information in containerd, with its own tools: ctr, nerdctl if it is
+   installed, or containerd's gRPC API. Do not ask Docker: every request that
+   reaches the Docker daemon (the docker CLI, curl on its socket, anything else)
+   is logged by it, and the check fails if there is one. crictl is of no use
+   against Docker, but is not forbidden.
+2. Do not stop, restart, change or delete any container, task or daemon: the
+   check expects the Docker containers to run on as they are now.
+3. The directory /tmp/bench74677606 exists and is writable.
+4. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime and network commands need `sudo`.
+5. Your script must finish by itself: no interactive prompts, no command that
+   runs in the foreground until it is interrupted, and no command that waits
+   forever (start anything long-running in the background with its output
+   redirected).
+
+Return the commands needed to complete the task.
