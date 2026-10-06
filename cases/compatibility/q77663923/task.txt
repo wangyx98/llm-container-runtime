@@ -1,0 +1,47 @@
+Two private daemons run on this machine for this task, neither is the
+Docker or the containerd of the machine:
+
+- a containerd, with its socket at /run/bench77663923/containerd.sock (owned
+  by root): use it with `sudo ctr -a /run/bench77663923/containerd.sock ...`;
+- a Docker daemon that runs its containers on that containerd, with its API
+  socket at /run/bench77663923/docker.sock: use it with
+  `sudo docker -H unix:///run/bench77663923/docker.sock ...`. This Docker has
+  no bridge network, so its containers must be started with `--network none`.
+
+Someone pulled an image with ctr into that containerd, in its default
+namespace: `ctr images ls` lists registry.invalid/bench77663923/app:1. The
+image has a program as its entrypoint, and a file /unique.txt inside, which
+the program prints. The registry host registry.invalid does not exist: nothing
+can be pulled from it, and there is no network to any other registry for this
+image. Starting the image with ctr works, but asking Docker to run it fails
+as if the image did not exist:
+
+    sudo docker -H unix:///run/bench77663923/docker.sock run --rm --network none registry.invalid/bench77663923/app:1
+
+Docker looks for the image on the registry. Both tools are installed, yet
+Docker does not see what ctr has.
+
+Your task is to make Docker able to run that very image.
+
+Requirements:
+
+1. When your script has finished,
+   `sudo docker -H unix:///run/bench77663923/docker.sock run --rm --pull never --network none registry.invalid/bench77663923/app:1`
+   must succeed, offline, and print the content of the file /unique.txt of the
+   image.
+2. The image in Docker must be the same image as the one in ctr, under the same
+   name: the same image ID, the same layer and the same entrypoint. A lookalike
+   that you rebuilt or reassembled does not count.
+3. The image must stay in ctr, unchanged.
+4. Neither daemon may be restarted, replaced or reconfigured: Docker keeps its
+   own image store, and the check runs against the processes that are running
+   now.
+5. Use any tool of Docker and containerd you like.
+6. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime and network commands need `sudo`.
+7. Your script must finish by itself: no interactive prompts, no command that
+   runs in the foreground until it is interrupted, and no command that waits
+   forever (start anything long-running in the background with its output
+   redirected).
+
+Return the commands needed to complete the task.

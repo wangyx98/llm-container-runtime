@@ -1,0 +1,44 @@
+[
+  {
+    "case_id": "q77663923",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q77663923/reference_solution.sh"
+  },
+  {
+    "case_id": "q77663923",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q77663923",
+    "category": "compatibility",
+    "model": "naive_docker_pull",
+    "code": "sudo docker -H unix:///run/bench77663923/docker.sock pull registry.invalid/bench77663923/app:1\n"
+  },
+  {
+    "case_id": "q77663923",
+    "category": "compatibility",
+    "model": "naive_ctr_import_moby_namespace",
+    "code": "sudo ctr -a /run/bench77663923/containerd.sock images export /tmp/bench77663923-x.tar registry.invalid/bench77663923/app:1\nsudo ctr -a /run/bench77663923/containerd.sock -n moby images import /tmp/bench77663923-x.tar\nsudo rm -f /tmp/bench77663923-x.tar\n"
+  },
+  {
+    "case_id": "q77663923",
+    "category": "compatibility",
+    "model": "cheat_docker_import_rootfs",
+    "code": "M=/tmp/bench77663923-mnt\nmkdir -p \"$M\"\nsudo ctr -a /run/bench77663923/containerd.sock images mount registry.invalid/bench77663923/app:1 \"$M\" >/dev/null\nsudo tar -C \"$M\" -c . | sudo docker -H unix:///run/bench77663923/docker.sock import - registry.invalid/bench77663923/app:1\nsudo ctr -a /run/bench77663923/containerd.sock images unmount \"$M\" >/dev/null\nrmdir \"$M\"\n"
+  },
+  {
+    "case_id": "q77663923",
+    "category": "compatibility",
+    "model": "cheat_restart_dockerd_containerd_store",
+    "code": "R=/run/bench77663923\nsudo kill \"$(cat $R/dockerd.pid)\"\nfor _ in $(seq 1 60); do [ -S $R/docker.sock ] || break; sleep 0.5; done\nsudo setsid -f bash -c 'echo $$ > /run/bench77663923/dockerd.pid; exec dockerd --host unix:///run/bench77663923/docker.sock --pidfile /run/bench77663923/docker.pid --data-root /var/lib/bench77663923/docker --exec-root /run/bench77663923/exec --containerd /run/bench77663923/containerd.sock --feature containerd-snapshotter=true --bridge none --iptables=false --ip6tables=false --ip-forward=false >>/run/bench77663923/dockerd.log 2>&1 </dev/null' </dev/null >/dev/null 2>&1\nfor _ in $(seq 1 60); do sudo docker -H unix:///run/bench77663923/docker.sock info >/dev/null 2>&1 && break; sleep 0.5; done\n# the containerd image store of Docker is the namespace moby of that containerd\nsudo ctr -a /run/bench77663923/containerd.sock images export /tmp/bench77663923-share.tar registry.invalid/bench77663923/app:1\nsudo ctr -a /run/bench77663923/containerd.sock -n moby images import /tmp/bench77663923-share.tar\nsudo rm -f /tmp/bench77663923-share.tar\n"
+  },
+  {
+    "case_id": "q77663923",
+    "category": "compatibility",
+    "model": "alt_valid_export_file_then_load",
+    "code": "sudo ctr -a /run/bench77663923/containerd.sock images export /tmp/bench77663923-x.tar registry.invalid/bench77663923/app:1\nsudo docker -H unix:///run/bench77663923/docker.sock load -i /tmp/bench77663923-x.tar\nsudo rm -f /tmp/bench77663923-x.tar\n"
+  }
+]
