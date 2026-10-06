@@ -12,7 +12,7 @@ STATE_DIR="$WORK_DIR/.bench"
 ANSWER="$WORK_DIR/answer.json"
 
 CTR="sudo ctr -a $SOCK"
-read_marker() { $CTR -n "$NS" tasks exec --exec-id "$CASE_ID-pre-$$-$RANDOM" "$1" /bin/cat /run/marker 2>/dev/null; }
+read_marker() { $CTR -n "$NS" tasks exec --exec-id "$CASE_ID-pre-$$-$RANDOM" "$1" /bin/cat /run/marker </dev/null 2>/dev/null; }
 
 echo "[precondition] checking the private containerd answers on $SOCK and the work files exist..."
 [ -S "$SOCK" ] || { echo "  -> FAIL: $SOCK is not a socket"; exit 1; }
@@ -61,7 +61,7 @@ if [ -n "$($CTR containers ls -q 2>/dev/null)" ]; then
     echo "  -> FAIL: the default namespace of the private containerd holds containers"
     exit 1
 fi
-if OUT=$($CTR tasks exec --exec-id "$CASE_ID-pre-default" "$FN" /bin/cat /run/marker 2>&1); then
+if OUT=$($CTR tasks exec --exec-id "$CASE_ID-pre-default" "$FN" /bin/cat /run/marker </dev/null 2>&1); then
     echo "  -> FAIL: an exec in the default namespace works"
     exit 1
 fi

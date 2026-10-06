@@ -98,7 +98,7 @@ echo "  -> OK"
 echo "[oracle] check 5: a new container started from $IMAGE_REF must run its default command"
 echo "[oracle]          and print this run's token (it exists only inside the image)..."
 TOKEN=$(cat "$STATE_DIR/token")
-OUT=$(timeout 90 sudo ctr -a "$SOCK" -n "$NS" run --rm "$IMAGE_REF" "$CASE_ID-oracle" 2>&1) && RC=0 || RC=$?
+OUT=$(timeout -k 5 90 sudo ctr -a "$SOCK" -n "$NS" run --rm "$IMAGE_REF" "$CASE_ID-oracle" </dev/null 2>&1) && RC=0 || RC=$?
 if [ "$RC" -ne 0 ]; then
     echo "  -> FAIL: the container did not run (exit $RC): $(echo "$OUT" | tail -2 | tr '\n' ' ' | cut -c1-200)"
     exit 1

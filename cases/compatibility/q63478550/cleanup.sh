@@ -2,7 +2,7 @@
 # no 'set -e': none of this is guaranteed to exist (first run, already cleaned, daemons not
 # running), and every command here may fail without aborting the cleanup.
 
-CASE_ID="bench77663923"
+CASE_ID="bench63478550"
 RUN_BASE="/run/$CASE_ID"
 LIB_BASE="/var/lib/$CASE_ID"
 WORK_DIR="/tmp/$CASE_ID"

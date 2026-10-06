@@ -36,8 +36,8 @@ sudo cat "$ANSWER" > "$STATE_DIR/answer.json"
 
 # the truth, asked independently: the marker of each function as a process inside its container
 # reads it, and the PID namespaces of the functions' main processes as the host sees them
-MARKER=$($CTR -n "$NS" tasks exec --exec-id "$CASE_ID-oracle-1" "$FN" /bin/cat /run/marker 2>/dev/null) || MARKER=""
-MARKER_OTHER=$($CTR -n "$NS" tasks exec --exec-id "$CASE_ID-oracle-2" "$FN_OTHER" /bin/cat /run/marker 2>/dev/null) || MARKER_OTHER=""
+MARKER=$($CTR -n "$NS" tasks exec --exec-id "$CASE_ID-oracle-1" "$FN" /bin/cat /run/marker </dev/null 2>/dev/null) || MARKER=""
+MARKER_OTHER=$($CTR -n "$NS" tasks exec --exec-id "$CASE_ID-oracle-2" "$FN_OTHER" /bin/cat /run/marker </dev/null 2>/dev/null) || MARKER_OTHER=""
 P1=$(awk -v f="$FN" '$2==f{print $3}' "$STATE_DIR/containers.truth")
 P2=$(awk -v f="$FN_OTHER" '$2==f{print $3}' "$STATE_DIR/containers.truth")
 NS1=$(sudo readlink "/proc/$P1/ns/pid"); NS2=$(sudo readlink "/proc/$P2/ns/pid"); HOST_NS=$(readlink /proc/self/ns/pid)

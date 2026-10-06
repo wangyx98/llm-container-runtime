@@ -59,7 +59,7 @@ echo "  -> OK (ID $ID)"
 
 echo "[oracle] check 4: Docker must run the image offline (no pull allowed) and print the marker..."
 TOKEN=$(sudo cat "$STATE_DIR/token")
-OUT=$(timeout 60 sudo docker -H "unix://$DOCKER_SOCK" run --rm --pull never --network none "$IMAGE" 2>/dev/null) || {
+OUT=$(timeout -k 5 60 sudo docker -H "unix://$DOCKER_SOCK" run --rm --pull never --network none "$IMAGE" </dev/null 2>/dev/null) || {
     echo "  -> FAIL: docker run --pull never failed"
     exit 1
 }

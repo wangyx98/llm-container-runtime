@@ -43,7 +43,7 @@ $CTR images ls -q 2>/dev/null | grep -qx "$IMAGE" || { echo "  -> FAIL: ctr does
 MAN=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["manifest"])' "$STATE_DIR/image.truth")
 $CTR images ls 2>/dev/null | awk -v r="$IMAGE" '$1==r' | grep -q "$MAN" || { echo "  -> FAIL: the digest of the image in ctr is not the one built by setup"; exit 1; }
 TOKEN=$(sudo cat "$STATE_DIR/token")
-OUT=$($CTR run --rm "$IMAGE" "$CASE_ID-probe" 2>/dev/null || true)
+OUT=$(timeout -k 5 60 $CTR run --rm "$IMAGE" "$CASE_ID-probe" </dev/null 2>/dev/null || true)
 [ "$OUT" = "$TOKEN" ] || { echo "  -> FAIL: running the image with ctr did not print its marker"; exit 1; }
 echo "  -> OK"
 

@@ -51,6 +51,11 @@ for CTD_SOCK in "${CTD_SOCKS[@]}"; do
 done
 
 echo "[cleanup] stopping this case's dockerd and containerd and what they left behind..."
+# a ctr client of this case that was left running (or stopped by the terminal: SIGTTIN) keeps its
+# `timeout` and `sudo` parents alive; SIGKILL works on a stopped process
+kill_ours ctr KILL
+kill_ours timeout KILL
+kill_ours sudo KILL
 kill_ours dockerd TERM
 for _ in $(seq 1 30); do any_ours dockerd || break; sleep 0.5; done
 kill_ours dockerd KILL

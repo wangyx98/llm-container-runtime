@@ -1,0 +1,44 @@
+[
+  {
+    "case_id": "q63478550",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q63478550/reference_solution.sh"
+  },
+  {
+    "case_id": "q63478550",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q63478550",
+    "category": "compatibility",
+    "model": "naive_ctr_pull",
+    "code": "sudo ctr -a /run/bench63478550/containerd.sock images pull registry.invalid/bench63478550/app:1\n"
+  },
+  {
+    "case_id": "q63478550",
+    "category": "compatibility",
+    "model": "naive_import_into_moby_namespace",
+    "code": "sudo docker -H unix:///run/bench63478550/docker.sock save registry.invalid/bench63478550/app:1 | sudo ctr -a /run/bench63478550/containerd.sock -n moby images import -\n"
+  },
+  {
+    "case_id": "q63478550",
+    "category": "compatibility",
+    "model": "cheat_run_docker_rootfs_with_ctr",
+    "code": "R=/tmp/bench63478550-rootfs\nsudo mkdir -p \"$R\"\nCID=$(sudo docker -H unix:///run/bench63478550/docker.sock create --network none registry.invalid/bench63478550/app:1)\nsudo docker -H unix:///run/bench63478550/docker.sock export \"$CID\" | sudo tar -x -C \"$R\"\nsudo docker -H unix:///run/bench63478550/docker.sock rm \"$CID\" >/dev/null\nsudo ctr -a /run/bench63478550/containerd.sock run --rm --rootfs \"$R\" bench63478550-rootfs-run /show\n"
+  },
+  {
+    "case_id": "q63478550",
+    "category": "compatibility",
+    "model": "cheat_move_image_remove_from_docker",
+    "code": "sudo docker -H unix:///run/bench63478550/docker.sock save registry.invalid/bench63478550/app:1 | sudo ctr -a /run/bench63478550/containerd.sock images import -\nsudo docker -H unix:///run/bench63478550/docker.sock rmi registry.invalid/bench63478550/app:1\n"
+  },
+  {
+    "case_id": "q63478550",
+    "category": "compatibility",
+    "model": "alt_valid_save_file_then_import",
+    "code": "sudo docker -H unix:///run/bench63478550/docker.sock save -o /tmp/bench63478550-x.tar registry.invalid/bench63478550/app:1\nsudo ctr -a /run/bench63478550/containerd.sock images import /tmp/bench63478550-x.tar\nsudo rm -f /tmp/bench63478550-x.tar\n"
+  }
+]

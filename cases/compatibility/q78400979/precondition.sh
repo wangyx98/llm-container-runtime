@@ -69,7 +69,7 @@ if sudo grep -q ' /v2/.*/blobs/' "$REG_DIR/requests.log"; then
     echo "  -> FAIL: something already downloaded blobs from the registry"
     exit 1
 fi
-OUT=$(timeout 60 sudo ctr -a "$SOCK" -n "$NS" run --rm "$IMAGE_REF" "$CASE_ID-pre" 2>&1) && RC=0 || RC=$?
+OUT=$(timeout -k 5 60 sudo ctr -a "$SOCK" -n "$NS" run --rm "$IMAGE_REF" "$CASE_ID-pre" </dev/null 2>&1) && RC=0 || RC=$?
 if [ "$RC" -eq 0 ] || echo "$OUT" | grep -q "$(cat "$STATE_DIR/token")"; then
     echo "  -> FAIL: the image starts although none of its content is there"
     exit 1
