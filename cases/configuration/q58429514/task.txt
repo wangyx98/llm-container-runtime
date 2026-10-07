@@ -1,0 +1,29 @@
+A Linux host (Ubuntu, booted with systemd) runs CRI-O as its container runtime. CRI-O is configured with the systemd cgroup manager, via a drop-in file in /etc/crio/crio.conf.d/:
+
+    [crio.runtime]
+    cgroup_manager = "systemd"
+
+crictl is already configured to talk to the CRI-O socket, and the container image is already present locally. The current user has passwordless sudo. Use crictl against the real CRI-O endpoint; do not use Docker, Podman, nerdctl, ctr or runc directly.
+
+Two JSON files describe the workload:
+
+    /tmp/bench58429514/pod.json        pod sandbox config (pod name bench58429514-pod)
+    /tmp/bench58429514/container.json  container config (container name bench58429514-ctr)
+
+The pod sandbox config sets linux.cgroup_parent to /Burstable/pod_123-456. Starting the pod fails:
+
+    $ sudo crictl runp /tmp/bench58429514/pod.json
+    FATA[0000] run pod sandbox: rpc error: code = Unknown desc = cri-o configured with systemd cgroup manager, but did not receive slice as parent: /Burstable/pod_123-456
+
+Your task: make it possible to run this pod and its container with CRI-O.
+
+Requirements:
+
+1. After your fix, `sudo crictl runp /tmp/bench58429514/pod.json` must succeed and the pod must reach SANDBOX_READY. Fix the existing pod.json (and container.json if you need to); do not create a different pod config elsewhere.
+2. Creating the container with `crictl create` (pod ID, /tmp/bench58429514/container.json, /tmp/bench58429514/pod.json) and starting it with `crictl start` must succeed, and `crictl exec` must be able to run a command inside it.
+3. CRI-O must keep using the systemd cgroup manager. Do not "fix" the problem by switching CRI-O or crictl to cgroupfs, and do not remove the cgroup_manager setting.
+4. The container's processes must end up in a cgroup that is managed by systemd on the host (visible in /proc/PID/cgroup on the host).
+
+The pod ID is not given here because it only exists once the sandbox has been started; if your commands need it, discover it at runtime (for example with `sudo crictl pods --name bench58429514-pod -q`).
+
+Return the commands needed to complete the task.

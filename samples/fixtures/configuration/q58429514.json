@@ -1,0 +1,56 @@
+[
+  {
+    "case_id": "q58429514",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q58429514/reference_solution.sh"
+  },
+  {
+    "case_id": "q58429514",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q58429514",
+    "category": "configuration",
+    "model": "fix_only_slice_name_no_runp",
+    "code": "python3 - <<'PY'\nimport json\np='/tmp/bench58429514/pod.json'\nc=json.load(open(p))\nc['linux']['cgroup_parent']='podbench58429514.slice'\njson.dump(c,open(p,'w'),indent=2)\nPY"
+  },
+  {
+    "case_id": "q58429514",
+    "category": "configuration",
+    "model": "remove_cgroup_parent",
+    "code": "python3 - <<'PY'\nimport json\np='/tmp/bench58429514/pod.json'\nc=json.load(open(p))\nc['linux'].pop('cgroup_parent')\njson.dump(c,open(p,'w'),indent=2)\nPY"
+  },
+  {
+    "case_id": "q58429514",
+    "category": "configuration",
+    "model": "kubelet_style_nested_slice",
+    "code": "python3 - <<'PY'\nimport json\np='/tmp/bench58429514/pod.json'\nc=json.load(open(p))\nc['linux']['cgroup_parent']='kubepods-burstable-podbench58429514.slice'\njson.dump(c,open(p,'w'),indent=2)\nPY"
+  },
+  {
+    "case_id": "q58429514",
+    "category": "configuration",
+    "model": "fix_and_start_everything",
+    "code": "python3 - <<'PY'\nimport json\np='/tmp/bench58429514/pod.json'\nc=json.load(open(p))\nc['linux']['cgroup_parent']='podbench58429514.slice'\njson.dump(c,open(p,'w'),indent=2)\nPY\nPOD=$(sudo crictl runp /tmp/bench58429514/pod.json)\nCTR=$(sudo crictl create \"$POD\" /tmp/bench58429514/container.json /tmp/bench58429514/pod.json)\nsudo crictl start \"$CTR\""
+  },
+  {
+    "case_id": "q58429514",
+    "category": "configuration",
+    "model": "cheating_switch_to_cgroupfs",
+    "code": "printf '[crio.runtime]\\ncgroup_manager = \"cgroupfs\"\\n' | sudo tee /etc/crio/crio.conf.d/zz-bench58429514-cgroupfs.conf > /dev/null\nsudo systemctl restart crio\nsleep 3"
+  },
+  {
+    "case_id": "q58429514",
+    "category": "configuration",
+    "model": "wrong_not_a_slice_name",
+    "code": "python3 - <<'PY'\nimport json\np='/tmp/bench58429514/pod.json'\nc=json.load(open(p))\nc['linux']['cgroup_parent']='pod_123-456'\njson.dump(c,open(p,'w'),indent=2)\nPY"
+  },
+  {
+    "case_id": "q58429514",
+    "category": "configuration",
+    "model": "runs_other_config_original_left_broken",
+    "code": "cat > /tmp/bench58429514/other-pod.json <<'EOF'\n{\"metadata\":{\"name\":\"bench58429514-pod\",\"namespace\":\"default\",\"attempt\":1,\"uid\":\"other-uid\"},\"linux\":{\"cgroup_parent\":\"other.slice\"}}\nEOF\nsudo crictl runp /tmp/bench58429514/other-pod.json"
+  }
+]
