@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q68630961",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "set -e\nsudo tee /etc/systemd/system/bench68630961-containerd.service >/dev/null <<'UNITEOF'\n[Unit]\nDescription=containerd container runtime (bench68630961, installed from the release tarball)\nDocumentation=https://containerd.io\nAfter=network.target local-fs.target\n\n[Service]\nType=notify\nExecStartPre=-/sbin/modprobe overlay\nExecStart=/opt/bench68630961/bin/containerd --config /opt/bench68630961/etc/config.toml\nDelegate=yes\nKillMode=process\nRestart=always\nRestartSec=5\nLimitNPROC=infinity\nLimitCORE=infinity\nLimitNOFILE=infinity\nTasksMax=infinity\n\n[Install]\nWantedBy=multi-user.target\nUNITEOF\nsudo systemctl daemon-reload\nsudo systemctl enable --now bench68630961-containerd.service\n"
+  },
+  {
+    "case_id": "q68630961",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q68630961",
+    "category": "compatibility",
+    "model": "naive_unit_file_only",
+    "code": "sudo tee /etc/systemd/system/bench68630961-containerd.service >/dev/null <<'UNITEOF'\n[Unit]\nDescription=containerd container runtime (bench68630961, installed from the release tarball)\nDocumentation=https://containerd.io\nAfter=network.target local-fs.target\n\n[Service]\nType=notify\nExecStartPre=-/sbin/modprobe overlay\nExecStart=/opt/bench68630961/bin/containerd --config /opt/bench68630961/etc/config.toml\nDelegate=yes\nKillMode=process\nRestart=always\nRestartSec=5\nLimitNPROC=infinity\nLimitCORE=infinity\nLimitNOFILE=infinity\nTasksMax=infinity\n\n[Install]\nWantedBy=multi-user.target\nUNITEOF\nsudo systemctl daemon-reload\n"
+  },
+  {
+    "case_id": "q68630961",
+    "category": "compatibility",
+    "model": "naive_start_without_enable",
+    "code": "sudo tee /etc/systemd/system/bench68630961-containerd.service >/dev/null <<'UNITEOF'\n[Unit]\nDescription=containerd container runtime (bench68630961, installed from the release tarball)\nDocumentation=https://containerd.io\nAfter=network.target local-fs.target\n\n[Service]\nType=notify\nExecStartPre=-/sbin/modprobe overlay\nExecStart=/opt/bench68630961/bin/containerd --config /opt/bench68630961/etc/config.toml\nDelegate=yes\nKillMode=process\nRestart=always\nRestartSec=5\nLimitNPROC=infinity\nLimitCORE=infinity\nLimitNOFILE=infinity\nTasksMax=infinity\n\n[Install]\nWantedBy=multi-user.target\nUNITEOF\nsudo systemctl daemon-reload\nsudo systemctl start bench68630961-containerd.service\n"
+  },
+  {
+    "case_id": "q68630961",
+    "category": "compatibility",
+    "model": "naive_execstart_upstream_path",
+    "code": "sudo tee /etc/systemd/system/bench68630961-containerd.service >/dev/null <<'UNITEOF'\n[Unit]\nDescription=containerd container runtime (bench68630961, installed from the release tarball)\nDocumentation=https://containerd.io\nAfter=network.target local-fs.target\n\n[Service]\nType=notify\nExecStartPre=-/sbin/modprobe overlay\nExecStart=/usr/local/bin/containerd\nDelegate=yes\nKillMode=process\nRestart=always\nRestartSec=5\nLimitNPROC=infinity\nLimitCORE=infinity\nLimitNOFILE=infinity\nTasksMax=infinity\n\n[Install]\nWantedBy=multi-user.target\nUNITEOF\nsudo systemctl daemon-reload\nsudo systemctl enable --now bench68630961-containerd.service || true\n"
+  },
+  {
+    "case_id": "q68630961",
+    "category": "compatibility",
+    "model": "naive_hardened_unit_needs_run_dir",
+    "code": "sudo mkdir -p /run/bench68630961\nsudo tee /etc/systemd/system/bench68630961-containerd.service >/dev/null <<'UNITEOF'\n[Unit]\nDescription=containerd container runtime (bench68630961, installed from the release tarball)\nDocumentation=https://containerd.io\nAfter=network.target local-fs.target\n\n[Service]\nType=notify\nExecStartPre=-/sbin/modprobe overlay\nExecStart=/opt/bench68630961/bin/containerd --config /opt/bench68630961/etc/config.toml\nDelegate=yes\nProtectSystem=full\nReadWritePaths=/run/bench68630961 /var/lib/bench68630961\nKillMode=process\nRestart=always\nRestartSec=5\nLimitNPROC=infinity\nLimitCORE=infinity\nLimitNOFILE=infinity\nTasksMax=infinity\n\n[Install]\nWantedBy=multi-user.target\nUNITEOF\nsudo systemctl daemon-reload\nsudo systemctl enable --now bench68630961-containerd.service\n"
+  },
+  {
+    "case_id": "q68630961",
+    "category": "compatibility",
+    "model": "cheat_use_system_binary",
+    "code": "SYS=$(readlink -f \"$(command -v containerd)\")\nsudo tee /etc/systemd/system/bench68630961-containerd.service >/dev/null <<UNITEOF\n[Unit]\nDescription=containerd container runtime (bench68630961, installed from the release tarball)\nDocumentation=https://containerd.io\nAfter=network.target local-fs.target\n\n[Service]\nType=notify\nExecStartPre=-/sbin/modprobe overlay\nExecStart=$SYS --config /opt/bench68630961/etc/config.toml\nDelegate=yes\nKillMode=process\nRestart=always\nRestartSec=5\nLimitNPROC=infinity\nLimitCORE=infinity\nLimitNOFILE=infinity\nTasksMax=infinity\n\n[Install]\nWantedBy=multi-user.target\nUNITEOF\nsudo systemctl daemon-reload\nsudo systemctl enable --now bench68630961-containerd.service\n"
+  },
+  {
+    "case_id": "q68630961",
+    "category": "compatibility",
+    "model": "cheat_transient_systemd_run",
+    "code": "sudo systemd-run --unit=bench68630961-containerd --property=Type=notify --property=Delegate=yes /opt/bench68630961/bin/containerd --config /opt/bench68630961/etc/config.toml\n"
+  },
+  {
+    "case_id": "q68630961",
+    "category": "compatibility",
+    "model": "cheat_fake_unit_plus_manual_daemon",
+    "code": "sudo tee /etc/systemd/system/bench68630961-containerd.service >/dev/null <<'UNITEOF'\n[Unit]\nDescription=containerd (bench68630961)\n\n[Service]\nType=simple\nExecStart=/bin/sleep infinity\n\n[Install]\nWantedBy=multi-user.target\nUNITEOF\nsudo systemctl daemon-reload\nsudo systemctl enable --now bench68630961-containerd.service\nsudo setsid -f /opt/bench68630961/bin/containerd --config /opt/bench68630961/etc/config.toml >/dev/null 2>&1 </dev/null\n"
+  },
+  {
+    "case_id": "q68630961",
+    "category": "compatibility",
+    "model": "alt_valid_wrapper_script_simple_type",
+    "code": "sudo tee /opt/bench68630961/bin/run-containerd.sh >/dev/null <<'SHEOF'\n#!/bin/sh\nexec /opt/bench68630961/bin/containerd --config /opt/bench68630961/etc/config.toml\nSHEOF\nsudo chmod 0755 /opt/bench68630961/bin/run-containerd.sh\nsudo mkdir -p /usr/local/lib/systemd/system\nsudo tee /usr/local/lib/systemd/system/bench68630961-containerd.service >/dev/null <<'UNITEOF'\n[Unit]\nDescription=containerd (bench68630961) through a wrapper script\nAfter=local-fs.target\n\n[Service]\nType=simple\nExecStart=/opt/bench68630961/bin/run-containerd.sh\nDelegate=yes\nKillMode=process\nRestart=on-failure\n\n[Install]\nWantedBy=multi-user.target\nUNITEOF\nsudo systemctl daemon-reload\nsudo systemctl enable --now bench68630961-containerd.service\n"
+  }
+]

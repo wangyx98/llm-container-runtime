@@ -1,0 +1,55 @@
+This machine is booted with systemd. containerd was installed on it from a
+release tarball, the way the containerd documentation describes a manual
+install: the tarball was unpacked into /opt/bench68630961, so that
+/opt/bench68630961/bin holds containerd, ctr and the runc shim
+containerd-shim-runc-v2 (the tarball itself is still in
+/opt/bench68630961/dist), and a configuration was written with
+`containerd config default` into /opt/bench68630961/etc/config.toml. That
+configuration keeps containerd's state in /var/lib/bench68630961/containerd and
+makes it listen on /run/bench68630961/containerd.sock. runc is installed on
+the machine. A release tarball contains only binaries: it does not bring a
+systemd unit.
+
+The image registry.invalid/bench68630961/app:1 was imported into that
+containerd's root beforehand. The host registry.invalid does not exist, and
+there is no network to any registry: the image cannot be pulled again.
+
+Starting containerd as a service fails, because systemd has never heard of it:
+
+    sudo systemctl start bench68630961-containerd
+    Failed to start bench68630961-containerd.service: Unit bench68630961-containerd.service not found.
+
+Your task is to make the containerd from the tarball run as the systemd
+service bench68630961-containerd.service.
+
+Requirements:
+
+1. When your script has finished, bench68630961-containerd.service is active
+   (running). The service runs the containerd binary from
+   /opt/bench68630961/bin with the configuration prepared in
+   /opt/bench68630961/etc/config.toml: containerd must end up using the root,
+   state and socket given there. Do not change those three paths in the
+   configuration.
+2. It must be a real, lasting service, not something that works until the next
+   reboot: enabled, so that it starts on every boot; and it must keep working
+   after the service is restarted and after the machine is rebooted (the
+   directory /run/bench68630961 does not exist right after a boot, because
+   /run is empty then). Do not use a transient unit (systemd-run), and do not
+   put the unit file or the program it runs in a temporary directory.
+3. containerd must answer on its socket and run the preloaded image:
+   `sudo /opt/bench68630961/bin/ctr -a /run/bench68630961/containerd.sock version`
+   must work, and
+   `sudo /opt/bench68630961/bin/ctr -a /run/bench68630961/containerd.sock run --rm registry.invalid/bench68630961/app:1 bench68630961-probe`
+   must run the image and print its marker.
+4. containerd must be run by systemd: do not start it by hand or from a
+   background job. Do not install, remove, upgrade, stop, restart or
+   reconfigure the machine's own containerd or Docker (package or service),
+   and do not download anything.
+5. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime and systemd commands need `sudo`.
+6. Your script must finish by itself: no interactive prompts, no command that
+   runs in the foreground until it is interrupted, and no command that waits
+   forever (start anything long-running in the background with its output
+   redirected, or let systemd run it).
+
+Return the commands needed to complete the task.
