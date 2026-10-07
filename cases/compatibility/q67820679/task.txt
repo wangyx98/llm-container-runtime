@@ -1,0 +1,50 @@
+A containerd runs on this machine for this task (no Docker daemon, no CRI-O, no
+Kubernetes): a private one, not the containerd of the machine. Its socket is
+/run/bench67820679/containerd.sock (owned by root); use it with
+`sudo ctr -a /run/bench67820679/containerd.sock ...`.
+
+A container called bench67820679-app is running in it, started by a colleague.
+Its main process is a shell that loops forever, and it runs as the unprivileged
+user 1234:1234. The container has the host's /usr (read-only, so that sh, id,
+cat and the like are there), the file /unique.txt (a token that exists only in
+this container), the script /probe.sh, and the host directory
+/tmp/bench67820679/out mounted at /out. The script /probe.sh writes ONE line
+into /out/probe.txt: the token, the user and group it runs as, its pid
+namespace and its cgroup, as it sees them, and its pid.
+
+An engineer wants to run a command inside this running container, like
+`docker exec` does. The container is up, but the engineer could not get into it:
+
+    $ sudo ctr -a /run/bench67820679/containerd.sock containers ls
+    CONTAINER    IMAGE    RUNTIME
+    $ sudo ctr -a /run/bench67820679/containerd.sock tasks exec -t bench67820679-app sh
+    ctr: Required flag "exec-id" not set
+    $ sudo ctr -a /run/bench67820679/containerd.sock tasks exec --exec-id e1 bench67820679-app sh -c id
+    ctr: container "bench67820679-app" in namespace "default": not found
+
+Your task is to run /probe.sh inside the running container bench67820679-app,
+with ctr, so that /out/probe.txt (that is, /tmp/bench67820679/out/probe.txt on
+the host) is written by the process that ran there.
+
+Requirements:
+
+1. The command must run INSIDE the container, started through containerd with
+   ctr, as an exec into the task of the container. Running something on the
+   host does not count, nor does a command run in another way (the oracle looks
+   at what containerd reports).
+2. The process must run as the user the container runs as (do not change the
+   user), and it must be in the pid namespace and the cgroup of the container's
+   task.
+3. The container and its task must stay as they are: keep it running, do not
+   stop, restart, delete or re-create it, and do not restart or reconfigure
+   containerd.
+4. /out/probe.txt must have been written by /probe.sh running in the container;
+   do not write it yourself.
+5. The script runs without a terminal: stdin is not a TTY, nothing can be typed.
+6. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime and network commands need `sudo`.
+7. Your script must finish by itself: no interactive prompts, no command that
+   runs in the foreground until it is interrupted, and no command that waits
+   forever.
+
+Return the commands needed to complete the task.

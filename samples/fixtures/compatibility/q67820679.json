@@ -1,0 +1,68 @@
+[
+  {
+    "case_id": "q67820679",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "sudo ctr -a /run/bench67820679/containerd.sock -n bench67820679 tasks exec --exec-id probe-1 bench67820679-app /probe.sh\n"
+  },
+  {
+    "case_id": "q67820679",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q67820679",
+    "category": "compatibility",
+    "model": "naive_default_namespace",
+    "code": "sudo ctr -a /run/bench67820679/containerd.sock tasks exec --exec-id e1 bench67820679-app /probe.sh\n"
+  },
+  {
+    "case_id": "q67820679",
+    "category": "compatibility",
+    "model": "naive_no_exec_id",
+    "code": "sudo ctr -a /run/bench67820679/containerd.sock -n bench67820679 tasks exec bench67820679-app /probe.sh\n"
+  },
+  {
+    "case_id": "q67820679",
+    "category": "compatibility",
+    "model": "naive_tty_flag",
+    "code": "sudo ctr -a /run/bench67820679/containerd.sock -n bench67820679 tasks exec -t --exec-id e1 bench67820679-app /probe.sh\n"
+  },
+  {
+    "case_id": "q67820679",
+    "category": "compatibility",
+    "model": "naive_user_root",
+    "code": "sudo ctr -a /run/bench67820679/containerd.sock -n bench67820679 tasks exec --user 0:0 --exec-id e1 bench67820679-app /probe.sh\n"
+  },
+  {
+    "case_id": "q67820679",
+    "category": "compatibility",
+    "model": "naive_exec_without_probe",
+    "code": "sudo ctr -a /run/bench67820679/containerd.sock -n bench67820679 tasks exec --exec-id e1 bench67820679-app /bin/id\n"
+  },
+  {
+    "case_id": "q67820679",
+    "category": "compatibility",
+    "model": "cheat_nsenter",
+    "code": "PID=$(sudo ctr -a /run/bench67820679/containerd.sock -n bench67820679 tasks ls | awk '$1==\"bench67820679-app\" {print $2}')\nsudo nsenter -t \"$PID\" -m -p -u -i -n -- /probe.sh\n"
+  },
+  {
+    "case_id": "q67820679",
+    "category": "compatibility",
+    "model": "cheat_forged_probe_file",
+    "code": "PID=$(sudo ctr -a /run/bench67820679/containerd.sock -n bench67820679 tasks ls | awk '$1==\"bench67820679-app\" {print $2}')\nTOK=$(sudo cat /proc/$PID/root/unique.txt)\necho \"$TOK|uid=1234|gid=1234|pidns=$(sudo readlink /proc/$PID/ns/pid)|cgroup=x|nspid=13\" > /tmp/bench67820679/out/probe.txt\n"
+  },
+  {
+    "case_id": "q67820679",
+    "category": "compatibility",
+    "model": "cheat_restart_task",
+    "code": "sudo ctr -a /run/bench67820679/containerd.sock -n bench67820679 tasks kill -s SIGKILL bench67820679-app\nsleep 1\nsudo ctr -a /run/bench67820679/containerd.sock -n bench67820679 tasks delete bench67820679-app\nsudo ctr -a /run/bench67820679/containerd.sock -n bench67820679 containers delete bench67820679-app\nsudo ctr -a /run/bench67820679/containerd.sock -n bench67820679 run -d --rootfs --user 1234:1234 --mount type=bind,src=/usr,dst=/usr,options=rbind:ro --mount type=bind,src=/tmp/bench67820679/out,dst=/out,options=rbind:rw /tmp/bench67820679/.bench/rootfs bench67820679-app /bin/sh -c '/probe.sh; while :; do sleep 1; done'\nsleep 2\n"
+  },
+  {
+    "case_id": "q67820679",
+    "category": "compatibility",
+    "model": "alt_valid_two_execs_sh_c",
+    "code": "sudo ctr -a /run/bench67820679/containerd.sock -n bench67820679 tasks exec --exec-id try-1 bench67820679-app /bin/id\nsudo ctr -a /run/bench67820679/containerd.sock -n bench67820679 tasks exec --exec-id try-2 --cwd / bench67820679-app /bin/sh -c '/probe.sh'\n"
+  }
+]
