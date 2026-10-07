@@ -1,0 +1,24 @@
+This machine runs containerd (no Docker daemon, no CRI-O) with the CRI plugin enabled. It is started and stopped with a script, /var/lib/bench78132064/bin/containerdctl (start, stop, restart, status; run it with sudo). containerd reads its configuration, /run/bench78132064/config.toml (owned by root), only when it starts, and its socket is /run/bench78132064/containerd.sock. The CRI client is crictl; point it at that socket:
+
+    sudo crictl --runtime-endpoint unix:///run/bench78132064/containerd.sock --image-endpoint unix:///run/bench78132064/containerd.sock pull ...
+
+The Kubernetes workloads of this machine use images from Docker Hub by their usual names, for example docker.io/library/benchapp:1.0. This machine has no route to Docker Hub: everything containerd sends to the Internet goes through an egress gateway that refuses it, and every refused connection is logged. That is why the team set up a Nexus Docker proxy repository for Docker Hub. It listens on 127.0.0.1:8082 (plain HTTP, no TLS), allows anonymous pull, and already caches the image library/benchapp:1.0 (as Nexus names it, official images live below library/). In this test environment the Nexus proxy is a stand-in server that speaks the same registry API; it is not the Sonatype Nexus product.
+
+containerd has no registry configuration for the CRI yet, so it still goes to Docker Hub:
+
+    $ sudo crictl --runtime-endpoint unix:///run/bench78132064/containerd.sock --image-endpoint unix:///run/bench78132064/containerd.sock pull docker.io/library/benchapp:1.0
+    FATA[0000] pulling image: failed to pull and unpack image "docker.io/library/benchapp:1.0": failed to resolve image: failed to do request: Head "https://registry-1.docker.io/v2/library/benchapp/manifests/1.0": Forbidden
+
+Your task: change the default image registry of this machine's containerd, for the CRI, from Docker Hub to the Nexus proxy, so that the images keep their names (docker.io/library/benchapp:1.0) and are pulled through the proxy.
+
+Requirements:
+
+1. Pulling docker.io/library/benchapp:1.0 through the CRI (crictl pull, as above) must succeed, and a pod that uses that image name must run. The check removes the image and its blobs from containerd first, pulls it again through the CRI, runs a pod from it, and reads the log of the container.
+2. The pull must be served by the Nexus proxy: the check reads the proxy's request log (it must show containerd fetching the manifest and the blobs) and the egress gateway's log (it must show no request at all to Docker Hub during the pull and while the pod starts).
+3. The image name must stay docker.io/library/benchapp:1.0. Do not pre-load, import, tag or pull the image by hand into containerd; the check removes it anyway.
+4. Do not change the proxy, the egress gateway or the containerdctl script, and do not replace containerd: it stays the one that runs on /run/bench78132064/containerd.sock (you may restart it with containerdctl).
+5. The script runs without a terminal: stdin is not a TTY, nothing can be typed.
+6. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+7. Your script must finish by itself: no interactive prompts, no command that runs in the foreground until it is interrupted, and no command that waits forever.
+
+Return the commands needed to complete the task.

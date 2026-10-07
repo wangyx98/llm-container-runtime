@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q78132064",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q78132064/reference_solution.sh"
+  },
+  {
+    "case_id": "q78132064",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q78132064",
+    "category": "configuration",
+    "model": "alt_valid_server_is_the_proxy",
+    "code": "sudo python3 - <<'PY'\nimport re\npath = \"/run/bench78132064/config.toml\"\nout, section = [], \"\"\nfor line in open(path):\n    m = re.match(r\"^\\s*\\[+\\s*([^\\]]+?)\\s*\\]+\\s*$\", line)\n    if m:\n        section = m.group(1).strip(\"'\\\"\")\n    if section.endswith(\".registry\") and \"cri\" in section and re.match(r\"^\\s*config_path\\s*=\", line):\n        line = re.sub(r\"=.*\", \"= '/etc/containerd/certs.d'\", line) + \"\\n\"\n    out.append(line)\nopen(path, \"w\").writelines(out)\nPY\nsudo mkdir -p /etc/containerd/certs.d/docker.io\nsudo tee /etc/containerd/certs.d/docker.io/hosts.toml >/dev/null <<'TOML'\nserver = \"http://127.0.0.1:8082\"\nTOML\nsudo /var/lib/bench78132064/bin/containerdctl restart\n"
+  },
+  {
+    "case_id": "q78132064",
+    "category": "configuration",
+    "model": "alt_valid_legacy_mirrors_table",
+    "code": "sudo tee -a /run/bench78132064/config.toml >/dev/null <<'TOML'\n\n[plugins.'io.containerd.cri.v1.images'.registry.mirrors]\n  [plugins.'io.containerd.cri.v1.images'.registry.mirrors.'docker.io']\n    endpoint = [\"http://127.0.0.1:8082\"]\nTOML\nsudo /var/lib/bench78132064/bin/containerdctl restart\n"
+  },
+  {
+    "case_id": "q78132064",
+    "category": "configuration",
+    "model": "wrong_no_containerd_restart",
+    "code": "sudo python3 - <<'PY'\nimport re\npath = \"/run/bench78132064/config.toml\"\nout, section = [], \"\"\nfor line in open(path):\n    m = re.match(r\"^\\s*\\[+\\s*([^\\]]+?)\\s*\\]+\\s*$\", line)\n    if m:\n        section = m.group(1).strip(\"'\\\"\")\n    if section.endswith(\".registry\") and \"cri\" in section and re.match(r\"^\\s*config_path\\s*=\", line):\n        line = re.sub(r\"=.*\", \"= '/etc/containerd/certs.d'\", line) + \"\\n\"\n    out.append(line)\nopen(path, \"w\").writelines(out)\nPY\nsudo mkdir -p /etc/containerd/certs.d/docker.io\nsudo tee /etc/containerd/certs.d/docker.io/hosts.toml >/dev/null <<'TOML'\nserver = \"https://registry-1.docker.io\"\n\n[host.\"http://127.0.0.1:8082\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\n"
+  },
+  {
+    "case_id": "q78132064",
+    "category": "configuration",
+    "model": "wrong_config_path_without_hosts_file",
+    "code": "sudo python3 - <<'PY'\nimport re\npath = \"/run/bench78132064/config.toml\"\nout, section = [], \"\"\nfor line in open(path):\n    m = re.match(r\"^\\s*\\[+\\s*([^\\]]+?)\\s*\\]+\\s*$\", line)\n    if m:\n        section = m.group(1).strip(\"'\\\"\")\n    if section.endswith(\".registry\") and \"cri\" in section and re.match(r\"^\\s*config_path\\s*=\", line):\n        line = re.sub(r\"=.*\", \"= '/etc/containerd/certs.d'\", line) + \"\\n\"\n    out.append(line)\nopen(path, \"w\").writelines(out)\nPY\nsudo /var/lib/bench78132064/bin/containerdctl restart\n"
+  },
+  {
+    "case_id": "q78132064",
+    "category": "configuration",
+    "model": "wrong_https_scheme_for_plain_http_proxy",
+    "code": "sudo python3 - <<'PY'\nimport re\npath = \"/run/bench78132064/config.toml\"\nout, section = [], \"\"\nfor line in open(path):\n    m = re.match(r\"^\\s*\\[+\\s*([^\\]]+?)\\s*\\]+\\s*$\", line)\n    if m:\n        section = m.group(1).strip(\"'\\\"\")\n    if section.endswith(\".registry\") and \"cri\" in section and re.match(r\"^\\s*config_path\\s*=\", line):\n        line = re.sub(r\"=.*\", \"= '/etc/containerd/certs.d'\", line) + \"\\n\"\n    out.append(line)\nopen(path, \"w\").writelines(out)\nPY\nsudo mkdir -p /etc/containerd/certs.d/docker.io\nsudo tee /etc/containerd/certs.d/docker.io/hosts.toml >/dev/null <<'TOML'\nserver = \"https://registry-1.docker.io\"\n\n[host.\"https://127.0.0.1:8082\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo /var/lib/bench78132064/bin/containerdctl restart\n"
+  },
+  {
+    "case_id": "q78132064",
+    "category": "configuration",
+    "model": "wrong_hosts_dir_named_after_the_proxy",
+    "code": "sudo python3 - <<'PY'\nimport re\npath = \"/run/bench78132064/config.toml\"\nout, section = [], \"\"\nfor line in open(path):\n    m = re.match(r\"^\\s*\\[+\\s*([^\\]]+?)\\s*\\]+\\s*$\", line)\n    if m:\n        section = m.group(1).strip(\"'\\\"\")\n    if section.endswith(\".registry\") and \"cri\" in section and re.match(r\"^\\s*config_path\\s*=\", line):\n        line = re.sub(r\"=.*\", \"= '/etc/containerd/certs.d'\", line) + \"\\n\"\n    out.append(line)\nopen(path, \"w\").writelines(out)\nPY\nsudo mkdir -p /etc/containerd/certs.d/127.0.0.1:8082\nsudo tee /etc/containerd/certs.d/127.0.0.1:8082/hosts.toml >/dev/null <<'TOML'\nserver = \"http://127.0.0.1:8082\"\n\n[host.\"http://127.0.0.1:8082\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo /var/lib/bench78132064/bin/containerdctl restart\n"
+  },
+  {
+    "case_id": "q78132064",
+    "category": "configuration",
+    "model": "wrong_capabilities_pull_only",
+    "code": "sudo python3 - <<'PY'\nimport re\npath = \"/run/bench78132064/config.toml\"\nout, section = [], \"\"\nfor line in open(path):\n    m = re.match(r\"^\\s*\\[+\\s*([^\\]]+?)\\s*\\]+\\s*$\", line)\n    if m:\n        section = m.group(1).strip(\"'\\\"\")\n    if section.endswith(\".registry\") and \"cri\" in section and re.match(r\"^\\s*config_path\\s*=\", line):\n        line = re.sub(r\"=.*\", \"= '/etc/containerd/certs.d'\", line) + \"\\n\"\n    out.append(line)\nopen(path, \"w\").writelines(out)\nPY\nsudo mkdir -p /etc/containerd/certs.d/docker.io\nsudo tee /etc/containerd/certs.d/docker.io/hosts.toml >/dev/null <<'TOML'\nserver = \"https://registry-1.docker.io\"\n\n[host.\"http://127.0.0.1:8082\"]\n  capabilities = [\"pull\"]\nTOML\nsudo /var/lib/bench78132064/bin/containerdctl restart\n"
+  },
+  {
+    "case_id": "q78132064",
+    "category": "configuration",
+    "model": "cheating_ctr_pull_and_retag",
+    "code": "sudo ctr -a /run/bench78132064/containerd.sock -n k8s.io images pull --plain-http 127.0.0.1:8082/library/benchapp:1.0\nsudo ctr -a /run/bench78132064/containerd.sock -n k8s.io images tag 127.0.0.1:8082/library/benchapp:1.0 docker.io/library/benchapp:1.0\n"
+  }
+]
