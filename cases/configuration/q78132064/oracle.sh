@@ -62,6 +62,14 @@ done
 for k in manifest config layer; do
     $CTR -n k8s.io content rm "$(jget $k)" >/dev/null 2>&1 || true
 done
+# the unpacked snapshots too: with a snapshot of the layer left over from an earlier pull (a solution that pulled
+# the image or started a pod to look at the result), containerd needs no blob and downloads nothing
+for _ in 1 2 3 4 5; do
+    KEYS=$($CTR -n k8s.io snapshots ls 2>/dev/null | awk 'NR>1 {print $1}')
+    [ -n "$KEYS" ] || break
+    for k in $KEYS; do $CTR -n k8s.io snapshots rm "$k" >/dev/null 2>&1 || true; done
+done
+if [ -n "$($CTR -n k8s.io snapshots ls 2>/dev/null | awk 'NR>1 {print $1}')" ]; then fail "could not remove the snapshots of containerd before the pull"; fi
 if $CTR -n k8s.io images ls -q | grep -q benchapp; then fail "could not remove the image from containerd before the pull"; fi
 if $CTR -n k8s.io content ls -q | grep -qF "$(jget layer)"; then fail "could not remove the layer blob from containerd before the pull"; fi
 
