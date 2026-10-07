@@ -1,0 +1,74 @@
+[
+  {
+    "case_id": "q69088569",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "# 1. tell the CRI plugin of containerd where its per-registry configuration lives, and describe the registry\n#    (plain HTTP) there; the directory has the name of the registry, host:port\nsudo mkdir -p \"/etc/containerd/certs.d/localhost:32000\"\nsudo tee \"/etc/containerd/certs.d/localhost:32000/hosts.toml\" >/dev/null <<'TOML'\nserver = \"http://localhost:32000\"\n\n[host.\"http://localhost:32000\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo sed -i \"/\\[plugins.'io.containerd.cri.v1.images'.registry\\]/,/^\\$/ s|config_path = ''|config_path = '/etc/containerd/certs.d'|\" /run/bench69088569/config.toml\n# 2. containerd reads config_path at start\nsudo /var/lib/bench69088569/bin/containerdctl restart\n# 3. the deployment asks for the image by the name it has in the registry\nsudo /var/lib/bench69088569/bin/mk8s kubectl set image deployment/argus 'argus=localhost:32000/argus:registry'\nsudo /var/lib/bench69088569/bin/mk8s kubectl rollout status deployment/argus --timeout=100s\n"
+  },
+  {
+    "case_id": "q69088569",
+    "category": "compatibility",
+    "model": "alt_valid_127_host",
+    "code": "sudo mkdir -p \"/etc/containerd/certs.d/127.0.0.1:32000\"\nsudo tee \"/etc/containerd/certs.d/127.0.0.1:32000/hosts.toml\" >/dev/null <<'TOML'\nserver = \"http://127.0.0.1:32000\"\n\n[host.\"http://127.0.0.1:32000\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo sed -i \"/\\[plugins.'io.containerd.cri.v1.images'.registry\\]/,/^\\$/ s|config_path = ''|config_path = '/etc/containerd/certs.d'|\" /run/bench69088569/config.toml\nsudo /var/lib/bench69088569/bin/containerdctl restart\nsudo /var/lib/bench69088569/bin/mk8s kubectl set image deployment/argus 'argus=127.0.0.1:32000/argus:registry'\nsudo /var/lib/bench69088569/bin/mk8s kubectl rollout status deployment/argus --timeout=100s\n"
+  },
+  {
+    "case_id": "q69088569",
+    "category": "compatibility",
+    "model": "alt_valid_recreate_deployment",
+    "code": "sudo mkdir -p \"/etc/containerd/certs.d/localhost:32000\"\nsudo tee \"/etc/containerd/certs.d/localhost:32000/hosts.toml\" >/dev/null <<'TOML'\nserver = \"http://localhost:32000\"\n\n[host.\"http://localhost:32000\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo sed -i \"/\\[plugins.'io.containerd.cri.v1.images'.registry\\]/,/^\\$/ s|config_path = ''|config_path = '/etc/containerd/certs.d'|\" /run/bench69088569/config.toml\nsudo /var/lib/bench69088569/bin/containerdctl restart\nsudo /var/lib/bench69088569/bin/mk8s kubectl delete deployment argus\nsudo /var/lib/bench69088569/bin/mk8s kubectl create deployment argus --image=localhost:32000/argus:registry\nsudo /var/lib/bench69088569/bin/mk8s kubectl rollout status deployment/argus --timeout=100s\n"
+  },
+  {
+    "case_id": "q69088569",
+    "category": "compatibility",
+    "model": "alt_valid_certs_dir_in_lib",
+    "code": "sudo mkdir -p \"/var/lib/bench69088569/certs.d/localhost:32000\"\nsudo tee \"/var/lib/bench69088569/certs.d/localhost:32000/hosts.toml\" >/dev/null <<'TOML'\nserver = \"http://localhost:32000\"\n\n[host.\"http://localhost:32000\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo sed -i \"/\\[plugins.'io.containerd.cri.v1.images'.registry\\]/,/^\\$/ s|config_path = ''|config_path = '/var/lib/bench69088569/certs.d'|\" /run/bench69088569/config.toml\nsudo /var/lib/bench69088569/bin/containerdctl restart\nsudo /var/lib/bench69088569/bin/mk8s kubectl set image deployment/argus 'argus=localhost:32000/argus:registry'\nsudo /var/lib/bench69088569/bin/mk8s kubectl rollout status deployment/argus --timeout=100s\n"
+  },
+  {
+    "case_id": "q69088569",
+    "category": "compatibility",
+    "model": "so_answer_ctr_plain_http_only",
+    "code": "sudo /var/lib/bench69088569/bin/mk8s ctr -n k8s.io images pull --plain-http localhost:32000/argus:registry\nsudo /var/lib/bench69088569/bin/mk8s kubectl delete deployment argus\nsudo /var/lib/bench69088569/bin/mk8s kubectl create deployment argus --image=localhost:32000/argus:registry\nsudo /var/lib/bench69088569/bin/mk8s kubectl rollout status deployment/argus --timeout=60s\n"
+  },
+  {
+    "case_id": "q69088569",
+    "category": "compatibility",
+    "model": "naive_full_name_only",
+    "code": "sudo /var/lib/bench69088569/bin/mk8s kubectl set image deployment/argus 'argus=localhost:32000/argus:registry'\nsleep 5\n"
+  },
+  {
+    "case_id": "q69088569",
+    "category": "compatibility",
+    "model": "naive_hosts_toml_without_config_path",
+    "code": "sudo mkdir -p \"/etc/containerd/certs.d/localhost:32000\"\nsudo tee \"/etc/containerd/certs.d/localhost:32000/hosts.toml\" >/dev/null <<'TOML'\nserver = \"http://localhost:32000\"\n\n[host.\"http://localhost:32000\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo /var/lib/bench69088569/bin/mk8s kubectl set image deployment/argus 'argus=localhost:32000/argus:registry'\nsleep 5\n"
+  },
+  {
+    "case_id": "q69088569",
+    "category": "compatibility",
+    "model": "naive_config_path_without_hosts",
+    "code": "sudo sed -i \"/\\[plugins.'io.containerd.cri.v1.images'.registry\\]/,/^\\$/ s|config_path = ''|config_path = '/etc/containerd/certs.d'|\" /run/bench69088569/config.toml\nsudo /var/lib/bench69088569/bin/containerdctl restart\nsudo /var/lib/bench69088569/bin/mk8s kubectl set image deployment/argus 'argus=localhost:32000/argus:registry'\nsleep 5\n"
+  },
+  {
+    "case_id": "q69088569",
+    "category": "compatibility",
+    "model": "naive_latest_tag",
+    "code": "sudo mkdir -p \"/etc/containerd/certs.d/localhost:32000\"\nsudo tee \"/etc/containerd/certs.d/localhost:32000/hosts.toml\" >/dev/null <<'TOML'\nserver = \"http://localhost:32000\"\n\n[host.\"http://localhost:32000\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo sed -i \"/\\[plugins.'io.containerd.cri.v1.images'.registry\\]/,/^\\$/ s|config_path = ''|config_path = '/etc/containerd/certs.d'|\" /run/bench69088569/config.toml\nsudo /var/lib/bench69088569/bin/containerdctl restart\nsudo /var/lib/bench69088569/bin/mk8s kubectl set image deployment/argus 'argus=localhost:32000/argus'\nsleep 5\n"
+  },
+  {
+    "case_id": "q69088569",
+    "category": "compatibility",
+    "model": "naive_https_server_in_hosts",
+    "code": "sudo mkdir -p \"/etc/containerd/certs.d/localhost:32000\"\nsudo tee \"/etc/containerd/certs.d/localhost:32000/hosts.toml\" >/dev/null <<'TOML'\nserver = \"https://localhost:32000\"\n\n[host.\"https://localhost:32000\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo sed -i \"/\\[plugins.'io.containerd.cri.v1.images'.registry\\]/,/^\\$/ s|config_path = ''|config_path = '/etc/containerd/certs.d'|\" /run/bench69088569/config.toml\nsudo /var/lib/bench69088569/bin/containerdctl restart\nsudo /var/lib/bench69088569/bin/mk8s kubectl set image deployment/argus 'argus=localhost:32000/argus:registry'\nsleep 5\n"
+  },
+  {
+    "case_id": "q69088569",
+    "category": "compatibility",
+    "model": "naive_retag_as_docker_io",
+    "code": "sudo /var/lib/bench69088569/bin/mk8s ctr -n k8s.io images pull --plain-http localhost:32000/argus:registry\nsudo /var/lib/bench69088569/bin/mk8s ctr -n k8s.io images tag localhost:32000/argus:registry docker.io/library/argus:latest\nsudo /var/lib/bench69088569/bin/mk8s kubectl patch deployment argus -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"argus\",\"imagePullPolicy\":\"IfNotPresent\"}]}}}}'\nsleep 5\n"
+  },
+  {
+    "case_id": "q69088569",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  }
+]

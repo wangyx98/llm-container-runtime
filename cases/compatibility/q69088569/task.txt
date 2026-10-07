@@ -1,0 +1,52 @@
+This machine runs a single-node Kubernetes (k3s, node bench69088569-node) on a containerd of its own
+(no Docker daemon, no CRI-O). Both are started and stopped with scripts in /var/lib/bench69088569/bin:
+containerdctl and k3sctl (start, stop, restart, status; run them with sudo). containerd reads its
+configuration, /run/bench69088569/config.toml (owned by root), only when it starts, and its socket is
+/run/bench69088569/containerd.sock. As on a MicroK8s machine there is a wrapper for the two clients, which
+you run with sudo:
+
+    sudo /var/lib/bench69088569/bin/mk8s kubectl ...   # kubectl of this Kubernetes
+    sudo /var/lib/bench69088569/bin/mk8s ctr ...       # ctr connected to this containerd (ctr's own default
+                                                       # namespace is "default"; Kubernetes uses k8s.io)
+
+A local image registry runs on this machine, as the MicroK8s one does: plain HTTP (no TLS) on port 32000,
+reachable as localhost:32000. An engineer pushed the image of an application, argus, to it, as
+localhost:32000/argus:registry (the push worked, and the registry lists the repository argus with the tag
+registry). Then the engineer tried to run it:
+
+    $ sudo /var/lib/bench69088569/bin/mk8s kubectl create deployment argus --image=argus
+    deployment.apps/argus created
+    $ sudo /var/lib/bench69088569/bin/mk8s kubectl get pods
+    NAME                     READY   STATUS         RESTARTS   AGE
+    argus-75dff88c8-jwlf8    0/1     ErrImagePull   0          9s
+    $ sudo /var/lib/bench69088569/bin/mk8s ctr images pull localhost:32000/argus:registry
+    ctr: failed to resolve image: failed to do request: Head "https://localhost:32000/v2/argus/manifests/registry": tls: first record does not look like a TLS handshake
+
+The deployment argus (namespace default) exists in this state now.
+
+Your task: make the deployment argus run the image that was pushed to the local registry, pulled from that
+registry by this machine's containerd. And the engineer does not want to pre-load every image by hand:
+Kubernetes (the CRI interface of containerd, the one the kubelet calls) must be able to pull from this
+registry on its own. The check will remove the image from containerd's namespace k8s.io and pull it again
+through the CRI.
+
+Requirements:
+
+1. At the end the deployment argus (same name, namespace default) has a pod that is Running and Ready, with no
+   container restarts, whose container runs the image pushed to the registry (the check compares the digest the
+   pod reports with the one of argus:registry, and reads the log of the pod). The check waits up to about 110
+   seconds for the pod.
+2. The deployment must ask for the image by the name it has in the registry, localhost:32000/argus:registry (or
+   127.0.0.1:32000/argus:registry).
+3. Do not change the registry: do not push, delete or re-tag anything, do not restart it, and leave it plain
+   HTTP on port 32000.
+4. Kubernetes must keep using this machine's containerd (its socket stays /run/bench69088569/containerd.sock);
+   containerd and k3s may be restarted with their scripts, but not replaced, and no other image may be built,
+   imported or downloaded.
+5. The script runs without a terminal: stdin is not a TTY, nothing can be typed.
+6. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system
+   commands need `sudo`.
+7. Your script must finish by itself: no interactive prompts, no command that runs in the foreground until it
+   is interrupted, and no command that waits forever (for example give `kubectl rollout status` a --timeout).
+
+Return the commands needed to complete the task.

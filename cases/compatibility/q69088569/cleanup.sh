@@ -2,7 +2,7 @@
 # no 'set -e': none of this is guaranteed to exist (first run, already cleaned, a daemon not
 # running), and every command here may fail without aborting the cleanup.
 
-CASE_ID="bench71572715"
+CASE_ID="bench69088569"
 RUN_BASE="/run/$CASE_ID"
 LIB_BASE="/var/lib/$CASE_ID"
 WORK_DIR="/tmp/$CASE_ID"
@@ -32,7 +32,7 @@ any_ours() {    # $1 = comm, $2 = text of the command line
 }
 
 if [ -e "$OWNED_MARKER" ]; then
-    echo "[cleanup] stopping k3s (the one this case started; its own containerd goes with it)..."
+    echo "[cleanup] stopping k3s (the one this case started)..."
     for p in $(pgrep -x k3s-server 2>/dev/null); do sudo kill -TERM "$p" 2>/dev/null || true; done
     for _ in $(seq 1 40); do pgrep -x k3s-server >/dev/null 2>&1 || break; sleep 1; done
     for p in $(pgrep -x k3s-server 2>/dev/null); do sudo kill -KILL "$p" 2>/dev/null || true; done
@@ -63,17 +63,13 @@ echo "[cleanup] stopping this case's external containerd and what it left behind
 kill_ours ctr KILL
 kill_ours timeout KILL
 kill_ours sudo KILL
+kill_ours python3 KILL          # the registry (its command line names the run dir)
 kill_ours containerd TERM
 for _ in $(seq 1 30); do any_ours containerd || break; sleep 0.5; done
 kill_ours containerd KILL
 # the shims may outlive their daemon
 for comm in containerd-shim containerd-shim-runc-v2; do
     kill_ours "$comm" KILL
-done
-# a workload process that outlived its shim (its root dir is the rootfs below the work dir)
-for p in $(sudo ls /proc 2>/dev/null | grep -E '^[0-9]+$'); do
-    r=$(sudo readlink "/proc/$p/root" 2>/dev/null) || continue
-    case "$r" in "$WORK_DIR"/*) sudo kill -KILL "$p" 2>/dev/null || true;; esac
 done
 sleep 0.5
 
@@ -82,7 +78,7 @@ sleep 0.5
 # overlay mounts of a container, shm).
 for _ in 1 2 3; do
     bases="$RUN_BASE $LIB_BASE $WORK_DIR"
-    [ -e "$OWNED_MARKER" ] && bases="$bases /var/lib/kubelet /var/lib/rancher /run/k3s"
+    [ -e "$OWNED_MARKER" ] && bases="$bases /var/lib/kubelet /var/lib/rancher /run/k3s /var/log/pods"
     for base in $bases; do
         for m in $(sudo findmnt -rn -o TARGET 2>/dev/null | grep -E "^$base(/|$)" | sort -r); do
             sudo umount -l "$m" 2>/dev/null || true
@@ -93,8 +89,14 @@ done
 if [ -e "$OWNED_MARKER" ]; then
     echo "[cleanup] removing the files k3s keeps outside the case's directories..."
     for d in $HOST_DIRS; do sudo rm -rf --one-file-system "$d"; done
-    # the kubelet also creates these two (and never removes them); rmdir removes them only when empty
-    sudo rmdir /var/log/pods /var/log/containers 2>/dev/null || true
+    # the pods and containers logs of the kubelet: setup refused to start unless they were empty
+    sudo rm -rf --one-file-system /var/log/pods /var/log/containers
+    # the registry configuration a solution writes for this case's registry in the usual place (setup refused to
+    # start when one existed); the directories are removed only when empty afterwards
+    for h in "localhost:32000" "127.0.0.1:32000" "localhost_32000" "localhost__32000"; do
+        sudo rm -rf --one-file-system "/etc/containerd/certs.d/$h"
+    done
+    sudo rmdir /etc/containerd/certs.d /etc/containerd 2>/dev/null || true
 fi
 
 echo "[cleanup] removing the containerd and k3s state..."
