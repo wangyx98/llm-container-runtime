@@ -1,0 +1,43 @@
+A Jenkins job of this machine runs a Python script that starts a container with runc, captures what the
+container writes and prints it. The container is the "subscriber" of a test: an OCI bundle in
+/tmp/bench55103653/bundle (runc's default config.json plus a root file system with one small program), run
+with the id bench55103653-sub. The script is /tmp/bench55103653/capture_output.py (python3, run as root).
+It starts runc with subprocess.Popen(stdout=PIPE, stderr=PIPE), calls communicate() and prints the two
+captures under the headings "Subscriber stdout:" and "Subscriber stderr:".
+
+Run by hand in a terminal, the script prints what the container wrote. Run by Jenkins, which has no terminal,
+it prints nothing from the container. /tmp/bench55103653/as_jenkins.sh runs the script the way Jenkins does
+(as root, in a session of its own with no controlling terminal, stdin from /dev/null):
+
+    $ /tmp/bench55103653/as_jenkins.sh
+    Subscriber stdout:
+
+    Subscriber stderr:
+    time="..." level=error msg="runc run failed: open /dev/tty: no such device or address"
+
+    $ echo $?
+    1
+
+The program of the container writes three lines to its stdout and one line to its stderr, one second apart,
+and exits with 0. The first line also shows the pid and the host name the program sees inside the container.
+
+Your task: make the script, run as Jenkins runs it, capture the output of the container. The check runs
+/tmp/bench55103653/capture_output.py exactly like as_jenkins.sh does, while watching runc.
+
+Requirements:
+
+1. The script must exit with 0, and under "Subscriber stdout:" it must print the three stdout lines of the
+   container and under "Subscriber stderr:" the one stderr line of the container: each stream separately,
+   not mixed into the other, and nothing else under the headings.
+2. The output must come from the container really run by runc from the bundle (the check watches `runc list`
+   while the script runs and looks at the pid and host name the program reports): do not run the program on
+   the host, do not replace or change it, do not change its command line, and do not fake the output.
+3. The script must keep its name and its place, keep printing the two headings, and leave no container behind.
+4. The script runs without a terminal in the check, and so does your script: stdin is not a TTY, nothing can
+   be typed. Do not rely on a terminal being there.
+5. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system
+   commands need `sudo`.
+6. Your script must finish by itself: no interactive prompts, no command that runs in the foreground until it
+   is interrupted, and no command that waits forever.
+
+Return the commands needed to complete the task.

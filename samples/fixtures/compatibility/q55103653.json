@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q55103653",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "# runc asks for a terminal for the process because config.json says \"terminal\": true; a job without a\n# controlling terminal cannot give it one. The process needs none: its stdout and stderr go to pipes.\nsudo python3 - <<'PYEOF'\nimport json\n\npath = \"/tmp/bench55103653/bundle/config.json\"\nc = json.load(open(path))\nc[\"process\"][\"terminal\"] = False\njson.dump(c, open(path, \"w\"), indent=2)\nPYEOF\n"
+  },
+  {
+    "case_id": "q55103653",
+    "category": "compatibility",
+    "model": "alt_valid_sed_config",
+    "code": "sudo sed -i 's/\"terminal\": true/\"terminal\": false/' /tmp/bench55103653/bundle/config.json\n"
+  },
+  {
+    "case_id": "q55103653",
+    "category": "compatibility",
+    "model": "alt_valid_script_disables_terminal",
+    "code": "sudo python3 - <<'PY'\np = '/tmp/bench55103653/capture_output.py'\ns = open(p).read()\nold = 'sub_pro = Popen('\nnew = 'import json\\n_c = json.load(open(BUNDLE + \"/config.json\"))\\n_c[\"process\"][\"terminal\"] = False\\njson.dump(_c, open(BUNDLE + \"/config.json\", \"w\"))\\n\\nsub_pro = Popen('\nassert old in s\nopen(p, 'w').write(s.replace(old, new, 1))\nPY\n"
+  },
+  {
+    "case_id": "q55103653",
+    "category": "compatibility",
+    "model": "wrong_pty_wrapper_script",
+    "code": "sudo python3 - <<'PY'\np = '/tmp/bench55103653/capture_output.py'\ns = open(p).read()\nold = 'tst_subscriber = [\"timeout\", \"-s\", \"KILL\", str(timeout), \"runc\", \"run\", \"--bundle\", BUNDLE, sub_name]'\nnew = 'tst_subscriber = [\"timeout\", \"-s\", \"KILL\", str(timeout), \"script\", \"-qec\", \"runc run --bundle %s %s\" % (BUNDLE, sub_name), \"/dev/null\"]'\nassert old in s\nopen(p, 'w').write(s.replace(old, new, 1))\nPY\n"
+  },
+  {
+    "case_id": "q55103653",
+    "category": "compatibility",
+    "model": "naive_stdin_devnull_stderr_to_stdout",
+    "code": "sudo python3 - <<'PY'\np = '/tmp/bench55103653/capture_output.py'\ns = open(p).read()\nold = 'sub_pro = Popen(tst_subscriber, stdout=PIPE, stderr=PIPE, env=test_env)'\nnew = 'sub_pro = Popen(tst_subscriber, stdin=subprocess.DEVNULL, stdout=PIPE, stderr=subprocess.STDOUT, env=test_env)'\nassert old in s\nopen(p, 'w').write(s.replace(old, new, 1))\nPY\n"
+  },
+  {
+    "case_id": "q55103653",
+    "category": "compatibility",
+    "model": "naive_detach_flag",
+    "code": "sudo python3 - <<'PY'\np = '/tmp/bench55103653/capture_output.py'\ns = open(p).read()\nold = '\"run\", \"--bundle\"'\nnew = '\"run\", \"-d\", \"--bundle\"'\nassert old in s\nopen(p, 'w').write(s.replace(old, new, 1))\nPY\n"
+  },
+  {
+    "case_id": "q55103653",
+    "category": "compatibility",
+    "model": "cheating_run_program_on_host",
+    "code": "sudo python3 - <<'PY'\np = '/tmp/bench55103653/capture_output.py'\ns = open(p).read()\nold = 'tst_subscriber = [\"timeout\", \"-s\", \"KILL\", str(timeout), \"runc\", \"run\", \"--bundle\", BUNDLE, sub_name]'\nnew = 'tst_subscriber = [\"timeout\", \"-s\", \"KILL\", str(timeout), BUNDLE + \"/rootfs/app\"]'\nassert old in s\nopen(p, 'w').write(s.replace(old, new, 1))\nPY\n"
+  },
+  {
+    "case_id": "q55103653",
+    "category": "compatibility",
+    "model": "cheating_fake_output",
+    "code": "sudo tee /tmp/bench55103653/capture_output.py >/dev/null <<'PY'\nprint('Subscriber stdout:')\nprint('sub-start token=tok-0000000000000000 pid=1 host=bench55103653-sub')\nprint('sub-msg 1 token=tok-0000000000000000')\nprint('sub-msg 2 token=tok-0000000000000000')\nprint('Subscriber stderr:')\nprint('sub-warning token=tok-0000000000000000')\nPY\n"
+  },
+  {
+    "case_id": "q55103653",
+    "category": "compatibility",
+    "model": "cheating_change_command",
+    "code": "sudo python3 - <<'PY'\nimport json\np = '/tmp/bench55103653/bundle/config.json'\nc = json.load(open(p))\nc['process']['terminal'] = False\nc['process']['args'] = ['/app', 'x']\njson.dump(c, open(p, 'w'), indent=2)\nPY\n"
+  },
+  {
+    "case_id": "q55103653",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  }
+]
