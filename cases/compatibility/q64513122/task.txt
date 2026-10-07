@@ -1,0 +1,55 @@
+A containerd runs on this machine for this task (no Docker daemon, no CRI-O, no
+Kubernetes): a private one, not the containerd of the machine. Its socket is
+/run/bench64513122/containerd.sock (owned by root); use it with
+`sudo ctr -a /run/bench64513122/containerd.sock ...`.
+
+A private image registry runs on this machine too, over plain HTTP and without
+authentication, at 127.0.0.1:15064. It is run for one organisation: it accepts
+pushes only to repositories whose name begins with bench64513122-org/ (that
+part of a name cannot be changed), and it keeps repositories of any depth below
+that.
+
+An engineer copies images from the Hub into this registry, and the workloads
+run in the containerd namespace k8s.io (the namespace of Kubernetes' CRI). The
+Hub image docker.io/vendor64513122/app:2.2.2 is already in containerd, in the
+namespace default (it was pulled there). The engineer wants it to be known in
+the registry, and used by the workloads, under the name
+
+    127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2
+
+that is, with the Hub name vendor64513122/app kept below the organisation, so
+the name has more path levels than the usual registry/organisation/repository.
+The engineer doubts that containerd handles such a name, and the first
+attempts failed:
+
+    $ sudo ctr -a /run/bench64513122/containerd.sock -n k8s.io images pull 127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2
+    ctr: failed to resolve image: failed to do request: Head "https://127.0.0.1:15064/v2/bench64513122-org/vendor64513122/app/manifests/2.2.2": tls: first record does not look like a TLS handshake
+    $ sudo ctr -a /run/bench64513122/containerd.sock -n default images push --plain-http 127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2
+    ctr: image "127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2": not found
+
+Your task is to publish the image to the registry under that name and to make
+it available to the workloads:
+
+1. Push docker.io/vendor64513122/app:2.2.2 from the namespace default to the
+   registry as 127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2 (all
+   the path levels, and the tag 2.2.2). The registry must then hold exactly the
+   manifest of the source image under that name.
+2. Make the namespace k8s.io of the containerd have the image
+   127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2 by pulling it
+   from the registry (not by copying it between namespaces), so that a
+   container started from it runs and prints the line of the image.
+
+Requirements:
+
+1. The push and the pull must be done by containerd, with ctr: the check reads
+   the registry's own state and its request log. Giving an image a new name in
+   containerd, or naming it for a registry, is not publishing it.
+2. Do not stop, restart or reconfigure the containerd or the registry, and do
+   not touch the registry's files; the source image must stay as it is.
+3. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime and network commands need `sudo`.
+4. Your script must finish by itself: no interactive prompts, no command that
+   runs in the foreground until it is interrupted, and no command that waits
+   forever.
+
+Return the commands needed to complete the task.

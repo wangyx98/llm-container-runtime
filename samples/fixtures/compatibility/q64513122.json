@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q64513122",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "SOCK=/run/bench64513122/containerd.sock\nSRC=docker.io/vendor64513122/app:2.2.2\nTARGET=127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2\nsudo ctr -a $SOCK -n default images tag $SRC $TARGET\nsudo ctr -a $SOCK -n default images push --plain-http $TARGET\nsudo ctr -a $SOCK -n k8s.io images pull --plain-http $TARGET\n"
+  },
+  {
+    "case_id": "q64513122",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q64513122",
+    "category": "compatibility",
+    "model": "naive_tag_only",
+    "code": "sudo ctr -a /run/bench64513122/containerd.sock -n default images tag docker.io/vendor64513122/app:2.2.2 127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2\n"
+  },
+  {
+    "case_id": "q64513122",
+    "category": "compatibility",
+    "model": "naive_push_without_plain_http",
+    "code": "sudo ctr -a /run/bench64513122/containerd.sock -n default images tag docker.io/vendor64513122/app:2.2.2 127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2\nsudo ctr -a /run/bench64513122/containerd.sock -n default images push 127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2\nsudo ctr -a /run/bench64513122/containerd.sock -n k8s.io images pull 127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2\n"
+  },
+  {
+    "case_id": "q64513122",
+    "category": "compatibility",
+    "model": "naive_flattened_name",
+    "code": "F=127.0.0.1:15064/bench64513122-org/vendor64513122-app:2.2.2\nsudo ctr -a /run/bench64513122/containerd.sock -n default images tag docker.io/vendor64513122/app:2.2.2 $F\nsudo ctr -a /run/bench64513122/containerd.sock -n default images push --plain-http $F\nsudo ctr -a /run/bench64513122/containerd.sock -n k8s.io images pull --plain-http $F\n"
+  },
+  {
+    "case_id": "q64513122",
+    "category": "compatibility",
+    "model": "naive_without_org",
+    "code": "F=127.0.0.1:15064/vendor64513122/app:2.2.2\nsudo ctr -a /run/bench64513122/containerd.sock -n default images tag docker.io/vendor64513122/app:2.2.2 $F\nsudo ctr -a /run/bench64513122/containerd.sock -n default images push --plain-http $F\nsudo ctr -a /run/bench64513122/containerd.sock -n k8s.io images pull --plain-http $F\n"
+  },
+  {
+    "case_id": "q64513122",
+    "category": "compatibility",
+    "model": "naive_pull_in_default_namespace",
+    "code": "sudo ctr -a /run/bench64513122/containerd.sock -n default images tag docker.io/vendor64513122/app:2.2.2 127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2\nsudo ctr -a /run/bench64513122/containerd.sock -n default images push --plain-http 127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2\nsudo ctr -a /run/bench64513122/containerd.sock images pull --plain-http 127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2\n"
+  },
+  {
+    "case_id": "q64513122",
+    "category": "compatibility",
+    "model": "cheat_copy_between_namespaces",
+    "code": "sudo ctr -a /run/bench64513122/containerd.sock -n default images tag docker.io/vendor64513122/app:2.2.2 127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2\nsudo ctr -a /run/bench64513122/containerd.sock -n default images export /tmp/bench64513122-x.tar 127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2\nsudo ctr -a /run/bench64513122/containerd.sock -n k8s.io images import /tmp/bench64513122-x.tar\n"
+  },
+  {
+    "case_id": "q64513122",
+    "category": "compatibility",
+    "model": "cheat_push_then_import_copy",
+    "code": "sudo ctr -a /run/bench64513122/containerd.sock -n default images tag docker.io/vendor64513122/app:2.2.2 127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2\nsudo ctr -a /run/bench64513122/containerd.sock -n default images push --plain-http 127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2\nsudo ctr -a /run/bench64513122/containerd.sock -n default images export /tmp/bench64513122-x.tar 127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2\nsudo ctr -a /run/bench64513122/containerd.sock -n k8s.io images import /tmp/bench64513122-x.tar\n"
+  },
+  {
+    "case_id": "q64513122",
+    "category": "compatibility",
+    "model": "alt_valid_push_with_local_argument",
+    "code": "sudo ctr -a /run/bench64513122/containerd.sock -n default images push --plain-http 127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2 docker.io/vendor64513122/app:2.2.2\nsudo ctr -a /run/bench64513122/containerd.sock -n k8s.io images pull --plain-http 127.0.0.1:15064/bench64513122-org/vendor64513122/app:2.2.2\n"
+  }
+]
