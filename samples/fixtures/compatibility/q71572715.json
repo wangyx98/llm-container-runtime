@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q71572715",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "echo 'container-runtime-endpoint: unix:///run/bench71572715/containerd.sock' | sudo tee -a /etc/rancher/k3s/config.yaml\nsudo /var/lib/bench71572715/bin/k3sctl restart\n"
+  },
+  {
+    "case_id": "q71572715",
+    "category": "compatibility",
+    "model": "alt_valid_dropin_config",
+    "code": "sudo mkdir -p /etc/rancher/k3s/config.yaml.d\necho 'container-runtime-endpoint: unix:///run/bench71572715/containerd.sock' | sudo tee /etc/rancher/k3s/config.yaml.d/10-runtime.yaml\nsudo /var/lib/bench71572715/bin/k3sctl stop\nsudo /var/lib/bench71572715/bin/k3sctl start\n"
+  },
+  {
+    "case_id": "q71572715",
+    "category": "compatibility",
+    "model": "alt_valid_no_scheme_stop_start",
+    "code": "echo 'container-runtime-endpoint: /run/bench71572715/containerd.sock' | sudo tee -a /etc/rancher/k3s/config.yaml\nsudo /var/lib/bench71572715/bin/k3sctl stop\nsudo /var/lib/bench71572715/bin/k3sctl start\n"
+  },
+  {
+    "case_id": "q71572715",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q71572715",
+    "category": "compatibility",
+    "model": "naive_config_without_restart",
+    "code": "echo 'container-runtime-endpoint: unix:///run/bench71572715/containerd.sock' | sudo tee -a /etc/rancher/k3s/config.yaml\n"
+  },
+  {
+    "case_id": "q71572715",
+    "category": "compatibility",
+    "model": "naive_restart_without_change",
+    "code": "sudo /var/lib/bench71572715/bin/k3sctl restart\n"
+  },
+  {
+    "case_id": "q71572715",
+    "category": "compatibility",
+    "model": "naive_endpoint_typo",
+    "code": "echo 'container-runtime-endpoint: unix:///run/bench71572715/containerd.sck' | sudo tee -a /etc/rancher/k3s/config.yaml\nsudo /var/lib/bench71572715/bin/k3sctl restart\n"
+  },
+  {
+    "case_id": "q71572715",
+    "category": "compatibility",
+    "model": "naive_stop_k3s_only",
+    "code": "sudo /var/lib/bench71572715/bin/k3sctl stop\n"
+  },
+  {
+    "case_id": "q71572715",
+    "category": "compatibility",
+    "model": "naive_restart_external_containerd",
+    "code": "echo 'container-runtime-endpoint: unix:///run/bench71572715/containerd.sock' | sudo tee -a /etc/rancher/k3s/config.yaml\nsudo /var/lib/bench71572715/bin/k3sctl restart\nsudo /var/lib/bench71572715/bin/containerdctl restart\n"
+  },
+  {
+    "case_id": "q71572715",
+    "category": "compatibility",
+    "model": "naive_workload_removed",
+    "code": "echo 'container-runtime-endpoint: unix:///run/bench71572715/containerd.sock' | sudo tee -a /etc/rancher/k3s/config.yaml\nsudo /var/lib/bench71572715/bin/k3sctl restart\nsudo ctr -a /run/bench71572715/containerd.sock -n default tasks kill -s KILL bench71572715-workload || true\n"
+  }
+]

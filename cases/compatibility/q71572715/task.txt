@@ -1,0 +1,47 @@
+This machine has a containerd that was installed and is run on its own (no Docker
+daemon, no CRI-O): its socket is /run/bench71572715/containerd.sock (owned by root);
+use it with `sudo ctr -a /run/bench71572715/containerd.sock ...`. It is started and
+stopped with /var/lib/bench71572715/bin/containerdctl (start, stop, restart, status). An
+independent workload, the container bench71572715-workload (namespace default), runs
+in it and has nothing to do with Kubernetes.
+
+k3s also runs on this machine, as a single node called bench71572715-node. It is
+configured in /etc/rancher/k3s/config.yaml (the options of the k3s command line, written
+without the leading dashes) and is started and stopped with /var/lib/bench71572715/bin/k3sctl
+(start, stop, restart, status). As installed by default, k3s starts its own embedded
+containerd, a child process of k3s that dies with it:
+
+    $ sudo /var/lib/bench71572715/bin/k3sctl stop
+    $ pgrep -x containerd         # the containerd of k3s is gone with it
+    $ sudo ctr -a /run/bench71572715/containerd.sock version     # the other one is untouched
+
+Today the node runs on that embedded containerd, so the lifecycle of the runtime is tied
+to the one of k3s: stopping, restarting or upgrading k3s takes the runtime down with it.
+The engineer wants the two decoupled.
+
+Your task: make k3s use the containerd that is already installed
+(/run/bench71572715/containerd.sock) as its container runtime, instead of starting its
+own, and leave k3s running with that configuration. Afterwards, stopping k3s must leave
+that containerd process, its RPC and the workload running.
+
+Requirements:
+
+1. At the end k3s must be running (started by k3sctl, as it is now), and its node
+   bench71572715-node must be Ready and report the pre-installed containerd as its
+   runtime. k3s may need up to about a minute to come up and for the node to update;
+   the check waits up to 2 minutes.
+2. k3s must not start a containerd of its own.
+3. Do not restart, stop, replace or reconfigure the pre-installed containerd, and do not
+   touch the workload bench71572715-workload: the check requires them to be the same
+   processes as before, still running.
+4. The check will stop k3s itself with `k3sctl stop` and then look at that containerd,
+   at its workload and at a new container started in it. Do not stop k3s at the end of
+   your script.
+5. Do not install, download or replace programs, and do not change the k3s binary.
+6. The script runs without a terminal: stdin is not a TTY, nothing can be typed.
+7. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime and system commands need `sudo`.
+8. Your script must finish by itself: no interactive prompts, no command that runs in
+   the foreground until it is interrupted, and no command that waits forever.
+
+Return the commands needed to complete the task.
