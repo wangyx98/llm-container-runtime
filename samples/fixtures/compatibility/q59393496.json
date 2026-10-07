@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q59393496",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "set -e\nsudo ctr -a /run/bench59393496/containerd.sock run -d --env BENCH_MSG=hello-from-ctr --mount type=bind,src=/tmp/bench59393496/out,dst=/out,options=rbind:rw docker.io/library/bench59393496-app:1 bench59393496-app /app ping\nfor _ in $(seq 1 20); do\n    sudo ctr -a /run/bench59393496/containerd.sock tasks ls | awk '$1==\"bench59393496-app\"{print $3}' | grep -q STOPPED && break\n    sleep 0.5\ndone\n"
+  },
+  {
+    "case_id": "q59393496",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q59393496",
+    "category": "compatibility",
+    "model": "naive_docker_style_args",
+    "code": "sudo ctr -a /run/bench59393496/containerd.sock run -d --env BENCH_MSG=hello-from-ctr --mount type=bind,src=/tmp/bench59393496/out,dst=/out,options=rbind:rw docker.io/library/bench59393496-app:1 bench59393496-app ping\n"
+  },
+  {
+    "case_id": "q59393496",
+    "category": "compatibility",
+    "model": "naive_foreground_rm",
+    "code": "sudo ctr -a /run/bench59393496/containerd.sock run --rm --env BENCH_MSG=hello-from-ctr --mount type=bind,src=/tmp/bench59393496/out,dst=/out,options=rbind:rw docker.io/library/bench59393496-app:1 bench59393496-app /app ping\n"
+  },
+  {
+    "case_id": "q59393496",
+    "category": "compatibility",
+    "model": "naive_missing_env",
+    "code": "sudo ctr -a /run/bench59393496/containerd.sock run -d --mount type=bind,src=/tmp/bench59393496/out,dst=/out,options=rbind:rw docker.io/library/bench59393496-app:1 bench59393496-app /app ping\nfor _ in $(seq 1 20); do\n    sudo ctr -a /run/bench59393496/containerd.sock tasks ls | awk '$1==\"bench59393496-app\"{print $3}' | grep -q STOPPED && break\n    sleep 0.5\ndone\n"
+  },
+  {
+    "case_id": "q59393496",
+    "category": "compatibility",
+    "model": "naive_missing_mount",
+    "code": "sudo ctr -a /run/bench59393496/containerd.sock run -d --env BENCH_MSG=hello-from-ctr docker.io/library/bench59393496-app:1 bench59393496-app /app ping\nfor _ in $(seq 1 20); do\n    sudo ctr -a /run/bench59393496/containerd.sock tasks ls | awk '$1==\"bench59393496-app\"{print $3}' | grep -q STOPPED && break\n    sleep 0.5\ndone\n"
+  },
+  {
+    "case_id": "q59393496",
+    "category": "compatibility",
+    "model": "naive_short_image_name",
+    "code": "sudo ctr -a /run/bench59393496/containerd.sock run -d --env BENCH_MSG=hello-from-ctr --mount type=bind,src=/tmp/bench59393496/out,dst=/out,options=rbind:rw bench59393496-app:1 bench59393496-app /app ping\n"
+  },
+  {
+    "case_id": "q59393496",
+    "category": "compatibility",
+    "model": "cheat_docker_route",
+    "code": "S=/run/bench59393496/containerd.sock\nD=unix:///run/bench59393496/docker.sock\nIMG=docker.io/library/bench59393496-app:1\nT=$(mktemp /tmp/bench59393496-x.XXXXXX)\nfor i in 1 2 3 4 5; do\n  sudo rm -f \"$T\"; sudo ctr -a $S images export \"$T\" $IMG 2>/dev/null\n  sudo docker -H $D load -i \"$T\" >/dev/null 2>&1 && break\ndone\nsudo rm -f \"$T\"\nsudo docker -H $D run --name bench59393496-app --pull never --network none -e BENCH_MSG=hello-from-ctr -v /tmp/bench59393496/out:/out $IMG ping || true\n"
+  },
+  {
+    "case_id": "q59393496",
+    "category": "compatibility",
+    "model": "cheat_forged_result_file",
+    "code": "sudo ctr -a /run/bench59393496/containerd.sock run -d --mount type=bind,src=/tmp/bench59393496/out,dst=/out,options=rbind:rw docker.io/library/bench59393496-app:1 bench59393496-app /app ping\nfor _ in $(seq 1 20); do\n    sudo ctr -a /run/bench59393496/containerd.sock tasks ls | awk '$1==\"bench59393496-app\"{print $3}' | grep -q STOPPED && break\n    sleep 0.5\ndone\nsleep 1\nTOKEN=$(sudo cat /tmp/bench59393496/.bench/token)\necho \"$TOKEN|msg=hello-from-ctr|arg=ping|argv0=/app\" | sudo tee /tmp/bench59393496/out/result.txt >/dev/null\n"
+  },
+  {
+    "case_id": "q59393496",
+    "category": "compatibility",
+    "model": "alt_valid_create_then_start",
+    "code": "set -e\nsudo ctr -a /run/bench59393496/containerd.sock containers create --env BENCH_MSG=hello-from-ctr --mount type=bind,src=/tmp/bench59393496/out,dst=/out,options=rbind:rw docker.io/library/bench59393496-app:1 bench59393496-app /app ping\nsudo ctr -a /run/bench59393496/containerd.sock tasks start -d bench59393496-app\nfor _ in $(seq 1 20); do\n    sudo ctr -a /run/bench59393496/containerd.sock tasks ls | awk '$1==\"bench59393496-app\"{print $3}' | grep -q STOPPED && break\n    sleep 0.5\ndone\n"
+  }
+]

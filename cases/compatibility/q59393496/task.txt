@@ -1,0 +1,50 @@
+Two private daemons run on this machine for this task, neither is the Docker
+or the containerd of the machine:
+
+- a containerd, with its socket at /run/bench59393496/containerd.sock (owned
+  by root): use it with `sudo ctr -a /run/bench59393496/containerd.sock ...`;
+- a Docker daemon that runs its containers on that containerd, with its API
+  socket at /run/bench59393496/docker.sock. It is there, but it is not the
+  tool of this task.
+
+The image docker.io/library/bench59393496-app:1 is already in that containerd
+(namespace default, the one ctr uses): a Docker format image, as `docker build`
+or Docker Hub would give you. Nothing can be pulled: that name does not exist
+on any registry. The image has the entrypoint /app and the default argument
+default-arg. The program /app writes one line into the file /out/result.txt of
+its container, telling what it was started with (the environment variable
+BENCH_MSG and its first argument), and then exits with status 17. The directory
+/out does not exist in the image: it exists only if something is mounted
+there.
+
+Your task is to run that Docker image with ctr, in containerd, as the
+container bench59393496-app:
+
+- with the environment variable BENCH_MSG set to hello-from-ctr;
+- with ping as the first argument of the program (instead of the default
+  argument);
+- with the host directory /tmp/bench59393496/out (it exists) mounted
+  read-write at /out in the container.
+
+Requirements:
+
+1. When your script has finished, `sudo ctr -a /run/bench59393496/containerd.sock containers ls`
+   lists bench59393496-app, created from docker.io/library/bench59393496-app:1,
+   and `sudo ctr -a /run/bench59393496/containerd.sock tasks ls` lists its task
+   as STOPPED: the program has run to its end and exited with status 17.
+   Keep the container and its task, so that they can be inspected: do not use
+   --rm and do not delete them.
+2. /tmp/bench59393496/out/result.txt must have been written by the program of
+   the container; do not write it yourself.
+3. Use ctr: the container must be a container of containerd's namespace
+   default. A container started with Docker does not count.
+4. Neither daemon may be restarted, replaced or reconfigured, and the image
+   must stay as it is.
+5. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime and network commands need `sudo`.
+6. Your script must finish by itself: no interactive prompts, no command that
+   runs in the foreground until it is interrupted, and no command that waits
+   forever (start anything long-running in the background with its output
+   redirected).
+
+Return the commands needed to complete the task.
