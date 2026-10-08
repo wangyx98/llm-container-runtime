@@ -1,0 +1,33 @@
+This machine is a Kubernetes node that runs containerd (no Docker daemon, no CRI-O) with its own socket, /run/bench65681045/containerd.sock, and the CRI plugin enabled. It is started and stopped with a script, /var/lib/bench65681045/bin/containerdctl (start, stop, restart, status; run it with sudo). containerd reads its configuration, /run/bench65681045/config.toml (owned by root), only when it starts. The client used here is ctr, always pointed at that socket and used in its default namespace:
+
+    sudo ctr -a /run/bench65681045/containerd.sock images ls
+
+Docker used to run on this node, and its daemon.json listed the team's registry as an insecure registry. The registry, v048011.dom600.test:5000, speaks plain HTTP only: there is no TLS on it at all. It holds the image v048011.dom600.test:5000/myjenkins:latest, a program that prints a marker line with the arguments it is given. The only way out of this machine is the company egress proxy, which containerd already uses and which resolves that registry name; nothing else is reachable.
+
+Now that containerd is the runtime, an engineer tried to do the same in /run/bench65681045/config.toml: under the CRI registry mirrors he added the tables below (they are still there) and restarted containerd, and the pull still fails:
+
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
+      endpoint = ["https://registry-1.docker.io"]
+    [plugin."io.containerd.grpc.v1.cri".registry.mirrors."test.http-registry.io"]
+      endpoint = ["http://v048011.dom600.test:5000"]
+
+    $ sudo ctr -a /run/bench65681045/containerd.sock images pull --hosts-dir /etc/containerd/certs.d v048011.dom600.test:5000/myjenkins:latest
+    ctr: failed to resolve image: failed to do request: Head "https://v048011.dom600.test:5000/v2/myjenkins/manifests/latest": http: server gave HTTP response to HTTPS client
+
+Your task: make ctr pull v048011.dom600.test:5000/myjenkins:latest from this registry over plain HTTP, keeping the name, with the registry host configuration kept in the directory /etc/containerd/certs.d, and run the image once.
+
+Requirements:
+
+1. The check removes the image, its blobs and its snapshots from containerd first, then runs this exact command, which must succeed:
+
+    sudo ctr -a /run/bench65681045/containerd.sock images pull --hosts-dir /etc/containerd/certs.d v048011.dom600.test:5000/myjenkins:latest
+
+   and finds the image in the default namespace under that name, with the digest that the registry holds for that tag. A name created with ctr images tag, or an image pulled by hand and loaded under that name, does not survive the reset. A change that only helps the CRI (crictl, namespace k8s.io) does not count.
+2. The registry's request log must show containerd fetching the manifest and the blobs, and the egress proxy's log must show those requests going out over plain HTTP, none refused.
+3. The check then runs the image with ctr, passing an argument it chooses at that moment, and expects the marker line of the image with that argument. The command that runs the image is /app.
+4. Do not change the registry, the egress proxy or the containerdctl script, and do not replace containerd: it stays the one that runs on /run/bench65681045/containerd.sock (you may restart it with containerdctl).
+5. The script runs without a terminal: stdin is not a TTY, nothing can be typed.
+6. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+7. Your script must finish by itself: no interactive prompts, no command that runs in the foreground until it is interrupted, and no command that waits forever.
+
+Return the commands needed to complete the task.

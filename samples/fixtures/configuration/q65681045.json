@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "q65681045",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q65681045/reference_solution.sh"
+  },
+  {
+    "case_id": "q65681045",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q65681045",
+    "category": "configuration",
+    "model": "alt_valid_host_entry_with_docker_server_fallback",
+    "code": "# the registry as a host entry (http), the server line naming Docker Hub as a fallback that is never reached: hosts are tried before the server\nsudo mkdir -p \"/etc/containerd/certs.d/v048011.dom600.test:5000\"\nsudo tee \"/etc/containerd/certs.d/v048011.dom600.test:5000/hosts.toml\" >/dev/null <<'TOML'\nserver = \"https://registry-1.docker.io\"\n[host.\"http://v048011.dom600.test:5000\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo ctr -a /run/bench65681045/containerd.sock images pull --hosts-dir /etc/containerd/certs.d v048011.dom600.test:5000/myjenkins:latest\nsudo ctr -a /run/bench65681045/containerd.sock run --rm v048011.dom600.test:5000/myjenkins:latest bench65681045-check /app hello </dev/null\n"
+  },
+  {
+    "case_id": "q65681045",
+    "category": "configuration",
+    "model": "wrong_answer_layout_skip_verify_on_http_host",
+    "code": "# the \"New\" layout of the accepted answer as written there: skip_verify = true on an http:// host entry. In this containerd it makes\n# the entry be tried over TLS (and Docker Hub, the server, is refused): skip_verify is about TLS certificates and an HTTP registry has none\nsudo mkdir -p \"/etc/containerd/certs.d/v048011.dom600.test:5000\"\nsudo tee \"/etc/containerd/certs.d/v048011.dom600.test:5000/hosts.toml\" >/dev/null <<'TOML'\nserver = \"https://registry-1.docker.io\"\n[host.\"http://v048011.dom600.test:5000\"]\n  capabilities = [\"pull\", \"resolve\", \"push\"]\n  skip_verify = true\nTOML\nsudo ctr -a /run/bench65681045/containerd.sock images pull --hosts-dir /etc/containerd/certs.d v048011.dom600.test:5000/myjenkins:latest\nsudo ctr -a /run/bench65681045/containerd.sock run --rm v048011.dom600.test:5000/myjenkins:latest bench65681045-check /app hello </dev/null\n"
+  },
+  {
+    "case_id": "q65681045",
+    "category": "configuration",
+    "model": "wrong_hosts_dir_named_after_the_alias",
+    "code": "# the alias of the question as the name of the hosts directory: the directory is looked up by the registry of the image\n# reference, v048011.dom600.test:5000, not by an alias\nsudo mkdir -p \"/etc/containerd/certs.d/test.http-registry.io\"\nsudo tee \"/etc/containerd/certs.d/test.http-registry.io/hosts.toml\" >/dev/null <<'TOML'\nserver = \"http://v048011.dom600.test:5000\"\n\n[host.\"http://v048011.dom600.test:5000\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo ctr -a /run/bench65681045/containerd.sock images pull --hosts-dir /etc/containerd/certs.d v048011.dom600.test:5000/myjenkins:latest\nsudo ctr -a /run/bench65681045/containerd.sock run --rm v048011.dom600.test:5000/myjenkins:latest bench65681045-check /app hello </dev/null\n"
+  },
+  {
+    "case_id": "q65681045",
+    "category": "configuration",
+    "model": "cheating_ctr_plain_http_flag",
+    "code": "# the flag of the accepted answer: it works for this one command, nothing is configured (the check pulls again, with the hosts directory, after a reset)\nsudo ctr -a /run/bench65681045/containerd.sock images pull --plain-http v048011.dom600.test:5000/myjenkins:latest\nsudo ctr -a /run/bench65681045/containerd.sock run --rm v048011.dom600.test:5000/myjenkins:latest bench65681045-check /app hello </dev/null\n"
+  }
+]
