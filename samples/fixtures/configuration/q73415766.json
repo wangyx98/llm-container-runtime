@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "q73415766",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q73415766/reference_solution.sh"
+  },
+  {
+    "case_id": "q73415766",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q73415766",
+    "category": "configuration",
+    "model": "alt_valid_pin_the_server_certificate_with_ca",
+    "code": "sudo mkdir -p /var/lib/bench73415766/certs.d/pvt-a.registry.test:5028\nsudo tee /var/lib/bench73415766/certs.d/pvt-a.registry.test:5028/hosts.toml >/dev/null <<'TOML'\nserver = \"https://pvt-a.registry.test:5028\"\n\n[host.\"https://pvt-a.registry.test:5028\"]\n  capabilities = [\"pull\", \"resolve\"]\n  ca = \"/run/bench73415766/regA/srv.pem\"\nTOML\nsudo python3 - <<'PY'\nimport re\npath = \"/run/bench73415766/config.toml\"\nout, section = [], \"\"\nfor line in open(path):\n    m = re.match(r\"^\\s*\\[+\\s*([^\\]]+?)\\s*\\]+\\s*$\", line)\n    if m:\n        section = m.group(1).strip(\"'\\\"\")\n    if section.endswith(\".registry\") and \"cri\" in section and re.match(r\"^\\s*config_path\\s*=\", line):\n        line = re.sub(r\"=.*\", \"= '/var/lib/bench73415766/certs.d'\", line) + \"\\n\"\n    out.append(line)\nopen(path, \"w\").writelines(out)\nPY\nsudo /var/lib/bench73415766/bin/containerdctl restart\nfor i in $(seq 1 30); do sudo ctr -a /run/bench73415766/containerd.sock version >/dev/null 2>&1 && break; sleep 1; done\nsudo crictl --runtime-endpoint unix:///run/bench73415766/containerd.sock --image-endpoint unix:///run/bench73415766/containerd.sock pull pvt-a.registry.test:5028/team/app:1.0\nsudo ctr -a /run/bench73415766/containerd.sock -n k8s.io run --rm pvt-a.registry.test:5028/team/app:1.0 bench73415766-check /app hello </dev/null\n"
+  },
+  {
+    "case_id": "q73415766",
+    "category": "configuration",
+    "model": "wrong_legacy_configs_tls_with_the_right_plugin_key",
+    "code": "sudo python3 - <<'PY'\nimport re\npath = \"/run/bench73415766/config.toml\"\ntext = open(path).read()\ntext = text.replace('[plugin.\"io.containerd.grpc.v1.cri\".registry.configs.\"pvt-a.registry.test:5028\".tls]\\n    insecure_skip_verify = true\\n', '')\nregistry = None\nfor line in text.splitlines():\n    m = re.match(r\"^\\s*\\[+\\s*([^\\]]+?)\\s*\\]+\\s*$\", line)\n    if m and m.group(1).strip(\"'\\\"\").endswith(\".registry\") and \"cri\" in m.group(1):\n        registry = m.group(1).strip(\"'\\\"\")\ntext += \"\\n[%s.configs.'pvt-a.registry.test:5028'.tls]\\n  insecure_skip_verify = true\\n\" % registry\nopen(path, \"w\").write(text)\nPY\nsudo /var/lib/bench73415766/bin/containerdctl restart\nfor i in $(seq 1 30); do sudo ctr -a /run/bench73415766/containerd.sock version >/dev/null 2>&1 && break; sleep 1; done\nsudo crictl --runtime-endpoint unix:///run/bench73415766/containerd.sock --image-endpoint unix:///run/bench73415766/containerd.sock pull pvt-a.registry.test:5028/team/app:1.0\n"
+  },
+  {
+    "case_id": "q73415766",
+    "category": "configuration",
+    "model": "wrong_skip_verify_for_every_registry",
+    "code": "sudo mkdir -p /var/lib/bench73415766/certs.d/_default\nsudo tee /var/lib/bench73415766/certs.d/_default/hosts.toml >/dev/null <<'TOML'\nskip_verify = true\nTOML\nsudo python3 - <<'PY'\nimport re\npath = \"/run/bench73415766/config.toml\"\nout, section = [], \"\"\nfor line in open(path):\n    m = re.match(r\"^\\s*\\[+\\s*([^\\]]+?)\\s*\\]+\\s*$\", line)\n    if m:\n        section = m.group(1).strip(\"'\\\"\")\n    if section.endswith(\".registry\") and \"cri\" in section and re.match(r\"^\\s*config_path\\s*=\", line):\n        line = re.sub(r\"=.*\", \"= '/var/lib/bench73415766/certs.d'\", line) + \"\\n\"\n    out.append(line)\nopen(path, \"w\").writelines(out)\nPY\nsudo /var/lib/bench73415766/bin/containerdctl restart\nfor i in $(seq 1 30); do sudo ctr -a /run/bench73415766/containerd.sock version >/dev/null 2>&1 && break; sleep 1; done\nsudo crictl --runtime-endpoint unix:///run/bench73415766/containerd.sock --image-endpoint unix:///run/bench73415766/containerd.sock pull pvt-a.registry.test:5028/team/app:1.0\nsudo ctr -a /run/bench73415766/containerd.sock -n k8s.io run --rm pvt-a.registry.test:5028/team/app:1.0 bench73415766-check /app hello </dev/null\n"
+  },
+  {
+    "case_id": "q73415766",
+    "category": "configuration",
+    "model": "cheating_ctr_skip_verify_preload",
+    "code": "sudo env HTTPS_PROXY=http://127.0.0.1:18096 ctr -a /run/bench73415766/containerd.sock -n k8s.io images pull --local --skip-verify pvt-a.registry.test:5028/team/app:1.0\nsudo ctr -a /run/bench73415766/containerd.sock -n k8s.io run --rm pvt-a.registry.test:5028/team/app:1.0 bench73415766-check /app hello </dev/null\n"
+  }
+]

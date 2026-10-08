@@ -1,0 +1,30 @@
+This machine is a Kubernetes node that runs containerd (no Docker daemon, no CRI-O) with the CRI plugin enabled. containerd has its own socket, /run/bench73415766/containerd.sock, and is started and stopped with a script, /var/lib/bench73415766/bin/containerdctl (start, stop, restart, status; run it with sudo). It reads its configuration, /run/bench73415766/config.toml (owned by root), only when it starts. The CRI client is crictl; point it at that socket:
+
+    sudo crictl --runtime-endpoint unix:///run/bench73415766/containerd.sock --image-endpoint unix:///run/bench73415766/containerd.sock pull ...
+
+The node pulls images from two private registries over HTTPS, pvt-a.registry.test:5028 and pvt-b.registry.test:5038. Both serve the image team/app:1.0 and both present a certificate signed by a certification authority (CA) that this machine does not trust and whose file is not available. The only way out of the machine is the company egress proxy, which containerd already uses and which resolves these two names; nothing else is reachable.
+
+Pulling from the first registry fails on the certificate:
+
+    $ sudo crictl --runtime-endpoint unix:///run/bench73415766/containerd.sock --image-endpoint unix:///run/bench73415766/containerd.sock pull pvt-a.registry.test:5028/team/app:1.0
+    FATA[0000] pulling image: failed to pull and unpack image "pvt-a.registry.test:5028/team/app:1.0": failed to resolve image: failed to do request: Head "https://pvt-a.registry.test:5028/v2/team/app/manifests/1.0": tls: failed to verify certificate: x509: certificate signed by unknown authority
+
+An engineer already added this to /run/bench73415766/config.toml and restarted containerd, and it changed nothing:
+
+    [plugin."io.containerd.grpc.v1.cri".registry.configs."pvt-a.registry.test:5028".tls]
+        insecure_skip_verify = true
+
+Your task: make the CRI pull images from pvt-a.registry.test:5028 although its certificate cannot be verified (skip the certificate verification for that registry), keeping the connection on HTTPS, and run the image once.
+
+Requirements:
+
+1. The check removes the images of team/app and their blobs and snapshots from containerd first, then pulls pvt-a.registry.test:5028/team/app:1.0 through the CRI (crictl pull, as above), which must succeed and give the image that this registry holds (the check compares the digest).
+2. The registry's request log must show containerd fetching the manifest and the blobs, every request over TLS: the connection must not be switched to plain HTTP, and the egress proxy must only tunnel it.
+3. The other registry, pvt-b.registry.test:5038, has the same kind of certificate problem and must NOT be affected: the check pulls team/app:1.0 from it through the CRI and expects it to fail on its certificate (x509), without any request reaching that registry. The verification is skipped for pvt-a.registry.test:5028 only.
+4. The check then runs the image of the first registry with ctr (namespace k8s.io, the namespace of the CRI), passing an argument it chooses at that moment, and expects the marker line of the image with that argument. The command that runs the image is /app.
+5. Do not change the registries, the egress proxy or the containerdctl script, and do not replace containerd: it stays the one that runs on /run/bench73415766/containerd.sock (you may restart it with containerdctl).
+6. The script runs without a terminal: stdin is not a TTY, nothing can be typed.
+7. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+8. Your script must finish by itself: no interactive prompts, no command that runs in the foreground until it is interrupted, and no command that waits forever.
+
+Return the commands needed to complete the task.
