@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "q76729881",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q76729881/reference_solution.sh"
+  },
+  {
+    "case_id": "q76729881",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q76729881",
+    "category": "configuration",
+    "model": "alt_valid_default_hosts_dir_for_every_registry",
+    "code": "sudo mkdir -p /etc/containerd/certs.d/_default\nsudo tee /etc/containerd/certs.d/_default/hosts.toml >/dev/null <<'TOML'\n[host.\"http://127.0.0.1:8181\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo ctr -a /run/bench76729881/containerd.sock images pull --hosts-dir /etc/containerd/certs.d docker.io/benchorg/kubevip:0.6.1\nsudo ctr -a /run/bench76729881/containerd.sock run --rm docker.io/benchorg/kubevip:0.6.1 bench76729881-check /app hello\n"
+  },
+  {
+    "case_id": "q76729881",
+    "category": "configuration",
+    "model": "wrong_cri_mirror_only_crictl_pull_works",
+    "code": "sudo /var/lib/bench76729881/bin/containerdctl restart\nfor i in $(seq 1 30); do sudo ctr -a /run/bench76729881/containerd.sock version >/dev/null 2>&1 && break; sleep 1; done\nsudo crictl --runtime-endpoint unix:///run/bench76729881/containerd.sock --image-endpoint unix:///run/bench76729881/containerd.sock pull docker.io/benchorg/kubevip:0.6.1\nsudo ctr -a /run/bench76729881/containerd.sock -n k8s.io images ls -q\n"
+  },
+  {
+    "case_id": "q76729881",
+    "category": "configuration",
+    "model": "wrong_docker_hub_listed_before_the_proxy",
+    "code": "sudo mkdir -p /etc/containerd/certs.d/docker.io\nsudo tee /etc/containerd/certs.d/docker.io/hosts.toml >/dev/null <<'TOML'\nserver = \"https://registry-1.docker.io\"\n\n[host.\"https://registry-1.docker.io\"]\n  capabilities = [\"pull\", \"resolve\"]\n\n[host.\"http://127.0.0.1:8181\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo ctr -a /run/bench76729881/containerd.sock images pull --hosts-dir /etc/containerd/certs.d docker.io/benchorg/kubevip:0.6.1\nsudo ctr -a /run/bench76729881/containerd.sock run --rm docker.io/benchorg/kubevip:0.6.1 bench76729881-check /app hello\n"
+  },
+  {
+    "case_id": "q76729881",
+    "category": "configuration",
+    "model": "cheating_pull_by_proxy_name_and_retag",
+    "code": "sudo ctr -a /run/bench76729881/containerd.sock images pull --plain-http 127.0.0.1:8181/benchorg/kubevip:0.6.1\nsudo ctr -a /run/bench76729881/containerd.sock images tag --force 127.0.0.1:8181/benchorg/kubevip:0.6.1 docker.io/benchorg/kubevip:0.6.1\nsudo ctr -a /run/bench76729881/containerd.sock run --rm docker.io/benchorg/kubevip:0.6.1 bench76729881-check /app hello\n"
+  }
+]

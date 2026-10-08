@@ -60,7 +60,7 @@ echo "  -> OK"
 echo "[oracle] check 4: the image runs and prints its marker, with a value only this check knows..."
 TOKEN=$(sudo cat "$STATE_DIR/token.new")
 ARG="m-$(date +%s%N)-$RANDOM"
-if ! OUT=$(timeout 90 $CTR run --rm "$REF" bench77057367-oracle /app "$ARG" 2> "$WORK_DIR/oracle_run_err.txt"); then
+if ! OUT=$(timeout 90 $CTR run --rm "$REF" bench77057367-oracle /app "$ARG" </dev/null 2> "$WORK_DIR/oracle_run_err.txt"); then
     grep -v DEPRECATION "$WORK_DIR/oracle_run_err.txt" | tail -2 | cut -c1-300
     fail "ctr run failed"
 fi
