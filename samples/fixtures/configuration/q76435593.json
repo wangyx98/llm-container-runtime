@@ -1,0 +1,26 @@
+[
+  {
+    "case_id": "q76435593",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q76435593/reference_solution.sh"
+  },
+  {
+    "case_id": "q76435593",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q76435593",
+    "category": "configuration",
+    "model": "alt_valid_legacy_wildcard_mirror_and_restart",
+    "code": "sudo python3 - <<'PY'\nimport re\npath = \"/run/bench76435593/config.toml\"\nout, section, registry = [], \"\", None\nfor line in open(path):\n    m = re.match(r\"^\\s*\\[+\\s*([^\\]]+?)\\s*\\]+\\s*$\", line)\n    if m:\n        section = m.group(1).strip(\"'\\\"\")\n    if section.endswith(\".registry\") and \"cri\" in section:\n        registry = section\n        if re.match(r\"^\\s*config_path\\s*=\", line):\n            line = re.sub(r\"=.*\", \"= ''\", line) + \"\\n\"\n    out.append(line)\nout.append(\"\\n[%s.mirrors.'*']\\n  endpoint = ['http://127.0.0.1:8083']\\n\" % registry)\nopen(path, \"w\").write(\"\".join(out))\nPY\nsudo /var/lib/bench76435593/bin/containerdctl restart\nfor i in $(seq 1 30); do sudo ctr -a /run/bench76435593/containerd.sock version >/dev/null 2>&1 && break; sleep 1; done\nsudo crictl --runtime-endpoint unix:///run/bench76435593/containerd.sock --image-endpoint unix:///run/bench76435593/containerd.sock pull alpha.registry.test/team/tool:1.0\nsudo crictl --runtime-endpoint unix:///run/bench76435593/containerd.sock --image-endpoint unix:///run/bench76435593/containerd.sock pull beta.registry.test/team/tool:1.0\n"
+  },
+  {
+    "case_id": "q76435593",
+    "category": "configuration",
+    "model": "wrong_one_entry_per_known_name_only",
+    "code": "sudo mkdir -p /var/lib/bench76435593/certs.d/beta.registry.test\nsudo tee /var/lib/bench76435593/certs.d/beta.registry.test/hosts.toml >/dev/null <<'TOML'\n[host.\"http://127.0.0.1:8083\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo crictl --runtime-endpoint unix:///run/bench76435593/containerd.sock --image-endpoint unix:///run/bench76435593/containerd.sock pull alpha.registry.test/team/tool:1.0\nsudo crictl --runtime-endpoint unix:///run/bench76435593/containerd.sock --image-endpoint unix:///run/bench76435593/containerd.sock pull beta.registry.test/team/tool:1.0\n"
+  }
+]

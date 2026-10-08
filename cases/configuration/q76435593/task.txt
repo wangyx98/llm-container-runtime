@@ -1,0 +1,29 @@
+This machine is a Kubernetes node that runs containerd (no Docker daemon, no CRI-O) with the CRI plugin enabled. containerd has its own socket, /run/bench76435593/containerd.sock, and is started and stopped with a script, /var/lib/bench76435593/bin/containerdctl (start, stop, restart, status; run it with sudo). It reads its configuration, /run/bench76435593/config.toml (owned by root), only when it starts. The CRI client is crictl; point it at that socket:
+
+    sudo crictl --runtime-endpoint unix:///run/bench76435593/containerd.sock --image-endpoint unix:///run/bench76435593/containerd.sock pull ...
+
+The cluster is being moved to an offline network. This machine has no route to the Internet: everything containerd sends there goes through an egress gateway that refuses it, and every refused connection is logged. The only registry it can reach is the team's Nexus repository group, a mirror that listens on 127.0.0.1:8083 (plain HTTP, no TLS, anonymous pull). The group fronts several upstream registries at once and tells them apart by the registry name that containerd adds to every request it sends to a mirror (the ns query parameter), so the same path, for example team/tool:1.0, holds a different image in each upstream registry. In this test environment the mirror is a stand-in server that speaks the same registry API; it is not the Sonatype Nexus product.
+
+The CRI of containerd reads its per-registry configuration from the directory /var/lib/bench76435593/certs.d (the config_path of the CRI in config.toml). So far only one upstream registry was configured, alpha.registry.test, and pulling its image works:
+
+    $ sudo crictl --runtime-endpoint unix:///run/bench76435593/containerd.sock --image-endpoint unix:///run/bench76435593/containerd.sock pull alpha.registry.test/team/tool:1.0
+    Image is up to date for sha256:...
+
+Any other registry name still goes to the Internet and fails, for example:
+
+    $ sudo crictl --runtime-endpoint unix:///run/bench76435593/containerd.sock --image-endpoint unix:///run/bench76435593/containerd.sock pull beta.registry.test/team/tool:1.0
+    FATA[0000] pulling image: failed to pull and unpack image "beta.registry.test/team/tool:1.0": failed to resolve image: failed to do request: Head "https://beta.registry.test/v2/team/tool/manifests/1.0": Forbidden
+
+The team does not want to add one entry per registry name each time a workload brings a new one. Your task: make containerd use the mirror by default, so that an image of any registry name is pulled through it, keeping the image names unchanged (beta.registry.test/team/tool:1.0 stays beta.registry.test/team/tool:1.0).
+
+Requirements:
+
+1. The check removes the images of team/tool and their blobs and snapshots from containerd first, then pulls team/tool:1.0 through the CRI (crictl pull) under three registry names: alpha.registry.test, beta.registry.test and a third name that the check chooses at that moment, that is written nowhere on this machine, and for which it asks the mirror to hold a third image. Each pull must succeed and give the image that the mirror holds for that registry name (the check compares the digest).
+2. The mirror's request log must show containerd fetching the manifest and both blobs of each of the three images, with the registry name of each in the ns parameter, and the egress gateway's log must show no request at all during the pulls and while the containers start.
+3. The check then runs each image with ctr (namespace k8s.io, the namespace of the CRI), passing an argument it chooses at that moment, and expects the marker line of the image of that registry name with that argument. The command that runs the image is /app.
+4. Do not change the mirror, the egress gateway or the containerdctl script, and do not replace containerd: it stays the one that runs on /run/bench76435593/containerd.sock (you may restart it with containerdctl).
+5. The script runs without a terminal: stdin is not a TTY, nothing can be typed.
+6. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+7. Your script must finish by itself: no interactive prompts, no command that runs in the foreground until it is interrupted, and no command that waits forever.
+
+Return the commands needed to complete the task.
