@@ -1,0 +1,25 @@
+This machine is a Kubernetes node that runs containerd (no Docker daemon, no CRI-O) with the CRI plugin enabled. containerd has its own socket, /run/bench72298729/containerd.sock, and is started and stopped with a script, /var/lib/bench72298729/bin/containerdctl (start, stop, restart, status; run it with sudo). It reads its configuration, /run/bench72298729/config.toml (owned by root), only when it starts. Its registry hosts directory (the config_path of the CRI) is /var/lib/bench72298729/certs.d, with one subdirectory per registry, named host:port, each holding a hosts.toml; containerd reads a hosts.toml again on every pull. The CRI client is crictl; point it at that socket:
+
+    sudo crictl --runtime-endpoint unix:///run/bench72298729/containerd.sock --image-endpoint unix:///run/bench72298729/containerd.sock pull ...
+
+The team's private registry, 127.0.0.1:5000, speaks plain HTTP (its hosts.toml says so already) and requires HTTP Basic credentials for everything, anonymous requests get 401. It holds the image 127.0.0.1:5000/qtech/graphql:latest, a program that keeps printing a line with a marker. An operator ran docker login for this registry on this node and docker pull worked; what docker login stored is in /var/lib/bench72298729/docker/config.json (readable by root; it also holds an entry for Docker Hub, which this node does not use). A Pod that uses the image stays in ErrImagePull, and the same happens with crictl:
+
+    $ sudo crictl --runtime-endpoint unix:///run/bench72298729/containerd.sock --image-endpoint unix:///run/bench72298729/containerd.sock pull 127.0.0.1:5000/qtech/graphql:latest
+    FATA[0000] pulling image: failed to pull and unpack image "127.0.0.1:5000/qtech/graphql:latest": failed to resolve image: pull access denied, repository does not exist or may require authorization: authorization failed: no basic auth credentials
+
+containerd does not read docker's config.json: it seems not to pick up the credentials that docker login stored.
+
+Your task: configure containerd so that the CRI authenticates to this registry with the account of the operator, and pulls the image with the plain pull command above, with no flag, so that Pods that use the image run.
+
+Requirements:
+
+1. This is a configuration task: the credentials must be configured in containerd (persistently, as the kubelet's pulls cannot take command-line options), not passed to one command. Do not pull the image by another route and tag it, do not import it with ctr, and do not change the image name. The check removes the image, its blobs and its snapshots from containerd first, then runs the plain command above, which must succeed and give the image that the registry holds (the check compares the digest).
+2. The registry stays private: do not change the registry, its accounts or docker's config.json. The check asks the registry directly that it still answers 401 without credentials and with a wrong password.
+3. The registry's request log must show containerd fetching the manifest and the blobs with the credentials of the account of the operator.
+4. The check then starts a Pod from that image through the CRI (crictl runp, create and start, without a network plugin) and expects the container to be running and to print its marker.
+5. Do not change the containerdctl script and do not replace containerd: it stays the one that runs on /run/bench72298729/containerd.sock (you may restart it with containerdctl).
+6. The script runs without a terminal: stdin is not a TTY, nothing can be typed.
+7. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+8. Your script must finish by itself: no interactive prompts, no command that runs in the foreground until it is interrupted, and no command that waits forever.
+
+Return the commands needed to complete the task.

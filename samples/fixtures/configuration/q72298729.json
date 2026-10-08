@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "q72298729",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q72298729/reference_solution.sh"
+  },
+  {
+    "case_id": "q72298729",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q72298729",
+    "category": "configuration",
+    "model": "alt_valid_cri_configs_auth",
+    "code": "# credentials in containerd's own config: the (deprecated) registry.configs.<host>.auth of the CRI; read at start\nCREDS=$(sudo python3 - <<'PY'\nimport base64, json\nd = json.load(open(\"/var/lib/bench72298729/docker/config.json\"))\nprint(base64.b64decode(d[\"auths\"][\"127.0.0.1:5000\"][\"auth\"]).decode())\nPY\n)\nUSER_=${CREDS%%:*}; PASS_=${CREDS#*:}\nsudo tee -a /run/bench72298729/config.toml >/dev/null <<TOML\n\n[plugins.'io.containerd.cri.v1.images'.registry.configs.'127.0.0.1:5000'.auth]\n  username = '$USER_'\n  password = '$PASS_'\nTOML\nsudo /var/lib/bench72298729/bin/containerdctl restart\nfor i in $(seq 1 30); do sudo ctr -a /run/bench72298729/containerd.sock version >/dev/null 2>&1 && break; sleep 1; done\nsleep 3\nSOCK=unix:///run/bench72298729/containerd.sock\nsudo crictl --runtime-endpoint \"$SOCK\" --image-endpoint \"$SOCK\" pull 127.0.0.1:5000/qtech/graphql:latest\n"
+  },
+  {
+    "case_id": "q72298729",
+    "category": "configuration",
+    "model": "wrong_decoy_docker_hub_account",
+    "code": "# the other entry of docker's config.json (Docker Hub, account qtech): not an account of this registry -> 401\nAUTH=$(sudo python3 - <<'PY'\nimport json\nd = json.load(open(\"/var/lib/bench72298729/docker/config.json\"))\nprint(d[\"auths\"][\"https://index.docker.io/v1/\"][\"auth\"])\nPY\n)\nsudo tee /var/lib/bench72298729/certs.d/127.0.0.1:5000/hosts.toml >/dev/null <<TOML\nserver = \"http://127.0.0.1:5000\"\n\n[host.\"http://127.0.0.1:5000\"]\n  capabilities = [\"pull\", \"resolve\"]\n\n  [host.\"http://127.0.0.1:5000\".header]\n    Authorization = \"Basic $AUTH\"\nTOML\nSOCK=unix:///run/bench72298729/containerd.sock\nsudo crictl --runtime-endpoint \"$SOCK\" --image-endpoint \"$SOCK\" pull 127.0.0.1:5000/qtech/graphql:latest\n"
+  },
+  {
+    "case_id": "q72298729",
+    "category": "configuration",
+    "model": "cheating_crictl_creds_oneshot",
+    "code": "# per-command credentials: the pull works now, but nothing persistent is configured (the check pulls again without them)\nCREDS=$(sudo python3 - <<'PY'\nimport base64, json\nd = json.load(open(\"/var/lib/bench72298729/docker/config.json\"))\nprint(base64.b64decode(d[\"auths\"][\"127.0.0.1:5000\"][\"auth\"]).decode())\nPY\n)\nSOCK=unix:///run/bench72298729/containerd.sock\nsudo crictl --runtime-endpoint \"$SOCK\" --image-endpoint \"$SOCK\" pull --creds \"$CREDS\" 127.0.0.1:5000/qtech/graphql:latest\n"
+  },
+  {
+    "case_id": "q72298729",
+    "category": "configuration",
+    "model": "cheating_registry_restarted_anonymous",
+    "code": "# the registry made anonymous: restarted without its accounts (the fixtures check refuses a registry that is not the one of setup)\nsudo kill \"$(sudo cat /run/bench72298729/registry/registry.pid)\"\nsleep 1\nsudo setsid -f python3 /run/bench72298729/registry/registry.py /run/bench72298729/registry 5000 /run/bench72298729/registry/requests.log </dev/null >/dev/null 2>&1\nsleep 2\nSOCK=unix:///run/bench72298729/containerd.sock\nsudo crictl --runtime-endpoint \"$SOCK\" --image-endpoint \"$SOCK\" pull 127.0.0.1:5000/qtech/graphql:latest\n"
+  }
+]
