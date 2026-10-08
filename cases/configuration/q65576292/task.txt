@@ -1,0 +1,25 @@
+This machine is a Kubernetes node that runs containerd (no Docker daemon, no CRI-O) with the CRI plugin enabled. containerd has its own socket, /run/bench65576292/containerd.sock, and is started and stopped with a script, /var/lib/bench65576292/bin/containerdctl (start, stop, restart, status; run it with sudo). It reads its configuration, /run/bench65576292/config.toml (owned by root), only when it starts. The CRI client is crictl; point it at that socket:
+
+    sudo crictl --runtime-endpoint unix:///run/bench65576292/containerd.sock --image-endpoint unix:///run/bench65576292/containerd.sock pull ...
+
+The team's private registry, registry.foo.test:5443, is reached over HTTPS and requires HTTP Basic credentials for everything (anonymous requests get 401). Its certificate is signed by the company CA, which containerd already trusts: TLS is fine and must stay as it is. It holds the image registry.foo.test:5443/library/myimage:latest, a program that keeps printing a line with a marker. The account of the registry is admin; its password is already in /run/bench65576292/config.toml (readable by root), where an engineer put it. The only way out of this machine is the company egress proxy, which containerd already uses and which resolves that registry name; nothing else is reachable.
+
+The engineer added the account to the CRI registry configuration of config.toml (the table registry.configs, with an auth table holding username and password), restarted containerd, and the pull still fails; a Pod that uses the image stays in ErrImagePull, and the same happens with crictl:
+
+    $ sudo crictl --runtime-endpoint unix:///run/bench65576292/containerd.sock --image-endpoint unix:///run/bench65576292/containerd.sock pull registry.foo.test:5443/library/myimage:latest
+    FATA[0000] pulling image: failed to pull and unpack image "registry.foo.test:5443/library/myimage:latest": failed to resolve reference "registry.foo.test:5443/library/myimage:latest": pull access denied, repository does not exist or may require authorization: authorization failed: no basic auth credentials
+
+Your task: make the CRI authenticate to this registry with the account that is already configured, so that the plain pull command above works with no flag and the Pods that use the image run.
+
+Requirements:
+
+1. This is a configuration task: the credentials must be configured in containerd (persistently, as the kubelet's pulls cannot take command-line options), not passed to one command. Do not pull the image by another route and tag it, do not import it with ctr, and do not change the image name. The check removes the image, its blobs and its snapshots from containerd first, then runs the plain command above, which must succeed and give the image that the registry holds (the check compares the digest).
+2. The registry stays private and the connection stays on HTTPS with the certificate verified: do not change the registry, its accounts or the CA bundle of containerd, do not skip the certificate verification, and do not switch to plain HTTP. The check asks the registry directly that it still answers 401 without credentials and with a wrong password.
+3. The registry's request log must show containerd fetching the manifest and the blobs over TLS with the credentials of the account admin, and the egress proxy's log must show only tunnelled HTTPS connections to the registry, none refused.
+4. The check then starts a Pod from that image through the CRI (crictl runp, create and start, without a network plugin) and expects the container to be running and to print its marker.
+5. Do not change the containerdctl script, the egress proxy or the registry, and do not replace containerd: it stays the one that runs on /run/bench65576292/containerd.sock (you may restart it with containerdctl).
+6. The script runs without a terminal: stdin is not a TTY, nothing can be typed.
+7. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+8. Your script must finish by itself: no interactive prompts, no command that runs in the foreground until it is interrupted, and no command that waits forever.
+
+Return the commands needed to complete the task.

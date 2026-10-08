@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "q65576292",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q65576292/reference_solution.sh"
+  },
+  {
+    "case_id": "q65576292",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q65576292",
+    "category": "configuration",
+    "model": "alt_valid_hosts_toml_authorization_header",
+    "code": "# the credentials as a header of the hosts directory (config_path, read at start): Authorization: Basic <admin:password>\nPASS_=$(sudo sed -n \"s/^ *password = '\\(.*\\)'/\\1/p\" /run/bench65576292/config.toml)\nAUTH=$(printf 'admin:%s' \"$PASS_\" | base64 -w0)\nsudo python3 - <<'PY'\nimport re\npath = \"/run/bench65576292/config.toml\"\nout, section = [], \"\"\nfor line in open(path):\n    m = re.match(r\"^\\s*\\[+\\s*([^\\]]+?)\\s*\\]+\\s*$\", line)\n    if m:\n        section = m.group(1).strip(\"'\\\"\")\n    if section.endswith(\".registry\") and \"cri\" in section and re.match(r\"^\\s*config_path\\s*=\", line):\n        line = re.sub(r\"=.*\", \"= '/etc/containerd/certs.d'\", line) + \"\\n\"\n    out.append(line)\nopen(path, \"w\").writelines(out)\nPY\nsudo mkdir -p \"/etc/containerd/certs.d/registry.foo.test:5443\"\nsudo tee \"/etc/containerd/certs.d/registry.foo.test:5443/hosts.toml\" >/dev/null <<TOML\nserver = \"https://registry.foo.test:5443\"\n\n[host.\"https://registry.foo.test:5443\"]\n  capabilities = [\"pull\", \"resolve\"]\n\n  [host.\"https://registry.foo.test:5443\".header]\n    Authorization = \"Basic $AUTH\"\nTOML\nsudo /var/lib/bench65576292/bin/containerdctl restart\nfor i in $(seq 1 30); do sudo ctr -a /run/bench65576292/containerd.sock version >/dev/null 2>&1 && break; sleep 1; done\nsleep 3\nSOCK=unix:///run/bench65576292/containerd.sock\nsudo crictl --runtime-endpoint \"$SOCK\" --image-endpoint \"$SOCK\" pull registry.foo.test:5443/library/myimage:latest\n"
+  },
+  {
+    "case_id": "q65576292",
+    "category": "configuration",
+    "model": "wrong_skip_verify_and_base64_auth_under_portless_key",
+    "code": "# the second answer of the question: skip the TLS verification and give the credentials as base64 `auth`, still keyed by the host\n# name without the port: the credentials are still not looked up for registry.foo.test:5443\nPASS_=$(sudo sed -n \"s/^ *password = '\\(.*\\)'/\\1/p\" /run/bench65576292/config.toml)\nAUTH=$(printf 'admin:%s' \"$PASS_\" | base64 -w0)\nsudo tee -a /run/bench65576292/config.toml >/dev/null <<TOML\n\n[plugins.'io.containerd.cri.v1.images'.registry.configs.'registry.foo.test'.tls]\n  insecure_skip_verify = true\nTOML\nsudo sed -i \"s/^  password = .*/  password = '$PASS_'\\n  auth = '$AUTH'/\" /run/bench65576292/config.toml\nsudo /var/lib/bench65576292/bin/containerdctl restart\nfor i in $(seq 1 30); do sudo ctr -a /run/bench65576292/containerd.sock version >/dev/null 2>&1 && break; sleep 1; done\nsleep 3\nSOCK=unix:///run/bench65576292/containerd.sock\nsudo crictl --runtime-endpoint \"$SOCK\" --image-endpoint \"$SOCK\" pull registry.foo.test:5443/library/myimage:latest\n"
+  },
+  {
+    "case_id": "q65576292",
+    "category": "configuration",
+    "model": "wrong_password_under_the_right_key",
+    "code": "# the right key, a wrong password (the one of the question): 401 from the registry, auth=bad:admin in its log\nsudo sed -i \"s/registry\\.configs\\.'registry\\.foo\\.test'\\.auth/registry.configs.'registry.foo.test:5443'.auth/; s/^  password = .*/  password = 'Harbor12345'/\" /run/bench65576292/config.toml\nsudo /var/lib/bench65576292/bin/containerdctl restart\nfor i in $(seq 1 30); do sudo ctr -a /run/bench65576292/containerd.sock version >/dev/null 2>&1 && break; sleep 1; done\nsleep 3\nSOCK=unix:///run/bench65576292/containerd.sock\nsudo crictl --runtime-endpoint \"$SOCK\" --image-endpoint \"$SOCK\" pull registry.foo.test:5443/library/myimage:latest\n"
+  },
+  {
+    "case_id": "q65576292",
+    "category": "configuration",
+    "model": "cheating_crictl_creds_oneshot",
+    "code": "# per-command credentials: the pull works now, but nothing persistent is configured (the check pulls again without them)\nPASS_=$(sudo sed -n \"s/^ *password = '\\(.*\\)'/\\1/p\" /run/bench65576292/config.toml)\nSOCK=unix:///run/bench65576292/containerd.sock\nsudo crictl --runtime-endpoint \"$SOCK\" --image-endpoint \"$SOCK\" pull --creds \"admin:$PASS_\" registry.foo.test:5443/library/myimage:latest\n"
+  }
+]
