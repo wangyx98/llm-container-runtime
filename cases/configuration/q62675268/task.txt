@@ -1,0 +1,27 @@
+This machine is a Kubernetes node, built for kubeadm v1.18, that runs CRI-O (no Docker daemon, no containerd) as its container runtime. CRI-O has its own socket, /run/bench62675268/crio.sock, and is started and stopped with a script, /var/lib/bench62675268/bin/crioctl (start, stop, restart, status; run it with sudo). It reads its configuration, /run/bench62675268/crio.conf (owned by root; drop-ins go to /run/bench62675268/crio.conf.d), and /run/bench62675268/registries.conf when it starts. The CRI client is crictl; point it at that socket:
+
+    sudo crictl --runtime-endpoint unix:///run/bench62675268/crio.sock --image-endpoint unix:///run/bench62675268/crio.sock pods
+
+The team keeps a private registry, registry.bench62675268.test:5000. It speaks plain HTTP, and CRI-O's registries.conf already lists it as insecure, so CRI-O can pull from it (crictl pull works). It holds the Kubernetes images, among them the pod sandbox ("pause") image:
+
+    registry.bench62675268.test:5000/kubernetes/pause:3.2
+
+The only way out of this machine is the company egress proxy, which CRI-O already uses and which resolves the private registry name; it refuses everything else, k8s.gcr.io and registry.k8s.io included.
+
+kubeadm init was run with --image-repository registry.bench62675268.test:5000/kubernetes, and it did pull the control-plane images from the private registry. But the control plane never comes up: every static pod stays without a sandbox. The same happens by hand:
+
+    $ sudo crictl --runtime-endpoint unix:///run/bench62675268/crio.sock --image-endpoint unix:///run/bench62675268/crio.sock runp pod.json
+    FATA[0000] run pod sandbox: rpc error: code = Unknown desc = creating pod sandbox with name "k8s_...": unable to pull image or OCI artifact: pull image err: initializing source docker://k8s.gcr.io/pause:3.2: pinging container registry k8s.gcr.io: Get "https://k8s.gcr.io/v2/": Forbidden; ...
+
+Your task: make CRI-O create its pod sandboxes with the pause image of the private registry, downloaded from it, so that a new pod sandbox starts. There is no kubeadm, kubelet or cluster to start on this machine: the check works on CRI-O alone.
+
+Requirements:
+
+1. After your change, a new pod created through the CRI must get a sandbox that runs the pause image of the private registry. The check removes every pod and container and every image from CRI-O (so nothing is cached), creates a pod (host network, own PID namespace) with crictl runp, and expects a Ready sandbox, asks CRI-O which image it runs and with which digest, and compares the process of the sandbox with the image of the registry. It also reads the request logs: the private registry must show CRI-O fetching the manifest and the blobs, and the egress proxy must show no refused request (so no attempt to reach k8s.gcr.io).
+2. The text of the configuration files is not evidence: the check looks at what CRI-O does with a new sandbox.
+3. Do not change the registry or the egress proxy, and do not change the crioctl script. CRI-O stays the one that runs on /run/bench62675268/crio.sock (you may restart it with crioctl). Do not pull, import or tag the image by hand into CRI-O; the check removes it anyway.
+4. The script runs without a terminal: stdin is not a TTY, nothing can be typed.
+5. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+6. Your script must finish by itself: no interactive prompts, no command that runs in the foreground until it is interrupted, and no command that waits forever.
+
+Return the commands needed to complete the task.
