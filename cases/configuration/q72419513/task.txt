@@ -1,0 +1,24 @@
+This machine is a Kubernetes node that runs containerd (no Docker daemon, no CRI-O) with the CRI plugin enabled. containerd has its own socket, /run/bench72419513/containerd.sock, and is started and stopped with a script, /var/lib/bench72419513/bin/containerdctl (start, stop, restart, status; run it with sudo). It reads its configuration, /run/bench72419513/config.toml (owned by root), only when it starts. The CRI client is crictl; point it at that socket:
+
+    sudo crictl --runtime-endpoint unix:///run/bench72419513/containerd.sock --image-endpoint unix:///run/bench72419513/containerd.sock pull ...
+
+The team's private development registry, registry.bench72419513.test:5000, speaks plain HTTP only: there is no TLS on it at all, and insecure is fine here. It holds the image registry.bench72419513.test:5000/team/imagename:v1, a program that keeps printing a line with a marker. The only way out of this machine is the company egress proxy, which containerd already uses and which resolves that registry name; nothing else is reachable.
+
+Before the move to containerd, the node pulled from this registry because it was listed under insecure-registries in /etc/docker/daemon.json, and ctr images pull --plain-http worked too. A Pod that uses the image now stays in ErrImagePull, and the same happens with crictl:
+
+    $ sudo crictl --runtime-endpoint unix:///run/bench72419513/containerd.sock --image-endpoint unix:///run/bench72419513/containerd.sock pull registry.bench72419513.test:5000/team/imagename:v1
+    FATA[0000] pulling image: failed to pull and unpack image "registry.bench72419513.test:5000/team/imagename:v1": failed to resolve image: failed to do request: Head "https://registry.bench72419513.test:5000/v2/team/imagename/manifests/v1": http: server gave HTTP response to HTTPS client
+
+Your task: configure containerd so that the CRI pulls from this registry over plain HTTP, with the plain pull command above and no flag, and the Pods that use the image run.
+
+Requirements:
+
+1. This is a configuration task: change containerd's registry configuration for the CRI, and make it effective. Do not pull the image by another route and tag it, do not import it with ctr, and do not change the image name. The check removes the image, its blobs and its snapshots from containerd first, then runs the plain command above, which must succeed and give the image that the registry holds (the check compares the digest).
+2. The registry's request log must show containerd fetching the manifest and the blobs, and the egress proxy's log must show the requests going out over plain HTTP, none refused.
+3. The check then starts a Pod from that image through the CRI (crictl runp, create and start, without a network plugin) and expects the container to be running and to print its marker.
+4. Do not change the registry, the egress proxy or the containerdctl script, and do not replace containerd: it stays the one that runs on /run/bench72419513/containerd.sock (you may restart it with containerdctl).
+5. The script runs without a terminal: stdin is not a TTY, nothing can be typed.
+6. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+7. Your script must finish by itself: no interactive prompts, no command that runs in the foreground until it is interrupted, and no command that waits forever.
+
+Return the commands needed to complete the task.

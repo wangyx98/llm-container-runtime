@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "q72419513",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q72419513/reference_solution.sh"
+  },
+  {
+    "case_id": "q72419513",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q72419513",
+    "category": "configuration",
+    "model": "alt_valid_legacy_mirrors_table",
+    "code": "sudo python3 - <<'PY'\nimport re\npath = \"/run/bench72419513/config.toml\"\ntext = open(path).read()\n# legacy table: mirrors with an http:// endpoint (valid in containerd 2.x as long as config_path is empty)\ntext = re.sub(r\"(\\n\\s*)config_path\\s*=\\s*'[^']*'\", r\"\\1config_path = ''\", text)\ntext += \"\"\"\n[plugins.'io.containerd.cri.v1.images'.registry.mirrors.'registry.bench72419513.test:5000']\n  endpoint = ['http://registry.bench72419513.test:5000']\n\"\"\"\nopen(path, \"w\").write(text)\nPY\nsudo /var/lib/bench72419513/bin/containerdctl restart\nfor i in $(seq 1 30); do sudo ctr -a /run/bench72419513/containerd.sock version >/dev/null 2>&1 && break; sleep 1; done\nSOCK=unix:///run/bench72419513/containerd.sock\nsudo crictl --runtime-endpoint \"$SOCK\" --image-endpoint \"$SOCK\" pull registry.bench72419513.test:5000/team/imagename:v1\n"
+  },
+  {
+    "case_id": "q72419513",
+    "category": "configuration",
+    "model": "wrong_tls_skip_verify_only",
+    "code": "sudo python3 - <<'PY'\npath = \"/run/bench72419513/config.toml\"\ntext = open(path).read()\n# the asker's attempt: skip TLS verification for the registry (the registry does not speak TLS at all)\ntext += \"\"\"\n[plugins.'io.containerd.cri.v1.images'.registry.configs.'registry.bench72419513.test:5000'.tls]\n  insecure_skip_verify = true\n\"\"\"\nopen(path, \"w\").write(text)\nPY\nsudo /var/lib/bench72419513/bin/containerdctl restart\nfor i in $(seq 1 30); do sudo ctr -a /run/bench72419513/containerd.sock version >/dev/null 2>&1 && break; sleep 1; done\nSOCK=unix:///run/bench72419513/containerd.sock\nsudo crictl --runtime-endpoint \"$SOCK\" --image-endpoint \"$SOCK\" pull registry.bench72419513.test:5000/team/imagename:v1\n"
+  },
+  {
+    "case_id": "q72419513",
+    "category": "configuration",
+    "model": "wrong_hosts_dir_without_port",
+    "code": "# hosts directory named without the port: containerd looks the registry up as host:port, so this entry is never used\nsudo python3 - <<'PY'\nimport re\npath = \"/run/bench72419513/config.toml\"\nout, section = [], \"\"\nfor line in open(path):\n    m = re.match(r\"^\\s*\\[+\\s*([^\\]]+?)\\s*\\]+\\s*$\", line)\n    if m:\n        section = m.group(1).strip(\"'\\\"\")\n    if section.endswith(\".registry\") and \"cri\" in section and re.match(r\"^\\s*config_path\\s*=\", line):\n        line = re.sub(r\"=.*\", \"= '/etc/containerd/certs.d'\", line) + \"\\n\"\n    out.append(line)\nopen(path, \"w\").writelines(out)\nPY\nsudo mkdir -p /etc/containerd/certs.d/registry.bench72419513.test\nsudo tee /etc/containerd/certs.d/registry.bench72419513.test/hosts.toml >/dev/null <<'TOML'\nserver = \"http://registry.bench72419513.test:5000\"\n[host.\"http://registry.bench72419513.test:5000\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo /var/lib/bench72419513/bin/containerdctl restart\nfor i in $(seq 1 30); do sudo ctr -a /run/bench72419513/containerd.sock version >/dev/null 2>&1 && break; sleep 1; done\nSOCK=unix:///run/bench72419513/containerd.sock\nsudo crictl --runtime-endpoint \"$SOCK\" --image-endpoint \"$SOCK\" pull registry.bench72419513.test:5000/team/imagename:v1\n"
+  },
+  {
+    "case_id": "q72419513",
+    "category": "configuration",
+    "model": "cheating_ctr_plain_http_preload",
+    "code": "sudo env HTTPS_PROXY=http://127.0.0.1:18095 HTTP_PROXY=http://127.0.0.1:18095 ctr -a /run/bench72419513/containerd.sock -n k8s.io images pull --local --plain-http registry.bench72419513.test:5000/team/imagename:v1\nSOCK=unix:///run/bench72419513/containerd.sock\nsudo crictl --runtime-endpoint \"$SOCK\" --image-endpoint \"$SOCK\" images | grep imagename\n"
+  }
+]
