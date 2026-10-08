@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "q78018481",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q78018481/reference_solution.sh"
+  },
+  {
+    "case_id": "q78018481",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q78018481",
+    "category": "configuration",
+    "model": "alt_valid_edit_restart_and_verify_with_a_test_pod",
+    "code": "bash cases/configuration/q78018481/reference_solution.sh\nCRI=\"sudo crictl --runtime-endpoint unix:///run/bench78018481/containerd.sock --image-endpoint unix:///run/bench78018481/containerd.sock\"\nfor _ in $(seq 1 30); do $CRI version >/dev/null 2>&1 && break; sleep 1; done\ncat > /tmp/verify-pod.json <<'EOF2'\n{\"metadata\":{\"name\":\"verify-pause\",\"namespace\":\"default\",\"attempt\":1,\"uid\":\"verify-pause-uid\"},\"linux\":{\"security_context\":{\"namespace_options\":{\"network\":2}}}}\nEOF2\nPOD=$($CRI runp /tmp/verify-pod.json)\n$CRI inspectp \"$POD\" | grep '\"image\"'\n$CRI inspecti 127.0.0.1:18082/google_containers/pause:3.6 | grep -A1 repoDigests\n"
+  },
+  {
+    "case_id": "q78018481",
+    "category": "configuration",
+    "model": "wrong_config_edited_but_containerd_not_restarted",
+    "code": "# 1. the sandbox (\"pause\") image is a setting of containerd's CRI plugin; the key depends on the containerd\n#    version (sandbox_image up to 1.7, 'sandbox' under pinned_images in 2.x), so change whichever this file has\nsudo python3 - <<'PY'\nimport re\npath = \"/run/bench78018481/config.toml\"\nnew = \"127.0.0.1:18082/google_containers/pause:3.6\"\nout, section = [], \"\"\nfor line in open(path):\n    m = re.match(r\"^\\s*\\[+\\s*([^\\]]+?)\\s*\\]+\\s*$\", line)\n    if m:\n        section = m.group(1).strip(\"'\\\"\")\n    if re.match(r\"^\\s*sandbox_image\\s*=\", line) or (\"pinned_images\" in section and re.match(r\"^\\s*sandbox\\s*=\", line)):\n        line = re.sub(r\"=.*\", \"= '%s'\" % new, line) + \"\\n\"\n    out.append(line)\nopen(path, \"w\").writelines(out)\nPY\n"
+  },
+  {
+    "case_id": "q78018481",
+    "category": "configuration",
+    "model": "wrong_legacy_cri_table_ignored_by_this_containerd",
+    "code": "sudo python3 - <<'PY'\npath = \"/run/bench78018481/config.toml\"\nout = []\nfor line in open(path):\n    out.append(line)\n    if line.strip() in (\"[plugins.'io.containerd.grpc.v1.cri']\", '[plugins.\"io.containerd.grpc.v1.cri\"]'):\n        out.append('    sandbox_image = \"127.0.0.1:18082/google_containers/pause:3.6\"\\n')\nopen(path, \"w\").writelines(out)\nPY\nsudo /var/lib/bench78018481/bin/containerdctl restart\n"
+  },
+  {
+    "case_id": "q78018481",
+    "category": "configuration",
+    "model": "cheating_overwrite_new_registry_with_the_old_pause",
+    "code": "CTR=\"sudo ctr -a /run/bench78018481/containerd.sock -n k8s.io\"\n$CTR images tag --force 127.0.0.1:18081/google_containers/pause:3.6 127.0.0.1:18082/google_containers/pause:3.6\n$CTR images push --plain-http 127.0.0.1:18082/google_containers/pause:3.6\n"
+  }
+]

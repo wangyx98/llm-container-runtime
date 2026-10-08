@@ -1,0 +1,26 @@
+This machine runs containerd (no Docker daemon, no CRI-O) with the CRI plugin enabled; Kubernetes pods are created through the CRI. containerd is started and stopped with a script, /var/lib/bench78018481/bin/containerdctl (start, stop, restart, status; run it with sudo). containerd reads its configuration, /run/bench78018481/config.toml (owned by root), only when it starts, and its socket is /run/bench78018481/containerd.sock. The CRI client is crictl; point it at that socket:
+
+    sudo crictl --runtime-endpoint unix:///run/bench78018481/containerd.sock --image-endpoint unix:///run/bench78018481/containerd.sock pods
+
+Every pod sandbox runs a "pause" image, the sandbox image of containerd. Today containerd takes it from this registry (plain HTTP, already usable by containerd's CRI):
+
+    127.0.0.1:18081/google_containers/pause:3.6
+
+A second registry (plain HTTP as well, also already usable by containerd's CRI) holds the same version of the pause image, a valid one that is not the same image (its digest is different):
+
+    127.0.0.1:18082/google_containers/pause:3.6
+
+The team wants the sandbox image to be downloaded from the second registry from now on. A pod, bench78018481-old, is already running with the pause image of the first registry. An engineer changed the sandbox image setting in containerd's configuration file and restarted containerd, but could not see the pause image being downloaded from the new address, and does not know how to check which pause image a sandbox really uses and where it came from.
+
+Your task: make containerd use 127.0.0.1:18082/google_containers/pause:3.6 as the sandbox image, so that new pod sandboxes run that image, downloaded from the second registry. Also include the commands that show which sandbox image containerd is using and which image a given sandbox runs.
+
+Requirements:
+
+1. After your change, a new pod created through the CRI must get a sandbox that runs the image from the second registry. The check removes every pod and container and removes that image and its blobs from containerd, starts a new pod (host network), and asks containerd which image the sandbox runs, with which digest. It also reads the request logs of the two registries: the second registry must show containerd fetching the manifest and the blobs, and the first one must show no request from containerd for this sandbox.
+2. The text of the configuration file, or a sandbox that was started before your change, is not evidence: the check looks at what containerd does with a new sandbox.
+3. Do not change the two registries, do not push to them, and do not change the containerdctl script. containerd stays the one that runs on /run/bench78018481/containerd.sock (you may restart it with containerdctl). Do not pull, import or tag the image by hand into containerd; the check removes it anyway.
+4. The script runs without a terminal: stdin is not a TTY, nothing can be typed.
+5. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+6. Your script must finish by itself: no interactive prompts, no command that runs in the foreground until it is interrupted, and no command that waits forever.
+
+Return the commands needed to complete the task.
