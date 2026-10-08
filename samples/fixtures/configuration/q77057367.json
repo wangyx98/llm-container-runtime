@@ -1,0 +1,32 @@
+[
+  {
+    "case_id": "q77057367",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q77057367/reference_solution.sh"
+  },
+  {
+    "case_id": "q77057367",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q77057367",
+    "category": "configuration",
+    "model": "alt_valid_localhost_instead_of_the_ip",
+    "code": "sudo ctr -a /run/bench77057367/containerd.sock images pull --plain-http localhost:18077/e2eteam/busybox:1.29\nsudo ctr -a /run/bench77057367/containerd.sock run --rm localhost:18077/e2eteam/busybox:1.29 check /app hello\n"
+  },
+  {
+    "case_id": "q77057367",
+    "category": "configuration",
+    "model": "wrong_hosts_dir_for_the_short_name_host",
+    "code": "mkdir -p /tmp/bench77057367-hosts/e2eteam\ncat > /tmp/bench77057367-hosts/e2eteam/hosts.toml <<'TOML'\nserver = \"http://127.0.0.1:18077\"\n\n[host.\"http://127.0.0.1:18077\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo ctr -a /run/bench77057367/containerd.sock images pull --hosts-dir /tmp/bench77057367-hosts e2eteam/busybox:1.29\n"
+  },
+  {
+    "case_id": "q77057367",
+    "category": "configuration",
+    "model": "cheating_name_the_older_image_1_29",
+    "code": "sudo ctr -a /run/bench77057367/containerd.sock images tag --force 127.0.0.1:18077/e2eteam/busybox:1.28 127.0.0.1:18077/e2eteam/busybox:1.29\nsudo ctr -a /run/bench77057367/containerd.sock run --rm 127.0.0.1:18077/e2eteam/busybox:1.29 check /app hello\n"
+  }
+]

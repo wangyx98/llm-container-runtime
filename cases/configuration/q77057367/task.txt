@@ -1,0 +1,26 @@
+This machine runs containerd (no Docker daemon, no CRI-O) with its own socket, /run/bench77057367/containerd.sock. The client is ctr; always point it at that socket and use its default namespace:
+
+    sudo ctr -a /run/bench77057367/containerd.sock images ls
+
+The team keeps the image e2eteam/busybox:1.29 in its image registry, which listens on 127.0.0.1:18077 (plain HTTP, no TLS, no authentication). The registry also holds an older image of the same repository, e2eteam/busybox:1.28, which containerd already has. The image prints one line that contains a marker and the arguments it is started with, and exits.
+
+An engineer wants to pull the new image and run it, and tried:
+
+    $ sudo ctr -a /run/bench77057367/containerd.sock images pull e2eteam/busybox:1.29
+    ctr: failed to resolve image: failed to do request: Head "https://e2eteam/v2/busybox/manifests/1.29": dial tcp: lookup e2eteam on 8.8.8.8:53: no such host
+
+The engineer expects ctr to find the image by itself from the short name, and does not want to look for a registry setting for every pull.
+
+Your task: get the image e2eteam/busybox:1.29 from the team registry into containerd, so that it can be run with ctr, and run it once.
+
+Requirements:
+
+1. At the end containerd (namespace default) has the image 1.29 under the name that includes the registry that holds it, and that name points to the image that the registry serves as e2eteam/busybox:1.29. The check compares the digest. Giving the older image the name 1.29, or any other way of creating a name without downloading the image from the registry, does not count.
+2. The check reads the request log of the registry: it must show containerd downloading the manifest and the blobs of that image.
+3. The check runs the image with ctr, passing an argument it chooses at that moment, and expects the marker line of the image 1.29 with that argument. The command that runs the image is /app.
+4. Do not change the registry (do not push, delete or re-tag anything, do not restart it), and do not replace containerd: it stays the one that runs on /run/bench77057367/containerd.sock.
+5. The script runs without a terminal: stdin is not a TTY, nothing can be typed.
+6. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+7. Your script must finish by itself: no interactive prompts, no command that runs in the foreground until it is interrupted, and no command that waits forever.
+
+Return the commands needed to complete the task.
