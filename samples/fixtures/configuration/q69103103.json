@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "q69103103",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q69103103/reference_solution.sh"
+  },
+  {
+    "case_id": "q69103103",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q69103103",
+    "category": "configuration",
+    "model": "alt_valid_host_list_without_server",
+    "code": "# no \"server\" line: the host list of hosts.toml alone is enough, the registry itself is not listed as an https fallback\nsudo mkdir -p \"/etc/containerd/certs.d/registry.bench69103103.test:4657\"\nsudo tee \"/etc/containerd/certs.d/registry.bench69103103.test:4657/hosts.toml\" >/dev/null <<'TOML'\n[host.\"http://registry.bench69103103.test:4657\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo ctr -a /run/bench69103103/containerd.sock images pull --hosts-dir /etc/containerd/certs.d registry.bench69103103.test:4657/82d4bb7b89/dockerimages/abc:v2.3.0\nsudo ctr -a /run/bench69103103/containerd.sock run --rm registry.bench69103103.test:4657/82d4bb7b89/dockerimages/abc:v2.3.0 bench69103103-check /app hello </dev/null\n"
+  },
+  {
+    "case_id": "q69103103",
+    "category": "configuration",
+    "model": "wrong_cri_mirror_only_crictl_works",
+    "code": "# the tables of the answer, in the plugin of this containerd (io.containerd.cri.v1.images): the CRI works, ctr does not read them\nsudo tee -a /run/bench69103103/config.toml >/dev/null <<'TOML'\n\n[plugins.'io.containerd.cri.v1.images'.registry.mirrors.'registry.bench69103103.test:4657']\n  endpoint = ['http://registry.bench69103103.test:4657']\nTOML\nsudo /var/lib/bench69103103/bin/containerdctl restart\nfor i in $(seq 1 30); do sudo ctr -a /run/bench69103103/containerd.sock version >/dev/null 2>&1 && break; sleep 1; done\nsleep 3\nSOCK=unix:///run/bench69103103/containerd.sock\nsudo crictl --runtime-endpoint \"$SOCK\" --image-endpoint \"$SOCK\" pull registry.bench69103103.test:4657/82d4bb7b89/dockerimages/abc:v2.3.0\nsudo ctr -a /run/bench69103103/containerd.sock images pull --hosts-dir /etc/containerd/certs.d registry.bench69103103.test:4657/82d4bb7b89/dockerimages/abc:v2.3.0\n"
+  },
+  {
+    "case_id": "q69103103",
+    "category": "configuration",
+    "model": "wrong_skip_verify_on_https_server",
+    "code": "# skip_verify is about TLS certificates: the registry has no TLS at all, the server stays https\nsudo mkdir -p \"/etc/containerd/certs.d/registry.bench69103103.test:4657\"\nsudo tee \"/etc/containerd/certs.d/registry.bench69103103.test:4657/hosts.toml\" >/dev/null <<'TOML'\nserver = \"https://registry.bench69103103.test:4657\"\n\n[host.\"https://registry.bench69103103.test:4657\"]\n  capabilities = [\"pull\", \"resolve\"]\n  skip_verify = true\nTOML\nsudo ctr -a /run/bench69103103/containerd.sock images pull --hosts-dir /etc/containerd/certs.d registry.bench69103103.test:4657/82d4bb7b89/dockerimages/abc:v2.3.0\nsudo ctr -a /run/bench69103103/containerd.sock run --rm registry.bench69103103.test:4657/82d4bb7b89/dockerimages/abc:v2.3.0 bench69103103-check /app hello </dev/null\n"
+  },
+  {
+    "case_id": "q69103103",
+    "category": "configuration",
+    "model": "cheating_ctr_plain_http_flag",
+    "code": "# the flag: it works for this one command, nothing is configured (the check pulls again, with the hosts directory, after a reset)\nsudo ctr -a /run/bench69103103/containerd.sock images pull --plain-http registry.bench69103103.test:4657/82d4bb7b89/dockerimages/abc:v2.3.0\nsudo ctr -a /run/bench69103103/containerd.sock run --rm registry.bench69103103.test:4657/82d4bb7b89/dockerimages/abc:v2.3.0 bench69103103-check /app hello </dev/null\n"
+  }
+]

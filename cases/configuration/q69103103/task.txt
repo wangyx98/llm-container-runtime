@@ -1,0 +1,28 @@
+This machine runs containerd (no Docker daemon, no CRI-O) with its own socket, /run/bench69103103/containerd.sock, and the CRI plugin enabled. It is started and stopped with a script, /var/lib/bench69103103/bin/containerdctl (start, stop, restart, status; run it with sudo). containerd reads its configuration, /run/bench69103103/config.toml (owned by root), only when it starts. The client used here is ctr, always pointed at that socket and used in its default namespace:
+
+    sudo ctr -a /run/bench69103103/containerd.sock images ls
+
+The team's insecure registry, registry.bench69103103.test:4657, speaks plain HTTP only: there is no TLS on it at all. It holds the image registry.bench69103103.test:4657/82d4bb7b89/dockerimages/abc:v2.3.0, a program that prints a marker line with the arguments it is given. The only way out of this machine is the company egress proxy, which containerd already uses and which resolves that registry name; nothing else is reachable.
+
+Pods that use the image stay in ImagePullBackOff ("http: server gave HTTP response to HTTPS client"). An engineer followed an answer found online and added to /run/bench69103103/config.toml the tables that answer shows (the registry as host:port under registry.configs with insecure_skip_verify = true, and under registry.mirrors with the endpoint http://registry.bench69103103.test:4657), restarted containerd, and nothing changed. ctr, which "could use --plain-http to pull" but that would not help the cluster, fails the same way:
+
+    $ sudo ctr -a /run/bench69103103/containerd.sock images pull --hosts-dir /etc/containerd/certs.d registry.bench69103103.test:4657/82d4bb7b89/dockerimages/abc:v2.3.0
+    ctr: failed to resolve image: failed to do request: Head "https://registry.bench69103103.test:4657/v2/82d4bb7b89/dockerimages/abc/manifests/v2.3.0": http: server gave HTTP response to HTTPS client
+
+Your task: make ctr pull registry.bench69103103.test:4657/82d4bb7b89/dockerimages/abc:v2.3.0 from this registry over plain HTTP, keeping the name, with the registry host configuration kept in the directory /etc/containerd/certs.d, and run the image once.
+
+Requirements:
+
+1. The check removes the image, its blobs and its snapshots from containerd first, then runs this exact command, which must succeed:
+
+    sudo ctr -a /run/bench69103103/containerd.sock images pull --hosts-dir /etc/containerd/certs.d registry.bench69103103.test:4657/82d4bb7b89/dockerimages/abc:v2.3.0
+
+   and finds the image in the default namespace under that name, with the digest that the registry holds for that tag. A name created with ctr images tag, or an image pulled by hand and loaded under that name, does not survive the reset. A change that only helps the CRI (crictl, namespace k8s.io) does not count.
+2. The registry's request log must show containerd fetching the manifest and the blobs, and the egress proxy's log must show those requests going out over plain HTTP, none refused.
+3. The check then runs the image with ctr, passing an argument it chooses at that moment, and expects the marker line of the image with that argument. The command that runs the image is /app.
+4. Do not change the registry, the egress proxy or the containerdctl script, and do not replace containerd: it stays the one that runs on /run/bench69103103/containerd.sock (you may restart it with containerdctl).
+5. The script runs without a terminal: stdin is not a TTY, nothing can be typed.
+6. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+7. Your script must finish by itself: no interactive prompts, no command that runs in the foreground until it is interrupted, and no command that waits forever.
+
+Return the commands needed to complete the task.
