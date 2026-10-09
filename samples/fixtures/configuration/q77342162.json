@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "q77342162",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q77342162/reference_solution.sh"
+  },
+  {
+    "case_id": "q77342162",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q77342162",
+    "category": "configuration",
+    "model": "alt_valid_legacy_mirror_with_v2",
+    "code": "# keep the legacy mirrors table of the question and only put /v2 in front of the project: the endpoint path replaces /v2,\n# so containerd asks Harbor for /v2/kubernetes-cache/kube-proxy/... as Harbor wants it\nsudo sed -i \"s#harbor.bench77342162.test:8083/kubernetes-cache'#harbor.bench77342162.test:8083/v2/kubernetes-cache'#\" /run/bench77342162/config.toml\ngrep -n 'kubernetes-cache' /run/bench77342162/config.toml\nsudo /var/lib/bench77342162/bin/containerdctl restart\n"
+  },
+  {
+    "case_id": "q77342162",
+    "category": "configuration",
+    "model": "wrong_base_url_only",
+    "code": "# the usual hosts.toml with only Harbor's address: containerd asks /v2/kube-proxy/... without the project, Harbor answers 400\nsudo python3 - <<'PY'\nimport re\npath = \"/run/bench77342162/config.toml\"\ntext = open(path).read()\ntext = re.sub(r\"\\n# the mirror of the question.*\\Z\", \"\\n\", text, flags=re.S)\nout, section = [], \"\"\nfor line in text.splitlines(True):\n    m = re.match(r\"^\\s*\\[+\\s*([^\\]]+?)\\s*\\]+\\s*$\", line)\n    if m:\n        section = m.group(1).strip(\"'\\\"\")\n    if section.endswith(\".registry\") and \"cri\" in section and re.match(r\"^\\s*config_path\\s*=\", line):\n        line = re.sub(r\"=.*\", \"= '/etc/containerd/certs.d'\", line) + \"\\n\"\n    out.append(line)\nopen(path, \"w\").writelines(out)\nPY\nsudo mkdir -p /etc/containerd/certs.d/registry.k8s.io\nsudo tee /etc/containerd/certs.d/registry.k8s.io/hosts.toml >/dev/null <<'TOML'\nserver = \"https://registry.k8s.io\"\n\n[host.\"http://harbor.bench77342162.test:8083\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo /var/lib/bench77342162/bin/containerdctl restart\n"
+  },
+  {
+    "case_id": "q77342162",
+    "category": "configuration",
+    "model": "wrong_project_path_without_override_path",
+    "code": "# the project in the host path, but without override_path: containerd appends /v2 to it -> /kubernetes-cache/v2/kube-proxy/... (404)\nsudo python3 - <<'PY'\nimport re\npath = \"/run/bench77342162/config.toml\"\ntext = open(path).read()\ntext = re.sub(r\"\\n# the mirror of the question.*\\Z\", \"\\n\", text, flags=re.S)\nout, section = [], \"\"\nfor line in text.splitlines(True):\n    m = re.match(r\"^\\s*\\[+\\s*([^\\]]+?)\\s*\\]+\\s*$\", line)\n    if m:\n        section = m.group(1).strip(\"'\\\"\")\n    if section.endswith(\".registry\") and \"cri\" in section and re.match(r\"^\\s*config_path\\s*=\", line):\n        line = re.sub(r\"=.*\", \"= '/etc/containerd/certs.d'\", line) + \"\\n\"\n    out.append(line)\nopen(path, \"w\").writelines(out)\nPY\nsudo mkdir -p /etc/containerd/certs.d/registry.k8s.io\nsudo tee /etc/containerd/certs.d/registry.k8s.io/hosts.toml >/dev/null <<'TOML'\nserver = \"https://registry.k8s.io\"\n\n[host.\"http://harbor.bench77342162.test:8083/kubernetes-cache\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo /var/lib/bench77342162/bin/containerdctl restart\n"
+  },
+  {
+    "case_id": "q77342162",
+    "category": "configuration",
+    "model": "wrong_image_reference_bypass",
+    "code": "# pull through Harbor under Harbor's own name and tag it as the cluster's name: the reference registry.k8s.io stays unconfigured,\n# the original reference does not resolve (and the oracle removes the hand-made image anyway)\nsudo python3 - <<'PY'\nimport re\npath = \"/run/bench77342162/config.toml\"\ntext = open(path).read()\ntext = re.sub(r\"\\n# the mirror of the question.*\\Z\", \"\\n\", text, flags=re.S)\nout, section = [], \"\"\nfor line in text.splitlines(True):\n    m = re.match(r\"^\\s*\\[+\\s*([^\\]]+?)\\s*\\]+\\s*$\", line)\n    if m:\n        section = m.group(1).strip(\"'\\\"\")\n    if section.endswith(\".registry\") and \"cri\" in section and re.match(r\"^\\s*config_path\\s*=\", line):\n        line = re.sub(r\"=.*\", \"= '/etc/containerd/certs.d'\", line) + \"\\n\"\n    out.append(line)\nopen(path, \"w\").writelines(out)\nPY\nsudo mkdir -p /etc/containerd/certs.d/harbor.bench77342162.test:8083\nsudo tee /etc/containerd/certs.d/harbor.bench77342162.test:8083/hosts.toml >/dev/null <<'TOML'\nserver = \"http://harbor.bench77342162.test:8083\"\n\n[host.\"http://harbor.bench77342162.test:8083\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo /var/lib/bench77342162/bin/containerdctl restart\nsleep 3\nsudo crictl --runtime-endpoint unix:///run/bench77342162/containerd.sock --image-endpoint unix:///run/bench77342162/containerd.sock pull harbor.bench77342162.test:8083/kubernetes-cache/kube-proxy:v1.26.5\nsudo ctr -a /run/bench77342162/containerd.sock -n k8s.io images tag harbor.bench77342162.test:8083/kubernetes-cache/kube-proxy:v1.26.5 registry.k8s.io/kube-proxy:v1.26.5\n"
+  }
+]

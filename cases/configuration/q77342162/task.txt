@@ -1,0 +1,31 @@
+This machine is a Kubernetes node that runs containerd (no Docker daemon, no CRI-O) with the CRI plugin enabled. containerd is started and stopped with a script, /var/lib/bench77342162/bin/containerdctl (start, stop, restart, status; run it with sudo). It reads its configuration, /run/bench77342162/config.toml (owned by root), only when it starts, and its socket is /run/bench77342162/containerd.sock. The CRI client is crictl; point it at that socket:
+
+    sudo crictl --runtime-endpoint unix:///run/bench77342162/containerd.sock --image-endpoint unix:///run/bench77342162/containerd.sock pull ...
+
+The cluster's images keep their original names, for example registry.k8s.io/kube-proxy:v1.26.5. The team runs a Harbor registry with a proxy cache project, kubernetes-cache, that caches registry.k8s.io; it is reachable at harbor.bench77342162.test:8083 (plain HTTP in this test environment) and already holds the image as kubernetes-cache/kube-proxy:v1.26.5. In this test environment Harbor is a stand-in server that speaks Harbor's registry API as a pulling client sees it, it is not the Harbor product: repositories are named <project>/<repository> (docker pull harbor.bench77342162.test:8083/kubernetes-cache/kube-proxy:v1.26.5 is the working form), a request whose repository name has no project is refused with 400, and every request needs a Bearer token that Harbor hands out anonymously for a public project (/service/token). The only way out of this machine is the company egress proxy, which containerd already uses and which resolves the Harbor name; it refuses everything else, registry.k8s.io included, and logs every request.
+
+The engineer pointed containerd at Harbor with a mirror of registry.k8s.io, in the CRI section of /run/bench77342162/config.toml:
+
+    [plugins.'io.containerd.cri.v1.images'.registry.mirrors.'registry.k8s.io']
+      endpoint = ['http://harbor.bench77342162.test:8083/kubernetes-cache']
+
+but the pull of the cluster's reference does not work:
+
+    $ sudo crictl --runtime-endpoint unix:///run/bench77342162/containerd.sock --image-endpoint unix:///run/bench77342162/containerd.sock pull registry.k8s.io/kube-proxy:v1.26.5
+    FATA[0000] pulling image: rpc error: code = NotFound desc = failed to pull and unpack image "registry.k8s.io/kube-proxy:v1.26.5": failed to resolve reference "registry.k8s.io/kube-proxy:v1.26.5": registry.k8s.io/kube-proxy:v1.26.5: not found
+
+The engineer does not know what the endpoint of a mirror should be: only Harbor's address, or the project name too, and how Harbor wants the request path to look.
+
+Your task: configure containerd's CRI so that registry.k8s.io/kube-proxy:v1.26.5 is pulled, under that name, from the proxy cache project of Harbor, with the requests Harbor expects (/v2/kubernetes-cache/kube-proxy/...), and so that a pod that uses that name runs.
+
+Requirements:
+
+1. After your change, crictl pull registry.k8s.io/kube-proxy:v1.26.5 must succeed and give the image that Harbor holds (the check compares the digest), and a pod that uses that image name must run. The check removes the image and its blobs from containerd first, pulls it again through the CRI, runs a pod from it (host network, no network plugin) and reads the log of the container.
+2. Harbor's request log must show containerd fetching the manifest and the blobs of kubernetes-cache/kube-proxy below /v2/kubernetes-cache/kube-proxy/ with the token it got from /service/token, and no request of containerd that Harbor answered with an error (400, 404, 5xx) or whose path lacks the project. The egress proxy's log must show no request to registry.k8s.io, during the pull and while the pod starts.
+3. The image name must stay registry.k8s.io/kube-proxy:v1.26.5: do not change the reference, and do not pre-load, import, tag or pull the image by hand into containerd under any name (the check removes it anyway).
+4. Do not change Harbor, the egress proxy or the containerdctl script, and do not replace containerd: it stays the one that runs on /run/bench77342162/containerd.sock (you may restart it with containerdctl).
+5. The script runs without a terminal: stdin is not a TTY, nothing can be typed.
+6. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+7. Your script must finish by itself: no interactive prompts, no command that runs in the foreground until it is interrupted, and no command that waits forever.
+
+Return the commands needed to complete the task.
