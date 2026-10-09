@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q68660550",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q68660550/reference_solution.sh"
+  },
+  {
+    "case_id": "q68660550",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q68660550",
+    "category": "filesystem",
+    "model": "alt_valid_ctr_only_names_then_bare_records",
+    "code": "# ctr only: remove the matching names of every unused image; when that leaves the image without any name, remove its bare\n# sha256 record too (otherwise the CRI keeps listing it as <none>)\nsudo crictl --runtime-endpoint unix:///run/bench68660550/containerd.sock --image-endpoint unix:///run/bench68660550/containerd.sock ps -a -o json > /tmp/bench68660550-ps.json\nsudo crictl --runtime-endpoint unix:///run/bench68660550/containerd.sock --image-endpoint unix:///run/bench68660550/containerd.sock images -o json > /tmp/bench68660550-images.json\npython3 - <<'PY' > /tmp/bench68660550-plan.txt\nimport json, re\nps = json.load(open(\"/tmp/bench68660550-ps.json\"))[\"containers\"]\nused = {c[\"imageRef\"] for c in ps}\nfor img in json.load(open(\"/tmp/bench68660550-images.json\"))[\"images\"]:\n    tags = img.get(\"repoTags\", [])\n    match = [t for t in tags if re.search(\"foo|bar\", t)]\n    if not match or img[\"id\"] in used:\n        continue\n    others = [t for t in tags if t not in match]\n    for t in match:\n        print(\"rm\", t)\n    if not others:\n        print(\"rm\", img[\"id\"])\nPY\ncat /tmp/bench68660550-plan.txt\nwhile read -r _ ref; do sudo ctr -a /run/bench68660550/containerd.sock -n k8s.io images rm \"$ref\"; done < /tmp/bench68660550-plan.txt\n"
+  },
+  {
+    "case_id": "q68660550",
+    "category": "filesystem",
+    "model": "wrong_so_command_removes_images_in_use",
+    "code": "# the command of the question: every matching image goes, whether a container uses it or not\nsudo crictl --runtime-endpoint unix:///run/bench68660550/containerd.sock --image-endpoint unix:///run/bench68660550/containerd.sock images | grep -E -- 'foo|bar' | awk '{print $3}' | xargs -n 1 sudo crictl --runtime-endpoint unix:///run/bench68660550/containerd.sock --image-endpoint unix:///run/bench68660550/containerd.sock rmi\n"
+  },
+  {
+    "case_id": "q68660550",
+    "category": "filesystem",
+    "model": "wrong_global_prune_removes_non_matching",
+    "code": "# prune everything that no container uses: the filter 'foo|bar' is ignored (web-cache:1 and release-pin:1 go too)\nsudo crictl --runtime-endpoint unix:///run/bench68660550/containerd.sock --image-endpoint unix:///run/bench68660550/containerd.sock rmi --prune\n"
+  },
+  {
+    "case_id": "q68660550",
+    "category": "filesystem",
+    "model": "wrong_rmi_by_id_removes_second_name",
+    "code": "# unused + matching, removed with crictl rmi: it removes the image with all its names, release-pin:1 included\nsudo crictl --runtime-endpoint unix:///run/bench68660550/containerd.sock --image-endpoint unix:///run/bench68660550/containerd.sock ps -a -o json > /tmp/bench68660550-ps.json\nsudo crictl --runtime-endpoint unix:///run/bench68660550/containerd.sock --image-endpoint unix:///run/bench68660550/containerd.sock images -o json > /tmp/bench68660550-images.json\npython3 - <<'PY' > /tmp/bench68660550-plan.txt\nimport json, re\nps = json.load(open(\"/tmp/bench68660550-ps.json\"))[\"containers\"]\nused = {c[\"imageRef\"] for c in ps}\nfor img in json.load(open(\"/tmp/bench68660550-images.json\"))[\"images\"]:\n    tags = img.get(\"repoTags\", [])\n    match = [t for t in tags if re.search(\"foo|bar\", t)]\n    if not match or img[\"id\"] in used:\n        continue\n    print(\"rmi\", img[\"id\"])\nPY\ncat /tmp/bench68660550-plan.txt\nwhile read -r _ id; do sudo crictl --runtime-endpoint unix:///run/bench68660550/containerd.sock --image-endpoint unix:///run/bench68660550/containerd.sock rmi \"$id\"; done < /tmp/bench68660550-plan.txt\n"
+  },
+  {
+    "case_id": "q68660550",
+    "category": "filesystem",
+    "model": "wrong_only_running_containers_count",
+    "code": "# 'in use' decided from the running containers only: the image of the exited container (a container that stays) is removed\nsudo crictl --runtime-endpoint unix:///run/bench68660550/containerd.sock --image-endpoint unix:///run/bench68660550/containerd.sock ps -a -o json > /tmp/bench68660550-ps.json\nsudo crictl --runtime-endpoint unix:///run/bench68660550/containerd.sock --image-endpoint unix:///run/bench68660550/containerd.sock images -o json > /tmp/bench68660550-images.json\npython3 - <<'PY' > /tmp/bench68660550-plan.txt\nimport json, re\nps = json.load(open(\"/tmp/bench68660550-ps.json\"))[\"containers\"]\nused = {c[\"imageRef\"] for c in ps if c[\"state\"] == \"CONTAINER_RUNNING\"}\nfor img in json.load(open(\"/tmp/bench68660550-images.json\"))[\"images\"]:\n    tags = img.get(\"repoTags\", [])\n    match = [t for t in tags if re.search(\"foo|bar\", t)]\n    if not match or img[\"id\"] in used:\n        continue\n    print(\"rmi\", img[\"id\"])\nPY\ncat /tmp/bench68660550-plan.txt\nwhile read -r _ id; do sudo crictl --runtime-endpoint unix:///run/bench68660550/containerd.sock --image-endpoint unix:///run/bench68660550/containerd.sock rmi \"$id\"; done < /tmp/bench68660550-plan.txt\n"
+  },
+  {
+    "case_id": "q68660550",
+    "category": "filesystem",
+    "model": "wrong_ctr_names_only_leaves_nameless_image",
+    "code": "# remove only the names with ctr: the images that are completely unused stay behind as nameless sha256 records\nsudo crictl --runtime-endpoint unix:///run/bench68660550/containerd.sock --image-endpoint unix:///run/bench68660550/containerd.sock ps -a -o json > /tmp/bench68660550-ps.json\nsudo crictl --runtime-endpoint unix:///run/bench68660550/containerd.sock --image-endpoint unix:///run/bench68660550/containerd.sock images -o json > /tmp/bench68660550-images.json\npython3 - <<'PY' > /tmp/bench68660550-plan.txt\nimport json, re\nps = json.load(open(\"/tmp/bench68660550-ps.json\"))[\"containers\"]\nused = {c[\"imageRef\"] for c in ps}\nfor img in json.load(open(\"/tmp/bench68660550-images.json\"))[\"images\"]:\n    tags = img.get(\"repoTags\", [])\n    match = [t for t in tags if re.search(\"foo|bar\", t)]\n    if not match or img[\"id\"] in used:\n        continue\n    for t in match:\n        print(\"rm\", t)\nPY\ncat /tmp/bench68660550-plan.txt\nwhile read -r _ ref; do sudo ctr -a /run/bench68660550/containerd.sock -n k8s.io images rm \"$ref\"; done < /tmp/bench68660550-plan.txt\n"
+  }
+]

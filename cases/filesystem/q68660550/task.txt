@@ -1,0 +1,34 @@
+This machine is a Kubernetes node that runs containerd (no Docker daemon, no CRI-O, no nerdctl) with the CRI plugin enabled. containerd is the one of this node, with its own socket /run/bench68660550/containerd.sock; it is started and stopped with /var/lib/bench68660550/containerdctl, which you do not need and must not use. The CRI client is crictl; it is not configured for this node, so give it the socket on every call:
+
+    sudo crictl --runtime-endpoint unix:///run/bench68660550/containerd.sock --image-endpoint unix:///run/bench68660550/containerd.sock images
+
+The images of the CRI are in the containerd namespace k8s.io, where ctr can be used too: sudo ctr -a /run/bench68660550/containerd.sock -n k8s.io images ls
+
+The engineer wants to clean the image cache of the node, but only of the images whose name matches the extended regular expression foo|bar, and only of those that nothing uses. This is what was tried, and it also removes images that containers use:
+
+    sudo crictl --runtime-endpoint unix:///run/bench68660550/containerd.sock --image-endpoint unix:///run/bench68660550/containerd.sock images | grep -E -- 'foo|bar' | awk '{print $3}' | xargs -n 1 sudo crictl --runtime-endpoint unix:///run/bench68660550/containerd.sock --image-endpoint unix:///run/bench68660550/containerd.sock rmi
+
+The node is in this state. The pod bench68660550-pod holds two containers: bench68660550-live, a running workload (it writes a heartbeat file, a counter that grows once a second, to /tmp/bench68660550/data/status), and bench68660550-job, a one-shot container that has finished and exited. Both containers stay on the node. The images, all below the host name bench68660550.local, are:
+
+    bench68660550.local/foo-web:1          used by the running container; its second name is bench68660550.local/live-alias:stable
+    bench68660550.local/bar-batch:1        used by the exited container
+    bench68660550.local/foo-old:1          not used by any container
+    bench68660550.local/bar-old:1          not used by any container
+    bench68660550.local/foo-pinned:1       not used by any container; the same image also has the name bench68660550.local/release-pin:1
+    bench68660550.local/web-cache:1        not used by any container, not a foo or bar name
+    bench68660550.local/pause:1            the sandbox image of the pod (the check does not look at it)
+
+Your task: remove the unused images whose name matches foo|bar, and keep everything else.
+
+Requirements:
+
+1. An image counts as used when any container that is on the node refers to it, running or exited; no container is to be removed or stopped. Do not remove a used image or any of its names.
+2. Remove the images that match the filter and are unused. An image removed this way must be completely gone: the CRI must not list it, and containerd must not keep it as a nameless record either (a record that is only a sha256 digest).
+3. The filter applies to the names. An unused image that has a name that does not match foo|bar as well as names that do keeps that name and stays an image (it loses only the matching names). An unused image with no matching name stays untouched. Do not prune everything that is unused.
+4. The running container, its process and its heartbeat must go on untouched, and containerd must keep running (do not restart or replace it).
+5. The names above are fixed. Any other value you need (image IDs, container IDs) is not given here: your commands must discover it themselves.
+6. The script runs without a terminal: stdin is not a TTY, nothing can be typed.
+7. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+8. Your script must finish by itself: no interactive prompts, no command that waits forever.
+
+Return the commands needed to complete the task.
