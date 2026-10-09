@@ -1,0 +1,24 @@
+This machine is a Kubernetes node that runs containerd (no Docker daemon, no CRI-O) with the CRI plugin enabled. containerd is the one of this node, with its own socket /run/bench75052934/containerd.sock; it is started and stopped with /var/lib/bench75052934/containerdctl, which you do not need and must not use. The CRI client is crictl; it is not configured for this node, so give it the socket on every call:
+
+    sudo crictl --runtime-endpoint unix:///run/bench75052934/containerd.sock --image-endpoint unix:///run/bench75052934/containerd.sock ps
+
+Container A is a running container, named bench75052934-app, in the pod bench75052934-pod. It has its own pid namespace (its application is pid 1 there and sees only its own processes) and its own mount namespace, with the default private mount propagation, and a volume of its own: the host directory /tmp/bench75052934/volume is mounted at /vol. Its application is a small program that once a second prints a line (crictl logs shows it) with its pid, the number of processes in its /proc, and what it reads from /vol/vol-token, /tools/probe and /tools/live. The image of A contains the program and nothing else: no shell, no mount command, no /tools directory.
+
+The host has a directory of diagnostic tools, B: /var/lib/bench75052934/tools (a probe file and the program bin/diag). Container A and its image do not have these tools. The tools have to reach A while it runs: it cannot be restarted, and its main process cannot cooperate (nothing can be asked of the application, there is no way to make it run a command).
+
+A bind mount made on the host does not help. For example, after a bind mount of B onto a directory of A's root filesystem on the host (the directory where containerd keeps A's root, under /run/bench75052934/io.containerd.runtime.v2.task/k8s.io/), the host sees the files in there, but A's processes still see an empty directory: A's mount namespace is a private copy, and a mount made later on the host is not propagated into it. Changing the propagation of the host's mounts does not change that for a namespace that is already there. From inside A there is no way to see the host directory either, since A's root is its own image.
+
+Your task: make the host directory B appear inside the running container A at /tools, as a bind mount of that same directory (not a copy of its files).
+
+Requirements:
+
+1. Inside A, /tools must be the directory B itself: the application of A (the original process) must read /tools/probe, a file that is written into B later on the host (the check does that, twice, with random content) must appear in /tools/live for it within seconds, and a new process started in A (crictl exec) must be able to run /tools/bin/diag. A mount table entry for /tools in A's mount namespace must show the same filesystem and the same directory (device and inode) as B on the host.
+2. Container A must stay what it is: the same container, the same main process (same host pid and start time), the same mount namespace and pid namespace. It must not be stopped, restarted or recreated, its application must still be pid 1 in its own pid namespace and see only its own processes, and its volume at /vol must go on working.
+3. Do not copy the tools into A, do not recreate or restart A, do not change the mount propagation of the host's mounts or of A's mounts (the check compares them with what they were), and do not change the containerdctl script or replace containerd. The /tools mount you create must be private like A's other mounts: it must not be in a shared peer group (with the host's mounts or any other) and must not be a slave.
+4. The host pid of A and A's container ID are not given here: your commands must discover them (for example with crictl ps and crictl inspect).
+5. Tools: the usual ones of the host: nsenter, python3 (ctypes works), gcc, and the other util-linux and coreutils programs. Nothing may be downloaded.
+6. The script runs without a terminal: stdin is not a TTY, nothing can be typed.
+7. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+8. Your script must finish by itself: no interactive prompts, no command that waits forever.
+
+Return the commands needed to complete the task.
