@@ -1,0 +1,24 @@
+This machine is a Kubernetes node that runs containerd (no Docker daemon, no CRI-O) with the CRI plugin enabled. containerd is the one of this node, with its own socket /run/bench74546773/containerd.sock; it is started and stopped with /var/lib/bench74546773/containerdctl, which you do not need and must not use. The CRI client is crictl; it is not configured for this node, so give it the socket on every call:
+
+    sudo crictl --runtime-endpoint unix:///run/bench74546773/containerd.sock --image-endpoint unix:///run/bench74546773/containerd.sock ps
+
+A pod, bench74546773-pod, runs one container, bench74546773-app: a service that, at its start, wrote a 16 MiB memory dump to /var/dump/app.hprof (in the container's own writable filesystem) and keeps running; a line of its log (crictl logs shows it) is printed once a second. The dump has to be brought to the node. kubectl is not available on this machine, and the pod must not be touched: the service is in production, so the container cannot be stopped, restarted or recreated, and the dump cannot be moved, changed or deleted.
+
+Getting it out through the container does not work: the image of the container contains the service and nothing else (no shell, no tar, no cat, no cp), so neither "tar", "cat" or "cp" in it nor "crictl exec" can read the file out. The container has a volume, /scratch (the node's directory /tmp/bench74546773/volume-path/mount); the dump is not in it: that volume holds nothing of the dump, and the dump is not on the node anywhere else. The dump in this case is 16 MiB; the real one of the problem has gigabytes, so the way you choose must read the file as a stream from where it is (nothing that loads a file into memory).
+
+Your task: copy the dump from the running container to the node, as the file /tmp/bench74546773/out/app.hprof (complete and byte for byte identical to the original), and do it with a script that can be used again for other files:
+
+    sudo bash /tmp/bench74546773/extract.sh bench74546773-app /var/dump/app.hprof /tmp/bench74546773/out/app.hprof
+
+The script takes three arguments: the name of the container, the path of a file in the container, and the destination on the node. It has to find the container by its name by itself (the container ID and the host pid are not given here), and it must work for any other file of the container to any other destination whose parent directory exists. The check will make the service write another file, of a content and size you cannot know in advance, and run your script for it with another destination. Create the script, and run it once for the dump (creating /tmp/bench74546773/out first).
+
+Requirements:
+
+1. /tmp/bench74546773/out/app.hprof is a regular file (not a symlink, not a hard link or a mount of the original) with exactly the size and the SHA-256 of the original dump.
+2. The service stays what it is: the same container, the same main process (same host pid and start time), still running with its heartbeat going on; the original dump is untouched (same inode, modification time, size and content).
+3. Do not use kubectl (it is not there), do not change the containerdctl script or replace containerd, and do not copy the dump through the volume.
+4. Tools: the usual ones of the host (coreutils, util-linux, python3, and so on). Nothing may be downloaded.
+5. The script (and every command of your answer) runs without a terminal: stdin is not a TTY, nothing can be typed. extract.sh is run with sudo and has to finish by itself; give it no interactive prompts and no command that waits forever.
+6. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.

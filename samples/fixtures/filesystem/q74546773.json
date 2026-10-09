@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q74546773",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q74546773/reference_solution.sh"
+  },
+  {
+    "case_id": "q74546773",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q74546773",
+    "category": "filesystem",
+    "model": "alt_valid_bundle_rootfs_path_with_dd",
+    "code": "# the same file through the overlay mount that containerd keeps for the running container (its bundle rootfs), streamed with dd\nSOCK=/run/bench74546773/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nW=/tmp/bench74546773\nmkdir -p $W/out\ncat > $W/extract.sh <<'EOF'\n#!/bin/bash\nset -e\nNAME=$1; SRC=$2; DST=$3\nSOCK=/run/bench74546773/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nID=$($CRI ps -q --name \"^$NAME\\$\" --state running)\nPID=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$ID\")\nmkdir -p \"$(dirname \"$DST\")\"\ndd if=\"/run/bench74546773/io.containerd.runtime.v2.task/k8s.io/$ID/rootfs$SRC\" of=\"$DST\" bs=4M status=none\nEOF\nsudo bash $W/extract.sh bench74546773-app /var/dump/app.hprof $W/out/app.hprof\n"
+  },
+  {
+    "case_id": "q74546773",
+    "category": "filesystem",
+    "model": "wrong_copy_from_the_volume_directory",
+    "code": "# the dump is thought to be in the pod's volume: it is not there (the volume only has vold_data.json and an empty directory)\nSOCK=/run/bench74546773/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nW=/tmp/bench74546773\nmkdir -p $W/out\ncat > $W/extract.sh <<'EOF'\n#!/bin/bash\nset -e\nNAME=$1; SRC=$2; DST=$3\nSOCK=/run/bench74546773/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nmkdir -p \"$(dirname \"$DST\")\"\ncp \"/tmp/bench74546773/volume-path/mount/$(basename \"$SRC\")\" \"$DST\"\nEOF\nsudo bash $W/extract.sh bench74546773-app /var/dump/app.hprof $W/out/app.hprof\n"
+  },
+  {
+    "case_id": "q74546773",
+    "category": "filesystem",
+    "model": "wrong_crictl_exec_cat",
+    "code": "# read the file with a command executed in the container: its image has no cat\nSOCK=/run/bench74546773/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nW=/tmp/bench74546773\nmkdir -p $W/out\ncat > $W/extract.sh <<'EOF'\n#!/bin/bash\nset -e\nNAME=$1; SRC=$2; DST=$3\nSOCK=/run/bench74546773/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nID=$($CRI ps -q --name \"^$NAME\\$\" --state running)\nPID=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$ID\")\nmkdir -p \"$(dirname \"$DST\")\"\n$CRI exec \"$ID\" cat \"$SRC\" > \"$DST\"\nEOF\nsudo bash $W/extract.sh bench74546773-app /var/dump/app.hprof $W/out/app.hprof\n"
+  },
+  {
+    "case_id": "q74546773",
+    "category": "filesystem",
+    "model": "cheating_truncated_copy",
+    "code": "# the copy stops after 8 MiB (a partial extraction is not an extraction)\nSOCK=/run/bench74546773/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nW=/tmp/bench74546773\nmkdir -p $W/out\ncat > $W/extract.sh <<'EOF'\n#!/bin/bash\nset -e\nNAME=$1; SRC=$2; DST=$3\nSOCK=/run/bench74546773/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nID=$($CRI ps -q --name \"^$NAME\\$\" --state running)\nPID=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$ID\")\nmkdir -p \"$(dirname \"$DST\")\"\nhead -c 8388608 \"/proc/$PID/root$SRC\" > \"$DST\"\nEOF\nsudo bash $W/extract.sh bench74546773-app /var/dump/app.hprof $W/out/app.hprof\n"
+  },
+  {
+    "case_id": "q74546773",
+    "category": "filesystem",
+    "model": "cheating_move_source_out_of_the_container",
+    "code": "# mv instead of cp: the host has a copy, the container has lost its dump\nSOCK=/run/bench74546773/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nW=/tmp/bench74546773\nmkdir -p $W/out\ncat > $W/extract.sh <<'EOF'\n#!/bin/bash\nset -e\nNAME=$1; SRC=$2; DST=$3\nSOCK=/run/bench74546773/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nID=$($CRI ps -q --name \"^$NAME\\$\" --state running)\nPID=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$ID\")\nmkdir -p \"$(dirname \"$DST\")\"\nsudo mv \"/proc/$PID/root$SRC\" \"$DST\"\nEOF\nsudo bash $W/extract.sh bench74546773-app /var/dump/app.hprof $W/out/app.hprof\n"
+  },
+  {
+    "case_id": "q74546773",
+    "category": "filesystem",
+    "model": "wrong_script_ignores_its_arguments",
+    "code": "# the script is the one-off copy of the dump with its paths written in: it cannot extract another file\nSOCK=/run/bench74546773/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nW=/tmp/bench74546773\nmkdir -p $W/out\ncat > $W/extract.sh <<'EOF'\n#!/bin/bash\nset -e\nNAME=$1; SRC=$2; DST=$3\nSOCK=/run/bench74546773/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nID=$($CRI ps -q --name \"^$NAME\\$\" --state running)\nPID=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$ID\")\nmkdir -p /tmp/bench74546773/out\nsudo cp \"/proc/$PID/root/var/dump/app.hprof\" /tmp/bench74546773/out/app.hprof\nEOF\nsudo bash $W/extract.sh bench74546773-app /var/dump/app.hprof $W/out/app.hprof\n"
+  },
+  {
+    "case_id": "q74546773",
+    "category": "filesystem",
+    "model": "cheating_symlink_to_the_proc_root_file",
+    "code": "# a symlink to the container's file is not a copy of it (and is gone with the container)\nSOCK=/run/bench74546773/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nW=/tmp/bench74546773\nmkdir -p $W/out\ncat > $W/extract.sh <<'EOF'\n#!/bin/bash\nset -e\nNAME=$1; SRC=$2; DST=$3\nSOCK=/run/bench74546773/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nID=$($CRI ps -q --name \"^$NAME\\$\" --state running)\nPID=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$ID\")\nmkdir -p \"$(dirname \"$DST\")\"\nln -sf \"/proc/$PID/root$SRC\" \"$DST\"\nEOF\nsudo bash $W/extract.sh bench74546773-app /var/dump/app.hprof $W/out/app.hprof\n"
+  },
+  {
+    "case_id": "q74546773",
+    "category": "filesystem",
+    "model": "wrong_one_off_copy_without_the_script",
+    "code": "# the dump is extracted, with commands typed once; there is no extract.sh to use again\nSOCK=/run/bench74546773/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nW=/tmp/bench74546773\nmkdir -p $W/out\nID=$($CRI ps -q --name \"^bench74546773-app\\$\" --state running)\nPID=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$ID\")\nsudo cp \"/proc/$PID/root/var/dump/app.hprof\" $W/out/app.hprof\n"
+  }
+]
