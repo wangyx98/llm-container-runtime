@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "q75817724",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q75817724/reference_solution.sh"
+  },
+  {
+    "case_id": "q75817724",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q75817724",
+    "category": "configuration",
+    "model": "alt_valid_k3s_certs_d_hosts_toml",
+    "code": "# the hosts directory of the embedded containerd (its config_path is set by k3s): a hosts.toml for the registry with the CA\n# (k3s only renders the directories of registries listed in registries.yaml, this one stays)\nsudo mkdir -p \"/var/lib/rancher/k3s/agent/etc/containerd/certs.d/registry.bench75817724.test:5000\"\nsudo tee \"/var/lib/rancher/k3s/agent/etc/containerd/certs.d/registry.bench75817724.test:5000/hosts.toml\" >/dev/null <<'EOF'\nserver = \"https://registry.bench75817724.test:5000\"\n\n[host.\"https://registry.bench75817724.test:5000\"]\n  capabilities = [\"pull\", \"resolve\"]\n  ca = \"/var/lib/bench75817724/pki/ca.crt\"\nEOF\nsudo /var/lib/bench75817724/bin/k3sctl restart\n"
+  },
+  {
+    "case_id": "q75817724",
+    "category": "configuration",
+    "model": "wrong_asker_etc_containerd_and_generated_config",
+    "code": "# what the asker did: the docker-style certs.d directory under /etc/containerd, and config_path in the file k3s generates\nsudo mkdir -p /etc/containerd/certs.d/registry.bench75817724.test:5000\nsudo cp /var/lib/bench75817724/pki/ca.crt /etc/containerd/certs.d/registry.bench75817724.test:5000/ca.crt\nsudo sed -i 's#^\\( *config_path = \\).*#\\1\"/etc/containerd/certs.d\"#' /var/lib/rancher/k3s/agent/etc/containerd/config.toml\ngrep -n config_path /var/lib/rancher/k3s/agent/etc/containerd/config.toml\nsudo /var/lib/bench75817724/bin/k3sctl restart\n"
+  },
+  {
+    "case_id": "q75817724",
+    "category": "configuration",
+    "model": "wrong_skip_verify",
+    "code": "# the pull works, but certificate verification is switched off for the registry\nsudo tee /etc/rancher/k3s/registries.yaml >/dev/null <<'EOF'\nconfigs:\n  \"registry.bench75817724.test:5000\":\n    tls:\n      insecure_skip_verify: true\nEOF\nsudo /var/lib/bench75817724/bin/k3sctl restart\n"
+  },
+  {
+    "case_id": "q75817724",
+    "category": "configuration",
+    "model": "wrong_host_trust_store",
+    "code": "# the pull works, but the CA is trusted by the whole host\nsudo cp /var/lib/bench75817724/pki/ca.crt /usr/local/share/ca-certificates/bench75817724-ca.crt\nsudo update-ca-certificates\nsudo /var/lib/bench75817724/bin/k3sctl restart\n"
+  }
+]

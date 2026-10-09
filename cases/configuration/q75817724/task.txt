@@ -1,0 +1,24 @@
+This machine is a single-node Kubernetes cluster that runs k3s, with the container runtime that k3s includes: its own embedded containerd, a child process of k3s. The node is called bench75817724-node. k3s reads its options from /etc/rancher/k3s/config.yaml and is started and stopped with a script, /var/lib/bench75817724/bin/k3sctl (start, stop, restart, status; run it with sudo). The k3s binary is /var/lib/bench75817724/bin/k3s; the embedded containerd writes its configuration below /var/lib/rancher/k3s/agent/etc/containerd. To talk to the embedded containerd through the CRI (the interface the kubelet uses to pull images and start Pods):
+
+    sudo /var/lib/bench75817724/bin/k3s crictl pull ...
+
+The team keeps its images in a private registry, registry.bench75817724.test:5000, over HTTPS with a certificate that was signed by the company's own CA (self-signed, not a public CA). The certificate of that CA is the file /var/lib/bench75817724/pki/ca.crt. The only way out of this machine is the company egress proxy, which k3s and its containerd already use and which resolves that registry name; nothing else is reachable.
+
+Docker clients accepted the certificate once the CA file was copied to /etc/docker/certs.d/registry.bench75817724.test:5000/. The engineer then copied the same ca.crt file to /etc/containerd/certs.d/registry.bench75817724.test:5000/ca.crt and added config_path = "/etc/containerd/certs.d" to the registry section of containerd's config.toml below /var/lib/rancher/k3s/agent/etc/containerd, but a Pod that uses the image registry.bench75817724.test:5000/hello-web:latest still cannot pull it. The same happens with crictl:
+
+    $ sudo /var/lib/bench75817724/bin/k3s crictl pull registry.bench75817724.test:5000/hello-web:latest
+    FATA[0000] pulling image: failed to pull and unpack image "registry.bench75817724.test:5000/hello-web:latest": failed to resolve reference "registry.bench75817724.test:5000/hello-web:latest": failed to do request: Head "https://registry.bench75817724.test:5000/v2/hello-web/manifests/latest": tls: failed to verify certificate: x509: certificate signed by unknown authority
+
+Your task: configure k3s so that its embedded containerd trusts the CA of that registry and pulls the image over HTTPS, with the plain command above and no flag, and so that this keeps working after k3s is restarted.
+
+Requirements:
+
+1. This is a configuration task. The check restarts k3s itself with k3sctl (so only what survives a restart counts), removes the image and its blobs from the embedded containerd, then runs the plain pull command above, which must succeed and give the image that the registry holds (the check compares the digest). Do not pull the image by another route and tag it, do not import it with ctr, and do not change the image name.
+2. The registry's request log must show containerd fetching the manifest and the blobs over TLS, and the egress proxy's log must show the connection going out to the registry, none refused.
+3. Certificate verification must stay on. The check then makes the registry present a certificate for the same name that is signed by a different CA; the same pull must fail with a certificate error. So the CA has to be trusted for this registry, and nothing may be turned off (no skipping of verification, no insecure setting).
+4. Do not add the CA to the trust store of the host (for example with update-ca-certificates): the check looks at it. Do not change the registry, the egress proxy, the CA file or the k3sctl script, and do not replace k3s: it stays the one started by k3sctl.
+5. The script runs without a terminal: stdin is not a TTY, nothing can be typed.
+6. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+7. Your script must finish by itself: no interactive prompts, no command that runs in the foreground until it is interrupted, and no command that waits forever.
+
+Return the commands needed to complete the task.
