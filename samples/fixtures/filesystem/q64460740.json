@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q64460740",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q64460740/reference_solution.sh"
+  },
+  {
+    "case_id": "q64460740",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q64460740",
+    "category": "filesystem",
+    "model": "alt_valid_crictl_rmi_by_name_after_removing_the_exited_containers",
+    "code": "S=/run/bench64460740/containerd/containerd.sock\nCRICTL=\"sudo crictl --runtime-endpoint unix://$S --image-endpoint unix://$S\"\nCTR=\"sudo ctr -a $S -n k8s.io\"\nset -e\n# the stopped containers first, then the two unused images by name (the CRI removes the image with all its names and its record)\n$CRICTL rm $($CRICTL ps -a -q --state exited)\n$CRICTL rmi bench64460740.local/job:1 bench64460740.local/unused:1\n"
+  },
+  {
+    "case_id": "q64460740",
+    "category": "filesystem",
+    "model": "wrong_the_answer_of_the_thread_prune_only",
+    "code": "S=/run/bench64460740/containerd/containerd.sock\nCRICTL=\"sudo crictl --runtime-endpoint unix://$S --image-endpoint unix://$S\"\nCTR=\"sudo ctr -a $S -n k8s.io\"\n# an exited container still counts as a user of its image, so the job's image survives\n$CRICTL rmi --prune\n"
+  },
+  {
+    "case_id": "q64460740",
+    "category": "filesystem",
+    "model": "wrong_only_the_names_are_removed_with_ctr_the_image_records_and_blobs_stay",
+    "code": "S=/run/bench64460740/containerd/containerd.sock\nCRICTL=\"sudo crictl --runtime-endpoint unix://$S --image-endpoint unix://$S\"\nCTR=\"sudo ctr -a $S -n k8s.io\"\n$CRICTL rm $($CRICTL ps -a -q --state exited)\n$CTR images rm bench64460740.local/job:1 bench64460740.local/unused:1\n"
+  },
+  {
+    "case_id": "q64460740",
+    "category": "filesystem",
+    "model": "wrong_the_images_are_removed_but_the_exited_containers_stay_pinning_the_snapshots",
+    "code": "S=/run/bench64460740/containerd/containerd.sock\nCRICTL=\"sudo crictl --runtime-endpoint unix://$S --image-endpoint unix://$S\"\nCTR=\"sudo ctr -a $S -n k8s.io\"\n# the images go from the CRI and their blobs are reclaimed, but the finished job's snapshot still sits on the layers of its image\n$CRICTL rmi bench64460740.local/job:1 bench64460740.local/unused:1\n"
+  },
+  {
+    "case_id": "q64460740",
+    "category": "filesystem",
+    "model": "wrong_only_the_finished_job_is_removed_the_earlier_run_of_the_workload_image_stays",
+    "code": "S=/run/bench64460740/containerd/containerd.sock\nCRICTL=\"sudo crictl --runtime-endpoint unix://$S --image-endpoint unix://$S\"\nCTR=\"sudo ctr -a $S -n k8s.io\"\n$CRICTL rm \"$($CRICTL ps -a -q --name bench64460740-job)\"\n$CRICTL rmi --prune\n"
+  },
+  {
+    "case_id": "q64460740",
+    "category": "filesystem",
+    "model": "wrong_the_layer_shared_with_the_workload_image_is_deleted_too",
+    "code": "S=/run/bench64460740/containerd/containerd.sock\nCRICTL=\"sudo crictl --runtime-endpoint unix://$S --image-endpoint unix://$S\"\nCTR=\"sudo ctr -a $S -n k8s.io\"\n# the reference solution first (the stopped containers, then prune) ...\n$CRICTL rm $($CRICTL ps -a -q --state exited)\n$CRICTL rmi --prune\n# ... and then \"free more\": the biggest blob left in the content store is the 8 MiB layer that image A is built on\n$CTR content ls | awk 'NR>1 && $2 ~ /MB$/ && $2+0 > 8 {print $1}' | xargs -r $CTR content rm\n"
+  },
+  {
+    "case_id": "q64460740",
+    "category": "filesystem",
+    "model": "cheating_every_container_is_removed_the_workload_too",
+    "code": "S=/run/bench64460740/containerd/containerd.sock\nCRICTL=\"sudo crictl --runtime-endpoint unix://$S --image-endpoint unix://$S\"\nCTR=\"sudo ctr -a $S -n k8s.io\"\n$CRICTL rm -f $($CRICTL ps -a -q)\n$CRICTL rmi --prune\n"
+  },
+  {
+    "case_id": "q64460740",
+    "category": "filesystem",
+    "model": "cheating_every_image_is_removed_the_one_of_the_workload_too",
+    "code": "S=/run/bench64460740/containerd/containerd.sock\nCRICTL=\"sudo crictl --runtime-endpoint unix://$S --image-endpoint unix://$S\"\nCTR=\"sudo ctr -a $S -n k8s.io\"\n$CRICTL rm $($CRICTL ps -a -q --state exited)\n$CRICTL rmi $($CRICTL images -q) || true\n"
+  }
+]

@@ -1,0 +1,22 @@
+This machine is a Kubernetes node whose only container runtime is containerd (no Docker daemon, no CRI-O, no nerdctl; the CRI plugin is enabled). Over time, unused images and stopped containers pile up and take disk space. With Docker this is one command, `docker system prune`; the engineer wants the containerd equivalent: remove the unused images and the stopped containers, give the disk space back, and leave everything that is in use alone.
+
+The node's containerd has its own socket, /run/bench64460740/containerd/containerd.sock, and its namespace is k8s.io. ctr and the CRI client crictl are not configured for this node, so give them the socket on every call:
+
+    sudo ctr -a /run/bench64460740/containerd/containerd.sock -n k8s.io images ls
+    sudo crictl --runtime-endpoint unix:///run/bench64460740/containerd/containerd.sock --image-endpoint unix:///run/bench64460740/containerd/containerd.sock ps -a
+
+The node is in this state: one pod, bench64460740-pod, with three containers: bench64460740-app, a running workload (a service that writes a heartbeat line once a second to its log); bench64460740-old, an earlier run of the same image that has exited; and bench64460740-job, a one-shot container from another image that has finished. There are four images in k8s.io: bench64460740.local/app (the workload's), bench64460740.local/job (used only by the finished job), bench64460740.local/unused (no container has ever used it), and bench64460740.local/pause, the sandbox image of the pod. The app, job and unused images are built on the same base layer (8 MiB); each of the three adds a layer of its own with random data (2 MiB for app, 6 MiB for job and for unused), so they really take disk space.
+
+Your task: prune the node. Afterwards the stopped containers and the images that no container needs any more must be gone, and their disk space given back, while the running workload (the same container, the same process) and the image it runs must be untouched and usable.
+
+Requirements:
+
+1. Remove the stopped containers (all of them) and the unused images from the node: an image is unused when no container, once the stopped ones are removed, uses it. The image of a stopped container that nothing else uses counts as unused. Removing only an image's name is not enough: the image itself must be gone, so that neither "crictl images" nor containerd's k8s.io lists it, not even as a nameless image. The sandbox image is not checked.
+2. Do not stop, remove or restart the running container or its pod, and do not remove the image it runs. The check looks at the container and its process, at its heartbeat, and at the image: by name and by id, and also by starting a new container from it, whose files (also those of the layer the image shares with the removed ones) must be intact.
+3. Give the space back: the blobs of the removed images must be gone from containerd's content store and their snapshots gone from its snapshot store (containerd's garbage collection reclaims them; the check allows it some seconds and measures the bytes of the node's content and snapshot directories). Layers that an image in use still needs must stay.
+4. The node's containerd is not stopped, killed, restarted or replaced, its configuration is not changed, and files inside its data directories are not deleted by hand: everything goes through its API (crictl, ctr).
+5. Tools: ctr and crictl against the node's containerd, plus ordinary shell commands. Do not use docker, podman, nerdctl or CRI-O. Nothing may be downloaded.
+6. The check discovers nothing from your output: only the state of the node counts. The commands run without a terminal: nothing can be typed, and everything has to finish by itself.
+7. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.
