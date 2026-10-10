@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q69636534",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q69636534/reference_solution.sh"
+  },
+  {
+    "case_id": "q69636534",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q69636534",
+    "category": "diagnostics",
+    "model": "alt_valid_one_query_per_ready_pod_with_the_state_filter",
+    "code": "W=/tmp/bench69636534\ncat > $W/pods.sh <<'EOF'\n#!/bin/bash\npython3 - <<'PY'\nimport json\nimport subprocess\n\nsock = \"/run/bench69636534/containerd/containerd.sock\"\n\n\ndef crictl(*args):\n    out = subprocess.check_output([\"sudo\", \"crictl\", \"--runtime-endpoint\", \"unix://\" + sock,\n                                   \"--image-endpoint\", \"unix://\" + sock, *args, \"-o\", \"json\"])\n    return json.loads(out)\n\n\nresult = {}\nfor p in crictl(\"pods\", \"--state\", \"Ready\")[\"items\"]:\n    m = p[\"metadata\"]\n    cur = {}\n    for c in crictl(\"ps\", \"-a\", \"--pod\", p[\"id\"])[\"containers\"]:\n        n = c[\"metadata\"][\"name\"]\n        if n not in cur or c[\"metadata\"][\"attempt\"] > cur[n][0]:\n            cur[n] = (c[\"metadata\"][\"attempt\"], c[\"id\"])\n    result[m[\"uid\"]] = {\"namespace\": m[\"namespace\"], \"name\": m[\"name\"], \"containers\": {n: v[1] for n, v in cur.items()}}\nprint(json.dumps(result, sort_keys=True))\nPY\nEOF\nchmod +x $W/pods.sh\nbash $W/pods.sh\n"
+  },
+  {
+    "case_id": "q69636534",
+    "category": "diagnostics",
+    "model": "wrong_every_pod_listed_the_stopped_one_too",
+    "code": "W=/tmp/bench69636534\ncat > $W/pods.sh <<'EOF'\n#!/bin/bash\npython3 - <<'PY'\nimport json\nimport subprocess\n\nsock = \"/run/bench69636534/containerd/containerd.sock\"\n\n\ndef crictl(*args):\n    out = subprocess.check_output([\"sudo\", \"crictl\", \"--runtime-endpoint\", \"unix://\" + sock,\n                                   \"--image-endpoint\", \"unix://\" + sock, *args, \"-o\", \"json\"])\n    return json.loads(out)\n\n\npods = {p[\"id\"]: p for p in crictl(\"pods\")[\"items\"]}\nresult = {}\nfor p in pods.values():\n    m = p[\"metadata\"]\n    result[m[\"uid\"]] = {\"namespace\": m[\"namespace\"], \"name\": m[\"name\"], \"containers\": {}}\nnewest = {}\nfor c in crictl(\"ps\", \"-a\")[\"containers\"]:\n    pod = pods.get(c[\"podSandboxId\"])\n    if pod is None:\n        continue\n    key = (pod[\"metadata\"][\"uid\"], c[\"metadata\"][\"name\"])\n    if key not in newest or c[\"metadata\"][\"attempt\"] > newest[key][0]:\n        newest[key] = (c[\"metadata\"][\"attempt\"], c[\"id\"])\nfor (uid, name), (_, cid) in newest.items():\n    result[uid][\"containers\"][name] = cid\nprint(json.dumps(result))\nPY\nEOF\nchmod +x $W/pods.sh\nbash $W/pods.sh\n"
+  },
+  {
+    "case_id": "q69636534",
+    "category": "diagnostics",
+    "model": "wrong_pods_from_the_container_labels_the_empty_pod_is_missed_and_the_stopped_one_listed",
+    "code": "W=/tmp/bench69636534\ncat > $W/pods.sh <<'EOF'\n#!/bin/bash\npython3 - <<'PY'\nimport json\nimport subprocess\n\nsock = \"/run/bench69636534/containerd/containerd.sock\"\n\n\ndef crictl(*args):\n    out = subprocess.check_output([\"sudo\", \"crictl\", \"--runtime-endpoint\", \"unix://\" + sock,\n                                   \"--image-endpoint\", \"unix://\" + sock, *args, \"-o\", \"json\"])\n    return json.loads(out)\n\n\nresult = {}\nnewest = {}\nfor c in crictl(\"ps\", \"-a\")[\"containers\"]:\n    l = c[\"labels\"]\n    uid = l[\"io.kubernetes.pod.uid\"]\n    result.setdefault(uid, {\"namespace\": l[\"io.kubernetes.pod.namespace\"], \"name\": l[\"io.kubernetes.pod.name\"], \"containers\": {}})\n    key = (uid, c[\"metadata\"][\"name\"])\n    if key not in newest or c[\"metadata\"][\"attempt\"] > newest[key][0]:\n        newest[key] = (c[\"metadata\"][\"attempt\"], c[\"id\"])\nfor (uid, name), (_, cid) in newest.items():\n    result[uid][\"containers\"][name] = cid\nprint(json.dumps(result))\nPY\nEOF\nchmod +x $W/pods.sh\nbash $W/pods.sh\n"
+  },
+  {
+    "case_id": "q69636534",
+    "category": "diagnostics",
+    "model": "wrong_only_running_containers_the_finished_one_is_missed",
+    "code": "W=/tmp/bench69636534\ncat > $W/pods.sh <<'EOF'\n#!/bin/bash\npython3 - <<'PY'\nimport json\nimport subprocess\n\nsock = \"/run/bench69636534/containerd/containerd.sock\"\n\n\ndef crictl(*args):\n    out = subprocess.check_output([\"sudo\", \"crictl\", \"--runtime-endpoint\", \"unix://\" + sock,\n                                   \"--image-endpoint\", \"unix://\" + sock, *args, \"-o\", \"json\"])\n    return json.loads(out)\n\n\npods = {p[\"id\"]: p for p in crictl(\"pods\")[\"items\"] if p[\"state\"] == \"SANDBOX_READY\"}\nresult = {}\nfor p in pods.values():\n    m = p[\"metadata\"]\n    result[m[\"uid\"]] = {\"namespace\": m[\"namespace\"], \"name\": m[\"name\"], \"containers\": {}}\nnewest = {}\nfor c in crictl(\"ps\")[\"containers\"]:\n    pod = pods.get(c[\"podSandboxId\"])\n    if pod is None:\n        continue\n    key = (pod[\"metadata\"][\"uid\"], c[\"metadata\"][\"name\"])\n    if key not in newest or c[\"metadata\"][\"attempt\"] > newest[key][0]:\n        newest[key] = (c[\"metadata\"][\"attempt\"], c[\"id\"])\nfor (uid, name), (_, cid) in newest.items():\n    result[uid][\"containers\"][name] = cid\nprint(json.dumps(result))\nPY\nEOF\nchmod +x $W/pods.sh\nbash $W/pods.sh\n"
+  },
+  {
+    "case_id": "q69636534",
+    "category": "diagnostics",
+    "model": "wrong_the_first_attempt_of_a_restarted_container_is_reported",
+    "code": "W=/tmp/bench69636534\ncat > $W/pods.sh <<'EOF'\n#!/bin/bash\npython3 - <<'PY'\nimport json\nimport subprocess\n\nsock = \"/run/bench69636534/containerd/containerd.sock\"\n\n\ndef crictl(*args):\n    out = subprocess.check_output([\"sudo\", \"crictl\", \"--runtime-endpoint\", \"unix://\" + sock,\n                                   \"--image-endpoint\", \"unix://\" + sock, *args, \"-o\", \"json\"])\n    return json.loads(out)\n\n\npods = {p[\"id\"]: p for p in crictl(\"pods\")[\"items\"] if p[\"state\"] == \"SANDBOX_READY\"}\nresult = {}\nfor p in pods.values():\n    m = p[\"metadata\"]\n    result[m[\"uid\"]] = {\"namespace\": m[\"namespace\"], \"name\": m[\"name\"], \"containers\": {}}\nnewest = {}\nfor c in crictl(\"ps\", \"-a\")[\"containers\"]:\n    pod = pods.get(c[\"podSandboxId\"])\n    if pod is None:\n        continue\n    key = (pod[\"metadata\"][\"uid\"], c[\"metadata\"][\"name\"])\n    if key not in newest or c[\"metadata\"][\"attempt\"] < newest[key][0]:\n        newest[key] = (c[\"metadata\"][\"attempt\"], c[\"id\"])\nfor (uid, name), (_, cid) in newest.items():\n    result[uid][\"containers\"][name] = cid\nprint(json.dumps(result))\nPY\nEOF\nchmod +x $W/pods.sh\nbash $W/pods.sh\n"
+  },
+  {
+    "case_id": "q69636534",
+    "category": "diagnostics",
+    "model": "wrong_a_snapshot_taken_when_the_script_was_written",
+    "code": "bash cases/diagnostics/q69636534/reference_solution.sh >/dev/null\nbash /tmp/bench69636534/pods.sh > /tmp/bench69636534/cache.json\nprintf '#!/bin/bash\\ncat /tmp/bench69636534/cache.json\\n' > /tmp/bench69636534/pods.sh\nchmod +x /tmp/bench69636534/pods.sh\ncat /tmp/bench69636534/cache.json\n"
+  },
+  {
+    "case_id": "q69636534",
+    "category": "diagnostics",
+    "model": "cheating_the_ids_of_this_node_are_written_into_the_script",
+    "code": "bash cases/diagnostics/q69636534/reference_solution.sh >/dev/null\nJSON=$(bash /tmp/bench69636534/pods.sh)\n{ echo '#!/bin/bash'; echo \"cat <<'EOF'\"; echo \"$JSON\"; echo EOF; } > /tmp/bench69636534/pods.sh\nchmod +x /tmp/bench69636534/pods.sh\necho \"$JSON\"\n"
+  },
+  {
+    "case_id": "q69636534",
+    "category": "diagnostics",
+    "model": "wrong_the_script_removes_the_stopped_pod_it_leaves_out",
+    "code": "bash cases/diagnostics/q69636534/reference_solution.sh >/dev/null\ncat >> /tmp/bench69636534/pods.sh <<'EOF'\n# tidy up: the stopped pods are of no use\nS=unix:///run/bench69636534/containerd/containerd.sock\nsudo crictl --runtime-endpoint $S --image-endpoint $S rmp $(sudo crictl --runtime-endpoint $S --image-endpoint $S pods --state NotReady -q) >/dev/null 2>&1\nEOF\nbash /tmp/bench69636534/pods.sh\n"
+  }
+]

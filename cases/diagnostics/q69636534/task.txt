@@ -1,0 +1,31 @@
+A Kubernetes node runs only containerd (no Docker daemon, no CRI-O); kubelet created its pods through containerd's CRI. A metrics agent on the node sees workloads only as the kubelet's identifiers: a pod UID and container IDs. To complete the metrics it has to turn them into the name and the namespace of the pod, and it must do that on the node itself: no kubectl, no Kubernetes API server (there is none here, and nothing on this machine may be reached over the network), no manifests stored elsewhere.
+
+The node's containerd has its own socket, /run/bench69636534/containerd/containerd.sock, and its namespace is k8s.io. ctr and the CRI client crictl are not configured for this node, so give them the socket on every call:
+
+    sudo ctr -a /run/bench69636534/containerd/containerd.sock -n k8s.io containers ls
+    sudo crictl --runtime-endpoint unix:///run/bench69636534/containerd/containerd.sock --image-endpoint unix:///run/bench69636534/containerd/containerd.sock pods
+
+The node holds several pods; some have the same name in different namespaces, some containers were restarted, some pods are not running any more. Their UIDs and the container IDs are random (they are not given here). The names of the Kubernetes namespaces in question are not containerd namespaces: they are the "namespace" of a pod in the Kubernetes sense.
+
+Your task is to write a shell script to /tmp/bench69636534/pods.sh that, run on this node, prints on stdout one JSON object: the pods that are running on the node (pod sandboxes in the state Ready; stopped pods are not part of the answer), keyed by the UID of the pod, each entry giving the namespace and the name of the pod and its containers:
+
+    {
+      "<pod uid>": {
+        "namespace": "<kubernetes namespace of the pod>",
+        "name": "<name of the pod>",
+        "containers": { "<container name>": "<full container id>", ... }
+      },
+      ...
+    }
+
+The containers of a pod are given by container name; for a container that was restarted (the kubelet numbers the instances of a container with the metadata field "attempt") the id of the current instance is given, the one with the highest attempt number, whatever its state. A pod without any container has an empty "containers" object. The example above shows the shape only.
+
+Requirements:
+
+1. The check runs your script as the current user, without a terminal and without input, compares what it prints on stdout (it has to be one JSON document and nothing else on stdout; stderr is ignored) with the real state of the node, and requires exactly the right set: every running pod, nothing else, each with the right namespace, name and containers. Then it starts a NEW pod on the node (the name, namespace, UID and container IDs are chosen by the check and are not known today) and runs your script again: the new pod has to be in the answer too. So the script must find everything itself, and must not contain any UID or ID of this node.
+2. Names and namespaces come from the metadata the kubelet gave the runtime, not from guesses: a pod's hostname or a container's name is not its pod's name, and the same pod name can exist in two namespaces.
+3. The script only reads: do not stop, remove, create or change any pod, container, image or configuration of the node's containerd, and do not stop, kill, restart or replace the containerd itself. You may use ctr and crictl (with sudo) to look, and to try the script.
+4. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo. python3 is available. Nothing may be downloaded.
+5. Your commands must finish by themselves: no interactive prompts, and no command that waits forever. The script must finish in well under a minute.
+
+Return the commands needed to complete the task (the commands that write the script; it is the script that is checked).
