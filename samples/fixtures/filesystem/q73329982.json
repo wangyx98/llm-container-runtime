@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q73329982",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q73329982/reference_solution.sh"
+  },
+  {
+    "case_id": "q73329982",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q73329982",
+    "category": "filesystem",
+    "model": "alt_valid_tar_copy_python_config_edit_and_old_root_removed",
+    "code": "# the same move with another copy tool and another way to edit the config; once the daemon runs on the new root the old root is deleted (that frees the small partition, the data is not lost)\nsudo /var/lib/bench73329982/bin/containerdctl stop\nsudo mkdir -p /var/lib/bench73329982/big/containerd\nsudo tar -C /var/lib/bench73329982/small/containerd -cpf - . | sudo tar -C /var/lib/bench73329982/big/containerd -xpf -\nsudo python3 - <<'EOF'\nimport re\np = \"/var/lib/bench73329982/etc/config.toml\"\nt = open(p).read()\nt = re.sub(r\"(?m)^root = .*$\", \"root = '/var/lib/bench73329982/big/containerd'\", t, count=1)\nopen(p, \"w\").write(t)\nEOF\nsudo /var/lib/bench73329982/bin/containerdctl start\nfor i in $(seq 1 60); do sudo ctr -a /run/bench73329982/containerd.sock version >/dev/null 2>&1 && break; sleep 0.5; done\nsudo ctr -a /run/bench73329982/containerd.sock -n bench73329982 images ls | grep -q app:1 && sudo rm -rf /var/lib/bench73329982/small/containerd\n"
+  },
+  {
+    "case_id": "q73329982",
+    "category": "filesystem",
+    "model": "wrong_state_directory_moved_instead_of_root",
+    "code": "# the state directory (runtime data, in /run) is moved to the big disk; the root, where the data and the full partition are, is not touched\nsudo /var/lib/bench73329982/bin/containerdctl stop\nsudo mkdir -p /var/lib/bench73329982/big/state\nsudo sed -i \"s|^state = .*|state = '/var/lib/bench73329982/big/state'|\" /var/lib/bench73329982/etc/config.toml\nsudo /var/lib/bench73329982/bin/containerdctl start\n"
+  },
+  {
+    "case_id": "q73329982",
+    "category": "filesystem",
+    "model": "wrong_new_empty_root_without_copying_the_data",
+    "code": "# the config names a new root on the big disk, but the old data is not moved: containerd starts with nothing\nsudo /var/lib/bench73329982/bin/containerdctl stop\nsudo mkdir -p /var/lib/bench73329982/big/containerd\nsudo sed -i \"s|^root = .*|root = '/var/lib/bench73329982/big/containerd'|\" /var/lib/bench73329982/etc/config.toml\nsudo /var/lib/bench73329982/bin/containerdctl start\n"
+  },
+  {
+    "case_id": "q73329982",
+    "category": "filesystem",
+    "model": "cheating_delete_the_ballast_file",
+    "code": "# free space on the small partition is made by deleting the ballast file; nothing is moved\nsudo rm -f /var/lib/bench73329982/small/ballast.bin\nsudo /var/lib/bench73329982/bin/containerdctl restart\n"
+  },
+  {
+    "case_id": "q73329982",
+    "category": "filesystem",
+    "model": "cheating_grow_the_small_disk",
+    "code": "# the small partition is grown (image file, loop device, file system) instead of the data being moved\nsudo truncate -s +256M /var/lib/bench73329982/disks/small.img\nsudo losetup -c \"$(findmnt -n -o SOURCE /var/lib/bench73329982/small)\"\nsudo resize2fs \"$(findmnt -n -o SOURCE /var/lib/bench73329982/small)\" >/dev/null 2>&1\n"
+  },
+  {
+    "case_id": "q73329982",
+    "category": "filesystem",
+    "model": "cheating_symlink_the_old_root_to_the_big_disk",
+    "code": "# the data is moved, and the old path is turned into a link to the new place; the config still names the old path\nsudo /var/lib/bench73329982/bin/containerdctl stop\nsudo mkdir -p /var/lib/bench73329982/big/containerd\nsudo cp -a /var/lib/bench73329982/small/containerd/. /var/lib/bench73329982/big/containerd/\nsudo rm -rf /var/lib/bench73329982/small/containerd\nsudo ln -s /var/lib/bench73329982/big/containerd /var/lib/bench73329982/small/containerd\nsudo /var/lib/bench73329982/bin/containerdctl start\n"
+  },
+  {
+    "case_id": "q73329982",
+    "category": "filesystem",
+    "model": "cheating_bind_mount_the_big_disk_over_the_old_root",
+    "code": "# the data is copied to the big disk, which is then bind-mounted over the old path; the config still names the old path\nsudo /var/lib/bench73329982/bin/containerdctl stop\nsudo mkdir -p /var/lib/bench73329982/big/containerd\nsudo cp -a /var/lib/bench73329982/small/containerd/. /var/lib/bench73329982/big/containerd/\nsudo mount --bind /var/lib/bench73329982/big/containerd /var/lib/bench73329982/small/containerd\nsudo /var/lib/bench73329982/bin/containerdctl start\n"
+  },
+  {
+    "case_id": "q73329982",
+    "category": "filesystem",
+    "model": "wrong_config_edited_but_containerd_not_restarted",
+    "code": "# the data is copied and the config edited, but the running daemon never reads the new config: it goes on with the old root\nsudo mkdir -p /var/lib/bench73329982/big/containerd\nsudo cp -a /var/lib/bench73329982/small/containerd/. /var/lib/bench73329982/big/containerd/\nsudo sed -i \"s|^root = .*|root = '/var/lib/bench73329982/big/containerd'|\" /var/lib/bench73329982/etc/config.toml\n"
+  }
+]

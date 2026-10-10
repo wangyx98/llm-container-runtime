@@ -1,0 +1,25 @@
+This machine is a node with its own containerd (no Docker daemon, no CRI-O). containerd is started and stopped with its control script, /var/lib/bench73329982/bin/containerdctl (start, stop, restart, status), which reads the config file /var/lib/bench73329982/etc/config.toml; its socket is /run/bench73329982/containerd.sock. Use ctr with that socket and the namespace bench73329982:
+
+    sudo ctr -a /run/bench73329982/containerd.sock -n bench73329982 images ls
+
+containerd keeps its persistent data (the content store, the snapshots with the writable layers of containers, the metadata of images and containers: the setting "root" of the config) in /var/lib/bench73329982/small/containerd, on the small partition of this node, which is mounted at /var/lib/bench73329982/small and is completely full. Anything that has to be written there fails; importing a new image, for example, ends with:
+
+    ctr: failed to ingest "index.json": failed to open writer: mkdir /var/lib/bench73329982/small/containerd/io.containerd.content.v1.content/ingest/...: no space left on device
+
+There is another disk with room, mounted at /var/lib/bench73329982/big. containerd holds the image bench73329982.local/app:1 and a stopped container, bench73329982-saved: it has run once, and the data it wrote is in its writable layer (the file /data/state.bin of the container). No container is running and no task exists, so nothing of containerd is mounted. A maintenance window is allowed: containerd may be stopped for as long as needed.
+
+Your task: move containerd's persistent data to the big disk and make containerd use it from there, so that nothing is lost and new data no longer goes to the small partition. The commands have to leave the node in this state:
+
+ - containerd runs, started with containerdctl, on the same socket as before, with the config file naming the new place on the big disk as its root;
+ - the image bench73329982.local/app:1 is there with the same digest and runs (a container can be run from it, no image is pulled: there is no registry), and the container bench73329982-saved is there with the same writable layer: when its task is started again it finds its data file;
+ - what is imported or run from now on (a new image, the writable layers of new containers) is written to the big disk.
+
+Requirements:
+
+1. Only the root is to change. The state directory of containerd (/run/bench73329982/state, runtime data), its socket address and the other settings stay as they are, and so does the control script containerdctl. It must be the setting "root" of the config that names the new location: the old path /var/lib/bench73329982/small/containerd is not to be turned into a symbolic link or a mount point of the big disk, and containerd must not be started by hand with a root given on its command line.
+2. The small partition stays what it is: it cannot be grown (the image file behind it and the size of its file system stay as they are), and the file ballast.bin on it, which keeps it full, is not to be deleted or changed. Freeing space on it in some other way is not what is asked. The big disk is not to be resized either.
+3. Nothing may be downloaded. The usual tools of the host are there (coreutils, util-linux, tar, sed, python3, and so on).
+4. The commands run without a terminal: stdin is not a TTY, nothing can be typed. Everything has to finish by itself, in a reasonable time.
+5. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.
