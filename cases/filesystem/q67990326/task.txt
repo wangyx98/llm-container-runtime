@@ -1,0 +1,26 @@
+This machine is a Kubernetes node that runs containerd (no Docker daemon, no CRI-O, no nerdctl) with the CRI plugin enabled. containerd is the one of this node, with its own socket /run/bench67990326/containerd.sock; it is started and stopped with /var/lib/bench67990326/bin/containerdctl, which you do not need and must not use. Its namespace is k8s.io. ctr and the CRI client crictl are not configured for this node, so give them the socket on every call:
+
+    sudo ctr -a /run/bench67990326/containerd.sock -n k8s.io containers ls
+    sudo crictl --runtime-endpoint unix:///run/bench67990326/containerd.sock --image-endpoint unix:///run/bench67990326/containerd.sock ps
+
+A pod, bench67990326-pod, runs one container, bench67990326-app: a service that, when it started, replaced the file /data/report.bin (8 MiB) by a new report, in the container's own writable filesystem, and keeps running (a line of its log, shown by crictl logs, is printed once a second). The container's image has no shell, no cat, no tar and no cp, and the container has no volume, so the file cannot be read out from inside the container, and the node has no copy of it. The image itself also holds a /data/report.bin: an older report, of the same size and the same name, that the service replaced.
+
+This is the "docker cp CONTAINER:PATH DEST" of containerd: there is no such command in ctr or crictl, and the thread everybody finds says "use ctr snapshots mounts"; run as it is, that command mounts nothing and the directory stays empty. Your task is to get files out of a running container to the node, with an entry point that can be used again:
+
+    sudo bash /tmp/bench67990326/cp.sh CONTAINER:PATH DEST
+
+CONTAINER is the name of a container of this node's containerd (for example bench67990326-app) or its ID, PATH is the absolute path of a regular file inside that container, and DEST is the destination file on the node (its parent directory exists). The container ID and the host pid are not given here, the script has to find them. Create /tmp/bench67990326/cp.sh, create the directory /tmp/bench67990326/out, and run the script once for the report:
+
+    sudo bash /tmp/bench67990326/cp.sh bench67990326-app:/data/report.bin /tmp/bench67990326/out/report.bin
+
+Requirements:
+
+1. /tmp/bench67990326/out/report.bin is a regular file (not a symlink, not a hard link, not a mount of the original) with exactly the size and the SHA-256 of the file as it is NOW in the running container: what the container has, not the older file of its image.
+2. The script is general: the check will make the application in the container write another file (a content and size you cannot know in advance) and update /data/report.bin in place, and it will run the script for them, giving the container once by its name and once by its ID, with destinations in other directories (one with a space in its name). Every copy has to be complete and current at that moment, not an older copy.
+3. The container stays what it is: the same container, the same main process (same host pid and start time), still running with its heartbeat going on; the original file in the container is untouched, and so are the image's layers. Do not stop, restart or recreate the container or the pod, and do not use kubectl (it is not there).
+4. Nothing is left behind: containerd has the same containers, images and snapshots as before (do not leave a snapshot or view that you created), and no mount of the container's file system remains on the node after the script has finished.
+5. Tools: the usual ones of the host (coreutils, util-linux, python3, and so on). Nothing may be downloaded.
+6. The script (and every command of your answer) runs without a terminal: stdin is not a TTY, nothing can be typed. cp.sh is run with sudo and has to finish by itself, with no interactive prompts and no command that waits forever.
+7. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.

@@ -1,0 +1,74 @@
+[
+  {
+    "case_id": "q67990326",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q67990326/reference_solution.sh"
+  },
+  {
+    "case_id": "q67990326",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q67990326",
+    "category": "filesystem",
+    "model": "alt_valid_proc_root_of_the_container_process",
+    "code": "# the root of the running container is visible from the node as /proc/<host pid>/root; the pid is in crictl inspect\nmkdir -p /tmp/bench67990326/out\ncat > /tmp/bench67990326/cp.sh <<'EOF'\n#!/bin/bash\nset -eu\nSOCK=/run/bench67990326/containerd.sock\nCRI=\"crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nCTR=\"ctr -a $SOCK -n k8s.io\"\nspec=$1 dest=$2\nname=${spec%%:*} src=${spec#*:}\nid=$($CRI ps -a -q --name \"^${name}\\$\" 2>/dev/null | head -1)\n[ -n \"$id\" ] || id=$($CRI ps -a -q --id \"$name\" 2>/dev/null | head -1)\n[ -n \"$id\" ] || { echo \"no container $name\" >&2; exit 1; }\npid=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$id\")\ncp -- \"/proc/$pid/root/${src#/}\" \"$dest\"\nEOF\nsudo bash /tmp/bench67990326/cp.sh bench67990326-app:/data/report.bin /tmp/bench67990326/out/report.bin\n"
+  },
+  {
+    "case_id": "q67990326",
+    "category": "filesystem",
+    "model": "wrong_view_of_the_image_layer_gives_the_old_report",
+    "code": "# a view of the snapshot the container was created from (the image's committed layer): clean, read-only, the right size... and the OLD report\nmkdir -p /tmp/bench67990326/out\ncat > /tmp/bench67990326/cp.sh <<'EOF'\n#!/bin/bash\nset -eu\nSOCK=/run/bench67990326/containerd.sock\nCRI=\"crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nCTR=\"ctr -a $SOCK -n k8s.io\"\nspec=$1 dest=$2\nname=${spec%%:*} src=${spec#*:}\nid=$($CRI ps -a -q --name \"^${name}\\$\" 2>/dev/null | head -1)\n[ -n \"$id\" ] || id=$($CRI ps -a -q --id \"$name\" 2>/dev/null | head -1)\n[ -n \"$id\" ] || { echo \"no container $name\" >&2; exit 1; }\nkey=$($CTR containers info \"$id\" | python3 -c 'import json,sys; print(json.load(sys.stdin)[\"SnapshotKey\"])')\nparent=$($CTR snapshots ls | awk -v k=\"$key\" '$1==k {print $2}')\nview=cp-view-$$\nmnt=$(mktemp -d /tmp/bench67990326/mnt.XXXXXX)\ncleanup() { umount \"$mnt\" 2>/dev/null || true; rmdir \"$mnt\" 2>/dev/null || true; $CTR snapshots rm \"$view\" >/dev/null 2>&1 || true; }\ntrap cleanup EXIT\n$CTR snapshots view \"$view\" \"$parent\" >/dev/null\n$($CTR snapshots mounts \"$mnt\" \"$view\") -o ro\ncp -- \"$mnt/${src#/}\" \"$dest\"\nEOF\nsudo bash /tmp/bench67990326/cp.sh bench67990326-app:/data/report.bin /tmp/bench67990326/out/report.bin\n"
+  },
+  {
+    "case_id": "q67990326",
+    "category": "filesystem",
+    "model": "wrong_script_copies_report_bin_whatever_it_is_asked",
+    "code": "# the destination is honoured, the source is not: always the report\nmkdir -p /tmp/bench67990326/out\ncat > /tmp/bench67990326/cp.sh <<'EOF'\n#!/bin/bash\nset -eu\nSOCK=/run/bench67990326/containerd.sock\nCRI=\"crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nCTR=\"ctr -a $SOCK -n k8s.io\"\nspec=$1 dest=$2\nname=${spec%%:*} src=${spec#*:}\nid=$($CRI ps -a -q --name \"^${name}\\$\" 2>/dev/null | head -1)\n[ -n \"$id\" ] || id=$($CRI ps -a -q --id \"$name\" 2>/dev/null | head -1)\n[ -n \"$id\" ] || { echo \"no container $name\" >&2; exit 1; }\npid=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$id\")\ncp -- \"/proc/$pid/root/data/report.bin\" \"$dest\"\nEOF\nsudo bash /tmp/bench67990326/cp.sh bench67990326-app:/data/report.bin /tmp/bench67990326/out/report.bin\n"
+  },
+  {
+    "case_id": "q67990326",
+    "category": "filesystem",
+    "model": "wrong_script_serves_the_copy_it_made_the_first_time",
+    "code": "# a copy is kept per path and reused: right the first time, stale after the application updated the file\nmkdir -p /tmp/bench67990326/out\ncat > /tmp/bench67990326/cp.sh <<'EOF'\n#!/bin/bash\nset -eu\nSOCK=/run/bench67990326/containerd.sock\nCRI=\"crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nCTR=\"ctr -a $SOCK -n k8s.io\"\nspec=$1 dest=$2\nname=${spec%%:*} src=${spec#*:}\nid=$($CRI ps -a -q --name \"^${name}\\$\" 2>/dev/null | head -1)\n[ -n \"$id\" ] || id=$($CRI ps -a -q --id \"$name\" 2>/dev/null | head -1)\n[ -n \"$id\" ] || { echo \"no container $name\" >&2; exit 1; }\npid=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$id\")\ncache=/tmp/bench67990326/cache-$(echo \"$id$src\" | sha256sum | cut -c1-16)\n[ -f \"$cache\" ] || cp -- \"/proc/$pid/root/${src#/}\" \"$cache\"\ncp -- \"$cache\" \"$dest\"\nEOF\nsudo bash /tmp/bench67990326/cp.sh bench67990326-app:/data/report.bin /tmp/bench67990326/out/report.bin\n"
+  },
+  {
+    "case_id": "q67990326",
+    "category": "filesystem",
+    "model": "wrong_script_knows_only_the_container_name",
+    "code": "# the container is looked up by name only; a container ID (docker cp takes both) is not found\nmkdir -p /tmp/bench67990326/out\ncat > /tmp/bench67990326/cp.sh <<'EOF'\n#!/bin/bash\nset -eu\nSOCK=/run/bench67990326/containerd.sock\nCRI=\"crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nCTR=\"ctr -a $SOCK -n k8s.io\"\nspec=$1 dest=$2\nname=${spec%%:*} src=${spec#*:}\nid=$($CRI ps -a -q --name \"^${name}\\$\" 2>/dev/null | head -1)\n[ -n \"$id\" ] || { echo \"no container $name\" >&2; exit 1; }\npid=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$id\")\ncp -- \"/proc/$pid/root/${src#/}\" \"$dest\"\nEOF\nsudo bash /tmp/bench67990326/cp.sh bench67990326-app:/data/report.bin /tmp/bench67990326/out/report.bin\n"
+  },
+  {
+    "case_id": "q67990326",
+    "category": "filesystem",
+    "model": "wrong_active_snapshot_mounted_and_left_mounted",
+    "code": "# the right snapshot, the right content, but the mount is never undone\nmkdir -p /tmp/bench67990326/out\ncat > /tmp/bench67990326/cp.sh <<'EOF'\n#!/bin/bash\nset -eu\nSOCK=/run/bench67990326/containerd.sock\nCRI=\"crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nCTR=\"ctr -a $SOCK -n k8s.io\"\nspec=$1 dest=$2\nname=${spec%%:*} src=${spec#*:}\nid=$($CRI ps -a -q --name \"^${name}\\$\" 2>/dev/null | head -1)\n[ -n \"$id\" ] || id=$($CRI ps -a -q --id \"$name\" 2>/dev/null | head -1)\n[ -n \"$id\" ] || { echo \"no container $name\" >&2; exit 1; }\nkey=$($CTR containers info \"$id\" | python3 -c 'import json,sys; print(json.load(sys.stdin)[\"SnapshotKey\"])')\nmnt=$(mktemp -d /tmp/bench67990326/mnt.XXXXXX)\n$($CTR snapshots mounts \"$mnt\" \"$key\") -o ro\ncp -- \"$mnt/${src#/}\" \"$dest\"\nEOF\nsudo bash /tmp/bench67990326/cp.sh bench67990326-app:/data/report.bin /tmp/bench67990326/out/report.bin\n"
+  },
+  {
+    "case_id": "q67990326",
+    "category": "filesystem",
+    "model": "cheating_move_the_file_out_of_the_container",
+    "code": "# mv instead of cp: the node gets the file and the container loses it\nmkdir -p /tmp/bench67990326/out\ncat > /tmp/bench67990326/cp.sh <<'EOF'\n#!/bin/bash\nset -eu\nSOCK=/run/bench67990326/containerd.sock\nCRI=\"crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nCTR=\"ctr -a $SOCK -n k8s.io\"\nspec=$1 dest=$2\nname=${spec%%:*} src=${spec#*:}\nid=$($CRI ps -a -q --name \"^${name}\\$\" 2>/dev/null | head -1)\n[ -n \"$id\" ] || id=$($CRI ps -a -q --id \"$name\" 2>/dev/null | head -1)\n[ -n \"$id\" ] || { echo \"no container $name\" >&2; exit 1; }\npid=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$id\")\nmv -- \"/proc/$pid/root/${src#/}\" \"$dest\"\nEOF\nsudo bash /tmp/bench67990326/cp.sh bench67990326-app:/data/report.bin /tmp/bench67990326/out/report.bin\n"
+  },
+  {
+    "case_id": "q67990326",
+    "category": "filesystem",
+    "model": "cheating_symlink_to_the_file_in_the_container_root",
+    "code": "# a link to the file in /proc/<pid>/root instead of a copy\nmkdir -p /tmp/bench67990326/out\ncat > /tmp/bench67990326/cp.sh <<'EOF'\n#!/bin/bash\nset -eu\nSOCK=/run/bench67990326/containerd.sock\nCRI=\"crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nCTR=\"ctr -a $SOCK -n k8s.io\"\nspec=$1 dest=$2\nname=${spec%%:*} src=${spec#*:}\nid=$($CRI ps -a -q --name \"^${name}\\$\" 2>/dev/null | head -1)\n[ -n \"$id\" ] || id=$($CRI ps -a -q --id \"$name\" 2>/dev/null | head -1)\n[ -n \"$id\" ] || { echo \"no container $name\" >&2; exit 1; }\npid=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$id\")\nln -sf -- \"/proc/$pid/root/${src#/}\" \"$dest\"\nEOF\nsudo bash /tmp/bench67990326/cp.sh bench67990326-app:/data/report.bin /tmp/bench67990326/out/report.bin\n"
+  },
+  {
+    "case_id": "q67990326",
+    "category": "filesystem",
+    "model": "wrong_the_thread_answer_as_it_is_mounts_nothing",
+    "code": "# 'ctr snapshots mounts DIR ID' only prints the mount command (and needs the snapshot key): nothing is mounted, the directory is empty\nmkdir -p /tmp/bench67990326/out\ncat > /tmp/bench67990326/cp.sh <<'EOF'\n#!/bin/bash\nset -eu\nSOCK=/run/bench67990326/containerd.sock\nCRI=\"crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nCTR=\"ctr -a $SOCK -n k8s.io\"\nspec=$1 dest=$2\nname=${spec%%:*} src=${spec#*:}\nid=$($CRI ps -a -q --name \"^${name}\\$\" 2>/dev/null | head -1)\n[ -n \"$id\" ] || id=$($CRI ps -a -q --id \"$name\" 2>/dev/null | head -1)\n[ -n \"$id\" ] || { echo \"no container $name\" >&2; exit 1; }\nmnt=$(mktemp -d /tmp/bench67990326/mnt.XXXXXX)\nctr -a $SOCK -n k8s.io snapshots mounts \"$mnt\" \"$id\" >/dev/null\ncp -- \"$mnt/${src#/}\" \"$dest\"\nEOF\nsudo bash /tmp/bench67990326/cp.sh bench67990326-app:/data/report.bin /tmp/bench67990326/out/report.bin\n"
+  },
+  {
+    "case_id": "q67990326",
+    "category": "filesystem",
+    "model": "wrong_correct_copy_but_a_snapshot_view_is_left_behind",
+    "code": "# the copy is right (from the root of the container), but a view of the image layer is created on the way and never removed\n# the root of the running container is visible from the node as /proc/<host pid>/root; the pid is in crictl inspect\nmkdir -p /tmp/bench67990326/out\ncat > /tmp/bench67990326/cp.sh <<'EOF'\n#!/bin/bash\nset -eu\nSOCK=/run/bench67990326/containerd.sock\nCRI=\"crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nCTR=\"ctr -a $SOCK -n k8s.io\"\nspec=$1 dest=$2\nname=${spec%%:*} src=${spec#*:}\nid=$($CRI ps -a -q --name \"^${name}\\$\" 2>/dev/null | head -1)\n[ -n \"$id\" ] || id=$($CRI ps -a -q --id \"$name\" 2>/dev/null | head -1)\n[ -n \"$id\" ] || { echo \"no container $name\" >&2; exit 1; }\npid=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$id\")\nkey=$($CTR containers info \"$id\" | python3 -c 'import json,sys; print(json.load(sys.stdin)[\"SnapshotKey\"])')\nparent=$($CTR snapshots ls | awk -v k=\"$key\" '$1==k {print $2}')\n$CTR snapshots view \"cp-view-$id\" \"$parent\" >/dev/null 2>&1 || true      # a view to \"look at the image\", never removed\ncp -- \"/proc/$pid/root/${src#/}\" \"$dest\"\nEOF\nsudo bash /tmp/bench67990326/cp.sh bench67990326-app:/data/report.bin /tmp/bench67990326/out/report.bin\n"
+  }
+]
