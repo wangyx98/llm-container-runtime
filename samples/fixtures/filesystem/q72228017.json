@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q72228017",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q72228017/reference_solution.sh"
+  },
+  {
+    "case_id": "q72228017",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q72228017",
+    "category": "filesystem",
+    "model": "alt_valid_crictl_exec_stdin_into_tee",
+    "code": "# the way of the thread: stream the file into a process of the container (here its /bin/tee) with crictl exec -i\nSOCK=/run/bench72228017/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nID=$($CRI ps -q --name '^bench72228017-app$' --state running)\nPID=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$ID\")\nF=/tmp/bench72228017/test.txt\n$CRI exec -i \"$ID\" /bin/tee /data/test.txt < \"$F\" > /dev/null\n"
+  },
+  {
+    "case_id": "q72228017",
+    "category": "filesystem",
+    "model": "alt_valid_bundle_rootfs_path_of_the_container",
+    "code": "# the root file system of the container as containerd keeps it on the node (the bundle's rootfs), a plain copy\nSOCK=/run/bench72228017/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nID=$($CRI ps -q --name '^bench72228017-app$' --state running)\nPID=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$ID\")\nF=/tmp/bench72228017/test.txt\nsudo cp \"$F\" \"/run/bench72228017/io.containerd.runtime.v2.task/k8s.io/$ID/rootfs/data/test.txt\"\n"
+  },
+  {
+    "case_id": "q72228017",
+    "category": "filesystem",
+    "model": "wrong_host_bind_mount_onto_the_bundle_rootfs",
+    "code": "# a bind mount made on the node, on the container's directory in the bundle: the node sees the file there, the container's own mount namespace never gets the mount\nSOCK=/run/bench72228017/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nID=$($CRI ps -q --name '^bench72228017-app$' --state running)\nPID=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$ID\")\nF=/tmp/bench72228017/test.txt\nsudo mount --bind /tmp/bench72228017 \"/run/bench72228017/io.containerd.runtime.v2.task/k8s.io/$ID/rootfs/data\"\n"
+  },
+  {
+    "case_id": "q72228017",
+    "category": "filesystem",
+    "model": "wrong_truncated_copy",
+    "code": "# only the first 100000 bytes are copied\nSOCK=/run/bench72228017/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nID=$($CRI ps -q --name '^bench72228017-app$' --state running)\nPID=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$ID\")\nF=/tmp/bench72228017/test.txt\nsudo sh -c \"head -c 100000 \\\"$F\\\" > /proc/$PID/root/data/test.txt\"\n"
+  },
+  {
+    "case_id": "q72228017",
+    "category": "filesystem",
+    "model": "cheating_recreate_the_container_with_the_file_mounted",
+    "code": "# the container is removed and created again with the host file mounted at /data/test.txt: a different container, a different process\nSOCK=/run/bench72228017/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nID=$($CRI ps -q --name '^bench72228017-app$' --state running)\nPID=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$ID\")\nF=/tmp/bench72228017/test.txt\nPOD=$(cat /tmp/bench72228017/.bench/pod_id)\npython3 - <<'EOF'\nimport json\nc = json.load(open(\"/tmp/bench72228017/bench72228017-app.json\"))\nc[\"mounts\"] = [{\"container_path\": \"/data/test.txt\", \"host_path\": \"/tmp/bench72228017/test.txt\", \"readonly\": True}]\njson.dump(c, open(\"/tmp/bench72228017/bench72228017-app-again.json\", \"w\"))\nEOF\n$CRI stop \"$ID\" >/dev/null; $CRI rm \"$ID\" >/dev/null\nNEW=$($CRI create \"$POD\" /tmp/bench72228017/bench72228017-app-again.json /tmp/bench72228017/pod.json)\n$CRI start \"$NEW\"\n"
+  },
+  {
+    "case_id": "q72228017",
+    "category": "filesystem",
+    "model": "cheating_write_the_file_into_a_layer_of_the_image",
+    "code": "# the file is put into the (read-only) layer of the image the container is made of, found in its mount table: it becomes part of the image\nSOCK=/run/bench72228017/containerd.sock\nCRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nID=$($CRI ps -q --name '^bench72228017-app$' --state running)\nPID=$($CRI inspect -o go-template --template '{{.info.pid}}' \"$ID\")\nF=/tmp/bench72228017/test.txt\nLOWER=$(sudo awk '$5==\"/\" {print $NF; exit}' /proc/$PID/mountinfo | sed -n 's/.*lowerdir=\\([^,:]*\\).*/\\1/p')\nsudo cp \"$F\" \"$LOWER/data/test.txt\"\n"
+  }
+]

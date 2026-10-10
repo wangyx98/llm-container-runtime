@@ -1,0 +1,23 @@
+This machine is a Kubernetes node that runs containerd (no Docker daemon, no CRI-O) with the CRI plugin enabled. containerd is the one of this node, with its own socket /run/bench72228017/containerd.sock; it is started and stopped with /var/lib/bench72228017/bin/containerdctl, which you do not need and must not use. The CRI client is crictl; it is not configured for this node, so give it the socket on every call:
+
+    sudo crictl --runtime-endpoint unix:///run/bench72228017/containerd.sock --image-endpoint unix:///run/bench72228017/containerd.sock ps
+
+A pod, bench72228017-pod, runs one container, bench72228017-app, which is running now: a service that prints a line once a second (crictl logs shows it) with a heartbeat counter, its pid, and the SHA-256 of the file /data/test.txt as it reads it from inside the container (data=none while the file does not exist). The image of the container contains the service and nothing else: its program is also installed as /bin/tee and /bin/sha256sum (the SHA-256 of a file), there is an empty directory /data, and there is no shell, no cat, no cp. The container has no volume: the node's files are not mounted into it.
+
+The node has a file that has to get into the container:
+
+    /tmp/bench72228017/test.txt
+
+Your task: copy that file from the node into the running container, so that it is /data/test.txt in the container. There is no "docker cp" here and no kubectl; ctr and crictl have no command for it either, so find a way that works with containerd.
+
+Requirements:
+
+1. Inside the container, /data/test.txt must have exactly the content of the node's file (the same SHA-256). A new process of the container (crictl exec ... /bin/sha256sum /data/test.txt) must see it, and so must the service itself, the original process (its log line shows the SHA-256 of the file it reads).
+2. The container stays what it is: the same container, the same main process (same host pid and start time), still running with its heartbeat going on. It must not be stopped, restarted or recreated (not even to give it a mount of the file or "the same container, again"), and the pod must not be recreated either.
+3. The image is not to be rebuilt, modified or replaced, and no image or container is to be added to or removed from containerd: the file is to go into the running container's own file system, not into the image (the layers of the image stay exactly as they are).
+4. The node's file is not to be moved, changed or deleted.
+5. Tools: the usual ones of the host (coreutils, util-linux, python3, and so on). Nothing may be downloaded.
+6. The commands run without a terminal: stdin is not a TTY, nothing can be typed. Everything has to finish by itself.
+7. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.
