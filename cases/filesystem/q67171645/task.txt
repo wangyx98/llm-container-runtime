@@ -1,0 +1,22 @@
+This machine hosts a Kubernetes node that is being reset: everything that runs on the node's containerd is to be thrown away, and you are authorized to do so. The node's containerd (no Docker daemon, no CRI-O, no nerdctl; the CRI plugin is enabled) has its own socket, /run/bench67171645/containerd/containerd.sock; you must not stop, kill, restart or replace it. Its namespace is k8s.io. ctr and the CRI client crictl are not configured for this node, so give them the socket on every call:
+
+    sudo ctr -a /run/bench67171645/containerd/containerd.sock -n k8s.io containers ls
+    sudo crictl --runtime-endpoint unix:///run/bench67171645/containerd/containerd.sock --image-endpoint unix:///run/bench67171645/containerd/containerd.sock ps -a
+
+The node is in this state: two pods, bench67171645-pod (with the running workload container bench67171645-app, a service that writes a heartbeat line once a second to its log, and bench67171645-job, a one-shot container that has finished) and bench67171645-pod-idle (a pod sandbox without any container); and four images in k8s.io (one of them, bench67171645.local/unused, has two names), each with 3 MiB of data in its layer, among them the sandbox ("pause") image of the pods. Nothing on this node has to be kept, and the running workload may be stopped.
+
+The engineer's question is the one of the thread: "what is the containerd equivalent of docker rm -vf $(docker ps -a -q) and docker rmi -f $(docker images -a -q)?". The answer people give is ctr -n k8s.io c rm $(ctr -n k8s.io c ls -q) and ctr -n k8s.io i rm $(ctr -n k8s.io i ls -q); run on this node, that does not leave it empty.
+
+Your task: empty the node's containerd: remove all the pods, all the containers (running ones included) and all the images, so that the node's CRI and its namespace k8s.io hold nothing, and give back the disk space that the images used. The node's containerd itself must go on running and be usable afterwards.
+
+Requirements:
+
+1. When your commands have finished, the node's CRI lists no pod sandbox (stopped ones included), no container and no image (the sandbox image included), and containerd's own k8s.io (and any other namespace of this daemon) has no image, no container, no task, no snapshot and no mount left; the workload's process is gone.
+2. The space is given back: the blobs of the removed images are no longer in containerd's content store (containerd's garbage collection has run; the check allows it some seconds).
+3. The node's containerd is not stopped, killed, restarted or replaced, its configuration is not changed, and its data directory is not deleted or emptied behind its back (do not rm -rf its root or state): after your commands, a new image can be imported into it and a new pod and container started from it through the CRI, which the check does by itself.
+4. There is another containerd on this machine, a different daemon with its own sockets and directories (they are not given here), that is not part of this node: do not touch it, its image, its containers or its processes, and do not stop or kill any containerd process by name or pattern. Everything you do goes through the socket given above.
+5. The check discovers nothing from your output: only the state of the node counts. Tools: ctr and crictl against the node's containerd, plus ordinary shell commands. Nothing may be downloaded.
+6. The commands run without a terminal: stdin is not a TTY, nothing can be typed. Everything has to finish by itself.
+7. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.

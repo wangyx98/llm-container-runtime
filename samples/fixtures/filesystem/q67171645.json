@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q67171645",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q67171645/reference_solution.sh"
+  },
+  {
+    "case_id": "q67171645",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q67171645",
+    "category": "filesystem",
+    "model": "alt_valid_crictl_for_pods_and_containers_ctr_for_the_images",
+    "code": "# containers and pods through the CRI; the images with ctr, synchronously (the garbage collection runs before it returns)\nCRI=\"sudo crictl --runtime-endpoint unix:///run/bench67171645/containerd/containerd.sock --image-endpoint unix:///run/bench67171645/containerd/containerd.sock\"\nCONTAINERS=$($CRI ps -a -q); [ -z \"$CONTAINERS\" ] || $CRI rm -f $CONTAINERS\nPODS=$($CRI pods -q); [ -z \"$PODS\" ] || $CRI rmp -f $PODS\nsudo ctr -a /run/bench67171645/containerd/containerd.sock -n k8s.io images rm --sync $(sudo ctr -a /run/bench67171645/containerd/containerd.sock -n k8s.io images ls -q)\n"
+  },
+  {
+    "case_id": "q67171645",
+    "category": "filesystem",
+    "model": "wrong_the_thread_answer_as_it_is",
+    "code": "# ctr c rm and ctr i rm, as in the thread (with the socket of the node): the running workload cannot be deleted, the sandboxes are in the list\nsudo ctr -a /run/bench67171645/containerd/containerd.sock -n k8s.io c rm $(sudo ctr -a /run/bench67171645/containerd/containerd.sock -n k8s.io c ls -q)\nsudo ctr -a /run/bench67171645/containerd/containerd.sock -n k8s.io i rm $(sudo ctr -a /run/bench67171645/containerd/containerd.sock -n k8s.io i ls -q)\n"
+  },
+  {
+    "case_id": "q67171645",
+    "category": "filesystem",
+    "model": "wrong_ctr_only_in_dependency_order_the_cri_still_lists_everything",
+    "code": "# tasks killed and deleted, containers deleted, images removed: containerd is empty, but the CRI was never told (it still lists the pods\n# as NotReady and the containers as Exited)\nfor t in $(sudo ctr -a /run/bench67171645/containerd/containerd.sock -n k8s.io tasks ls -q); do sudo ctr -a /run/bench67171645/containerd/containerd.sock -n k8s.io tasks kill -s SIGKILL $t; done\nsleep 2\nfor t in $(sudo ctr -a /run/bench67171645/containerd/containerd.sock -n k8s.io tasks ls -q); do sudo ctr -a /run/bench67171645/containerd/containerd.sock -n k8s.io tasks delete $t; done\nfor c in $(sudo ctr -a /run/bench67171645/containerd/containerd.sock -n k8s.io c ls -q); do sudo ctr -a /run/bench67171645/containerd/containerd.sock -n k8s.io c rm $c; done\nsudo ctr -a /run/bench67171645/containerd/containerd.sock -n k8s.io images rm --sync $(sudo ctr -a /run/bench67171645/containerd/containerd.sock -n k8s.io images ls -q)\n"
+  },
+  {
+    "case_id": "q67171645",
+    "category": "filesystem",
+    "model": "wrong_containers_and_pods_removed_but_the_images_stay",
+    "code": "# the thread's first half only, through the CRI: no image is removed\nCRI=\"sudo crictl --runtime-endpoint unix:///run/bench67171645/containerd/containerd.sock --image-endpoint unix:///run/bench67171645/containerd/containerd.sock\"\nCONTAINERS=$($CRI ps -a -q); [ -z \"$CONTAINERS\" ] || $CRI rm -f $CONTAINERS\nPODS=$($CRI pods -q); [ -z \"$PODS\" ] || $CRI rmp -f $PODS\n"
+  },
+  {
+    "case_id": "q67171645",
+    "category": "filesystem",
+    "model": "wrong_everything_removed_except_the_sandbox_image",
+    "code": "# all the images but the pause image (grep -v pause), as if the sandbox image had to stay\nCRI=\"sudo crictl --runtime-endpoint unix:///run/bench67171645/containerd/containerd.sock --image-endpoint unix:///run/bench67171645/containerd/containerd.sock\"\nCONTAINERS=$($CRI ps -a -q); [ -z \"$CONTAINERS\" ] || $CRI rm -f $CONTAINERS\nPODS=$($CRI pods -q); [ -z \"$PODS\" ] || $CRI rmp -f $PODS\nsudo crictl --runtime-endpoint unix:///run/bench67171645/containerd/containerd.sock --image-endpoint unix:///run/bench67171645/containerd/containerd.sock images | awk 'NR>1 && $1 !~ /pause/ {print $1\":\"$2}' | xargs -r sudo crictl --runtime-endpoint unix:///run/bench67171645/containerd/containerd.sock --image-endpoint unix:///run/bench67171645/containerd/containerd.sock rmi\n"
+  },
+  {
+    "case_id": "q67171645",
+    "category": "filesystem",
+    "model": "wrong_wipes_every_containerd_it_finds",
+    "code": "# every socket below /run/bench67171645 is wiped, the other containerd's too (its own container goes)\nfor SOCK in $(sudo find /run/bench67171645 -name containerd.sock); do\n    C=\"sudo ctr -a $SOCK -n k8s.io\"\n    CRI=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\n    ids=$($CRI ps -a -q 2>/dev/null); [ -z \"$ids\" ] || $CRI rm -f $ids\n    ids=$($CRI pods -q 2>/dev/null); [ -z \"$ids\" ] || $CRI rmp -f $ids\n    for t in $($C tasks ls -q); do $C tasks kill -s SIGKILL $t; done; sleep 1\n    for t in $($C tasks ls -q); do $C tasks delete $t; done\n    for c in $($C c ls -q); do $C c rm $c; done\n    $C images rm --sync $($C images ls -q) 2>/dev/null || true\ndone\n"
+  },
+  {
+    "case_id": "q67171645",
+    "category": "filesystem",
+    "model": "cheating_kill_the_containerd_and_delete_its_data",
+    "code": "# the classic reset: stop the daemon, delete everything it keeps (it is not started again: that is not allowed)\nsudo kill $(sudo cat /run/bench67171645/containerd.pid) || true\nsleep 2\nsudo rm -rf /var/lib/bench67171645/containerd /run/bench67171645/containerd\n"
+  },
+  {
+    "case_id": "q67171645",
+    "category": "filesystem",
+    "model": "cheating_delete_the_data_directory_of_the_running_daemon",
+    "code": "# the daemon stays up, but its data is deleted behind its back\nCRI=\"sudo crictl --runtime-endpoint unix:///run/bench67171645/containerd/containerd.sock --image-endpoint unix:///run/bench67171645/containerd/containerd.sock\"\nCONTAINERS=$($CRI ps -a -q); [ -z \"$CONTAINERS\" ] || $CRI rm -f $CONTAINERS\nPODS=$($CRI pods -q); [ -z \"$PODS\" ] || $CRI rmp -f $PODS\nsudo rm -rf /var/lib/bench67171645/containerd/*\n"
+  }
+]
