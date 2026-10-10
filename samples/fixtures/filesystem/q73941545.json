@@ -1,0 +1,68 @@
+[
+  {
+    "case_id": "q73941545",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q73941545/reference_solution.sh"
+  },
+  {
+    "case_id": "q73941545",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q73941545",
+    "category": "filesystem",
+    "model": "alt_valid_socket_found_at_each_call_with_environment_variables",
+    "code": "# the same query, but the socket of K3s is looked up in the process list at every call and ctr is configured with CONTAINERD_ADDRESS / CONTAINERD_NAMESPACE\nmkdir -p /tmp/bench73941545\ncat > /tmp/bench73941545/lookup.sh <<'EOF'\n#!/bin/bash\nSOCK=$(pgrep -ax containerd | sed -n 's/.* -a \\([^ ]*\\).*/\\1/p' | head -1)\n[ -S \"$SOCK\" ] || { echo \"the K3s containerd was not found\" >&2; exit 1; }\nexport CONTAINERD_ADDRESS=$SOCK CONTAINERD_NAMESPACE=k8s.io\ncase \"$1\" in\n    image)\n        d=$(ctr images ls 2>/dev/null | awk -v r=\"$2\" '$1 == r { print $3; exit }')\n        [ -n \"$d\" ] || exit 1\n        echo \"$d\"\n        ;;\n    container)\n        ctr containers ls -q 2>/dev/null | grep -qxF -- \"$2\" || exit 1\n        ctr tasks ls 2>/dev/null | awk -v c=\"$2\" '$1 == c && $3 == \"RUNNING\" { f = 1 } END { print (f ? \"running\" : \"stopped\") }'\n        ;;\n    *) exit 2 ;;\nesac\nEOF\nsudo bash /tmp/bench73941545/lookup.sh image bench73941545.local/app:1\nCID=$(sudo crictl --runtime-endpoint unix:///run/bench73941545/k3s/containerd/containerd.sock --image-endpoint unix:///run/bench73941545/k3s/containerd/containerd.sock ps -q --name '^bench73941545-app$')\nsudo bash /tmp/bench73941545/lookup.sh container \"$CID\"\n"
+  },
+  {
+    "case_id": "q73941545",
+    "category": "filesystem",
+    "model": "wrong_node_containerd_with_the_cri_namespace",
+    "code": "# the right namespace (k8s.io), but in the node's own containerd: there is nothing there\nmkdir -p /tmp/bench73941545\ncat > /tmp/bench73941545/lookup.sh <<'EOF'\n#!/bin/bash\nSOCK=/run/bench73941545/containerd/containerd.sock\nCTR=\"ctr -a $SOCK -n k8s.io\"\ncase \"$1\" in\n    image)\n        d=$($CTR images ls 2>/dev/null | awk -v r=\"$2\" '$1 == r { print $3; exit }')\n        [ -n \"$d\" ] || { echo \"no image $2\" >&2; exit 1; }\n        echo \"$d\"\n        ;;\n    container)\n        $CTR containers ls -q 2>/dev/null | grep -qxF -- \"$2\" || { echo \"no container $2\" >&2; exit 1; }\n        if [ \"$($CTR tasks ls 2>/dev/null | awk -v c=\"$2\" '$1 == c { print $3 }')\" = RUNNING ]; then echo running; else echo stopped; fi\n        ;;\n    *) echo \"usage: lookup.sh image REF | container ID\" >&2; exit 2 ;;\nesac\nEOF\nsudo bash /tmp/bench73941545/lookup.sh image bench73941545.local/app:1\nCID=$(sudo crictl --runtime-endpoint unix:///run/bench73941545/k3s/containerd/containerd.sock --image-endpoint unix:///run/bench73941545/k3s/containerd/containerd.sock ps -q --name '^bench73941545-app$')\nsudo bash /tmp/bench73941545/lookup.sh container \"$CID\"\n"
+  },
+  {
+    "case_id": "q73941545",
+    "category": "filesystem",
+    "model": "wrong_k3s_containerd_default_namespace",
+    "code": "# the right daemon, but ctr's default namespace: the CRI keeps its objects in k8s.io\nmkdir -p /tmp/bench73941545\ncat > /tmp/bench73941545/lookup.sh <<'EOF'\n#!/bin/bash\nSOCK=/run/bench73941545/k3s/containerd/containerd.sock\nCTR=\"ctr -a $SOCK\"\ncase \"$1\" in\n    image)\n        d=$($CTR images ls 2>/dev/null | awk -v r=\"$2\" '$1 == r { print $3; exit }')\n        [ -n \"$d\" ] || { echo \"no image $2\" >&2; exit 1; }\n        echo \"$d\"\n        ;;\n    container)\n        $CTR containers ls -q 2>/dev/null | grep -qxF -- \"$2\" || { echo \"no container $2\" >&2; exit 1; }\n        if [ \"$($CTR tasks ls 2>/dev/null | awk -v c=\"$2\" '$1 == c { print $3 }')\" = RUNNING ]; then echo running; else echo stopped; fi\n        ;;\n    *) echo \"usage: lookup.sh image REF | container ID\" >&2; exit 2 ;;\nesac\nEOF\nsudo bash /tmp/bench73941545/lookup.sh image bench73941545.local/app:1\nCID=$(sudo crictl --runtime-endpoint unix:///run/bench73941545/k3s/containerd/containerd.sock --image-endpoint unix:///run/bench73941545/k3s/containerd/containerd.sock ps -q --name '^bench73941545-app$')\nsudo bash /tmp/bench73941545/lookup.sh container \"$CID\"\n"
+  },
+  {
+    "case_id": "q73941545",
+    "category": "filesystem",
+    "model": "cheating_copy_k3s_images_into_the_node_containerd",
+    "code": "# the images of K3s are exported and imported into the node's containerd, which makes ctr there \"discover\" them; the query asks that daemon\nsudo ctr -a /run/bench73941545/k3s/containerd/containerd.sock -n k8s.io images export /tmp/bench73941545-copy.tar bench73941545.local/app:1 bench73941545.local/pause:1 >/dev/null 2>&1\nsudo ctr -a /run/bench73941545/containerd/containerd.sock -n k8s.io images import /tmp/bench73941545-copy.tar >/dev/null 2>&1\nmkdir -p /tmp/bench73941545\ncat > /tmp/bench73941545/lookup.sh <<'EOF'\n#!/bin/bash\nSOCK=/run/bench73941545/containerd/containerd.sock\nCTR=\"ctr -a $SOCK -n k8s.io\"\ncase \"$1\" in\n    image)\n        d=$($CTR images ls 2>/dev/null | awk -v r=\"$2\" '$1 == r { print $3; exit }')\n        [ -n \"$d\" ] || { echo \"no image $2\" >&2; exit 1; }\n        echo \"$d\"\n        ;;\n    container)\n        $CTR containers ls -q 2>/dev/null | grep -qxF -- \"$2\" || { echo \"no container $2\" >&2; exit 1; }\n        if [ \"$($CTR tasks ls 2>/dev/null | awk -v c=\"$2\" '$1 == c { print $3 }')\" = RUNNING ]; then echo running; else echo stopped; fi\n        ;;\n    *) echo \"usage: lookup.sh image REF | container ID\" >&2; exit 2 ;;\nesac\nEOF\nsudo bash /tmp/bench73941545/lookup.sh image bench73941545.local/app:1\nCID=$(sudo crictl --runtime-endpoint unix:///run/bench73941545/k3s/containerd/containerd.sock --image-endpoint unix:///run/bench73941545/k3s/containerd/containerd.sock ps -q --name '^bench73941545-app$')\nsudo bash /tmp/bench73941545/lookup.sh container \"$CID\"\n"
+  },
+  {
+    "case_id": "q73941545",
+    "category": "filesystem",
+    "model": "cheating_hardcoded_answers_of_what_exists_now",
+    "code": "# the digest and the state seen now are written into the script: it cannot know anything about the objects of the check\nmkdir -p /tmp/bench73941545\nDG=$(sudo ctr -a /run/bench73941545/k3s/containerd/containerd.sock -n k8s.io images ls 2>/dev/null | awk '$1 == \"bench73941545.local/app:1\" { print $3 }')\ncat > /tmp/bench73941545/lookup.sh <<EOF\n#!/bin/bash\ncase \"\\$1\" in\n    image) [ \"\\$2\" = bench73941545.local/app:1 ] || exit 1; echo \"$DG\" ;;\n    container) echo running ;;\n    *) exit 2 ;;\nesac\nEOF\nsudo bash /tmp/bench73941545/lookup.sh image bench73941545.local/app:1\nCID=$(sudo crictl --runtime-endpoint unix:///run/bench73941545/k3s/containerd/containerd.sock --image-endpoint unix:///run/bench73941545/k3s/containerd/containerd.sock ps -q --name '^bench73941545-app$')\nsudo bash /tmp/bench73941545/lookup.sh container \"$CID\"\n"
+  },
+  {
+    "case_id": "q73941545",
+    "category": "filesystem",
+    "model": "wrong_node_containerd_first_then_k3s",
+    "code": "# the node's containerd is asked first (both of its namespaces), K3s's only if nothing is found there: right while the node's containerd is empty\nmkdir -p /tmp/bench73941545\ncat > /tmp/bench73941545/lookup.sh <<'EOF'\n#!/bin/bash\nask() {   # $1 = socket, $2 = namespace\n    ctr -a \"$1\" -n \"$2\" images ls 2>/dev/null | awk -v r=\"$IMG\" '$1 == r { print $3; exit }'\n}\nD=/run/bench73941545/containerd/containerd.sock\nK=/run/bench73941545/k3s/containerd/containerd.sock\ncase \"$1\" in\n    image)\n        IMG=$2\n        d=$(ask $D default); [ -n \"$d\" ] || d=$(ask $D k8s.io); [ -n \"$d\" ] || d=$(ask $K k8s.io)\n        [ -n \"$d\" ] || exit 1\n        echo \"$d\"\n        ;;\n    container)\n        for s in $D $K; do\n            if ctr -a $s -n k8s.io containers ls -q 2>/dev/null | grep -qxF -- \"$2\"; then\n                if [ \"$(ctr -a $s -n k8s.io tasks ls 2>/dev/null | awk -v c=\"$2\" '$1 == c { print $3 }')\" = RUNNING ]; then echo running; else echo stopped; fi\n                exit 0\n            fi\n        done\n        exit 1\n        ;;\n    *) exit 2 ;;\nesac\nEOF\nsudo bash /tmp/bench73941545/lookup.sh image bench73941545.local/app:1\nCID=$(sudo crictl --runtime-endpoint unix:///run/bench73941545/k3s/containerd/containerd.sock --image-endpoint unix:///run/bench73941545/k3s/containerd/containerd.sock ps -q --name '^bench73941545-app$')\nsudo bash /tmp/bench73941545/lookup.sh container \"$CID\"\n"
+  },
+  {
+    "case_id": "q73941545",
+    "category": "filesystem",
+    "model": "wrong_existing_container_is_reported_running",
+    "code": "# a container that exists is reported as running, whatever its task does\nmkdir -p /tmp/bench73941545\ncat > /tmp/bench73941545/lookup.sh <<'EOF'\n#!/bin/bash\nSOCK=/run/bench73941545/k3s/containerd/containerd.sock\nCTR=\"ctr -a $SOCK -n k8s.io\"\ncase \"$1\" in\n    image)\n        d=$($CTR images ls 2>/dev/null | awk -v r=\"$2\" '$1 == r { print $3; exit }')\n        [ -n \"$d\" ] || exit 1\n        echo \"$d\"\n        ;;\n    container)\n        $CTR containers ls -q 2>/dev/null | grep -qxF -- \"$2\" || exit 1\n        echo running\n        ;;\n    *) exit 2 ;;\nesac\nEOF\nsudo bash /tmp/bench73941545/lookup.sh image bench73941545.local/app:1\nCID=$(sudo crictl --runtime-endpoint unix:///run/bench73941545/k3s/containerd/containerd.sock --image-endpoint unix:///run/bench73941545/k3s/containerd/containerd.sock ps -q --name '^bench73941545-app$')\nsudo bash /tmp/bench73941545/lookup.sh container \"$CID\"\n"
+  },
+  {
+    "case_id": "q73941545",
+    "category": "filesystem",
+    "model": "wrong_unknown_names_exit_with_zero",
+    "code": "# right daemon, right namespace, right answers for what exists; but for a name that exists nowhere the script prints nothing and exits with 0\nmkdir -p /tmp/bench73941545\ncat > /tmp/bench73941545/lookup.sh <<'EOF'\n#!/bin/bash\nSOCK=/run/bench73941545/k3s/containerd/containerd.sock\nCTR=\"ctr -a $SOCK -n k8s.io\"\ncase \"$1\" in\n    image)\n        $CTR images ls 2>/dev/null | awk -v r=\"$2\" '$1 == r { print $3; exit }'\n        exit 0\n        ;;\n    container)\n        if $CTR containers ls -q 2>/dev/null | grep -qxF -- \"$2\"; then\n            if [ \"$($CTR tasks ls 2>/dev/null | awk -v c=\"$2\" '$1 == c { print $3 }')\" = RUNNING ]; then echo running; else echo stopped; fi\n        fi\n        exit 0\n        ;;\n    *) exit 2 ;;\nesac\nEOF\nsudo bash /tmp/bench73941545/lookup.sh image bench73941545.local/app:1\nCID=$(sudo crictl --runtime-endpoint unix:///run/bench73941545/k3s/containerd/containerd.sock --image-endpoint unix:///run/bench73941545/k3s/containerd/containerd.sock ps -q --name '^bench73941545-app$')\nsudo bash /tmp/bench73941545/lookup.sh container \"$CID\"\n"
+  },
+  {
+    "case_id": "q73941545",
+    "category": "filesystem",
+    "model": "cheating_node_socket_replaced_by_a_link_to_k3s",
+    "code": "# the socket of the node's containerd is replaced by a link to K3s's: a plain ctr on it now shows the images of K3s; the query asks the node's socket\nsudo rm -f /run/bench73941545/containerd/containerd.sock\nsudo ln -s /run/bench73941545/k3s/containerd/containerd.sock /run/bench73941545/containerd/containerd.sock\nmkdir -p /tmp/bench73941545\ncat > /tmp/bench73941545/lookup.sh <<'EOF'\n#!/bin/bash\nSOCK=/run/bench73941545/containerd/containerd.sock\nCTR=\"ctr -a $SOCK -n k8s.io\"\ncase \"$1\" in\n    image)\n        d=$($CTR images ls 2>/dev/null | awk -v r=\"$2\" '$1 == r { print $3; exit }')\n        [ -n \"$d\" ] || { echo \"no image $2\" >&2; exit 1; }\n        echo \"$d\"\n        ;;\n    container)\n        $CTR containers ls -q 2>/dev/null | grep -qxF -- \"$2\" || { echo \"no container $2\" >&2; exit 1; }\n        if [ \"$($CTR tasks ls 2>/dev/null | awk -v c=\"$2\" '$1 == c { print $3 }')\" = RUNNING ]; then echo running; else echo stopped; fi\n        ;;\n    *) echo \"usage: lookup.sh image REF | container ID\" >&2; exit 2 ;;\nesac\nEOF\nsudo bash /tmp/bench73941545/lookup.sh image bench73941545.local/app:1\nCID=$(sudo crictl --runtime-endpoint unix:///run/bench73941545/k3s/containerd/containerd.sock --image-endpoint unix:///run/bench73941545/k3s/containerd/containerd.sock ps -q --name '^bench73941545-app$')\nsudo bash /tmp/bench73941545/lookup.sh container \"$CID\"\n"
+  }
+]

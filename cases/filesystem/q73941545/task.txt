@@ -1,0 +1,30 @@
+This machine is a single-node Kubernetes cluster that runs K3s. Two containerd daemons are running on it: the node's own containerd, whose socket is /run/bench73941545/containerd/containerd.sock (the one that "ctr" is used with on this node), and the containerd that K3s runs for its kubelet, whose socket and directories are not given here (look at the processes). Both have the CRI plugin; the CRI client crictl is installed but not configured.
+
+The pod bench73941545-pod runs one container, bench73941545-app, from the image bench73941545.local/app:1. kubectl is not available here, but it would report that this image was already present on the node. Yet on the node:
+
+    sudo ctr -a /run/bench73941545/containerd/containerd.sock images ls
+    REF   TYPE   DIGEST   SIZE   PLATFORMS   LABELS
+
+shows no image at all, and there is no container either. Where is the image, and the container? They have to be found and made queryable: the thing the node's administrators want is a small query entry that tells, for an image reference, the digest of that image as the K3s runtime has it, and, for a container ID, whether that container is running.
+
+Your task: find the containerd that really holds the image and the container, and create the script /tmp/bench73941545/lookup.sh that is used like this:
+
+    sudo bash /tmp/bench73941545/lookup.sh image <image reference>
+    sudo bash /tmp/bench73941545/lookup.sh container <containerd container ID>
+
+ - "image": print the digest of the image, as the containerd of K3s shows it in the DIGEST column of "ctr images ls" (sha256:...), and exit with 0. If that containerd has no such image, exit with a code other than 0 and print no digest.
+ - "container": print one word, "running" if the container has a running task, otherwise "stopped", and exit with 0. If that containerd has no container with that ID, exit with a code other than 0 and print neither word.
+
+Then run the script twice, so that its output is visible: for the image bench73941545.local/app:1, and for the container of the pod bench73941545-pod (find its containerd container ID; it is not given here).
+
+The check will use the script on objects that do not exist yet: it will create, in the containerd of K3s, a new image of random content, a container that runs and one that has exited, and it will run your script for them, from another directory. It will also create objects with the same names but other content or state in the other containerd, and it will ask for names that exist nowhere, so the script has to ask the right daemon in the right namespace each time.
+
+Requirements:
+
+1. The script gives the right answers for the image bench73941545.local/app:1 and the container of the pod now, and for the new objects of the check later (digest, state, and "not found" as described above).
+2. Both daemons and the pod stay as they are: do not copy, import, export, tag, remove or create any image, container or namespace in either containerd (above all, do not copy the images of K3s into the node's containerd so that they show up there), do not restart, stop, reconfigure or replace either containerd, do not touch the pod or its container, and do not change what the socket of the node's containerd is.
+3. Do not use kubectl (it is not there), and nothing may be downloaded.
+4. The script (and every command of your answer) runs without a terminal: stdin is not a TTY, nothing can be typed. lookup.sh is run with sudo, from any directory, and has to finish by itself, in a short time.
+5. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.
