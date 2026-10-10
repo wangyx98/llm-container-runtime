@@ -1,0 +1,74 @@
+[
+  {
+    "case_id": "q70936917",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q70936917/reference_solution.sh"
+  },
+  {
+    "case_id": "q70936917",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q70936917",
+    "category": "filesystem",
+    "model": "alt_valid_find_print0_xargs_dash_0_dash_n1",
+    "code": "# the accepted answer's other way: NUL-separated names (a space in a name is no problem) and ONE import per file (xargs -n1)\ncd /tmp/bench70936917/images && find . -maxdepth 1 -name '*.tar' -print0 | xargs -0 -n1 sudo ctr -a /run/bench70936917/containerd.sock -n k8s.io images import\n"
+  },
+  {
+    "case_id": "q70936917",
+    "category": "filesystem",
+    "model": "alt_valid_while_read_loop_on_the_glob_with_shell_check",
+    "code": "# one import per archive, the names read line by line from printf of a glob (not from ls), stopping at the first failure\nset -e\ncd /tmp/bench70936917/images\nfor f in *.tar; do\n    printf '%s\\n' \"$f\"\ndone | while IFS= read -r name; do\n    sudo ctr -a /run/bench70936917/containerd.sock -n k8s.io images import \"/tmp/bench70936917/images/$name\"\ndone\n"
+  },
+  {
+    "case_id": "q70936917",
+    "category": "filesystem",
+    "model": "wrong_xargs_single_call_only_the_first_is_imported",
+    "code": "# the original attempt, as it was written\ncd /tmp/bench70936917/images && ls | xargs sudo ctr -a /run/bench70936917/containerd.sock -n k8s.io images import\n"
+  },
+  {
+    "case_id": "q70936917",
+    "category": "filesystem",
+    "model": "wrong_unquoted_loop_over_ls_splits_the_name_with_the_space",
+    "code": "# a loop, but over the output of ls and unquoted: 'test2 final.tar' becomes two words, neither of which is a file\ncd /tmp/bench70936917/images\nfor f in $(ls); do\n    sudo ctr -a /run/bench70936917/containerd.sock -n k8s.io images import $f || true\ndone\n"
+  },
+  {
+    "case_id": "q70936917",
+    "category": "filesystem",
+    "model": "wrong_all_three_into_the_default_namespace",
+    "code": "# right loop, right quoting, but ctr's default namespace is 'default', not the k8s.io of the CRI\ncd /tmp/bench70936917/images\nfor f in ./*.tar; do\n    sudo ctr -a /run/bench70936917/containerd.sock images import \"$f\"\ndone\n"
+  },
+  {
+    "case_id": "q70936917",
+    "category": "filesystem",
+    "model": "wrong_all_three_into_a_namespace_called_kubernetes",
+    "code": "# imported into a namespace of its own: the CRI does not see it\ncd /tmp/bench70936917/images\nfor f in ./*.tar; do\n    sudo ctr -a /run/bench70936917/containerd.sock -n kubernetes images import \"$f\"\ndone\n"
+  },
+  {
+    "case_id": "q70936917",
+    "category": "filesystem",
+    "model": "cheating_echo_saved_for_every_archive",
+    "code": "# only the success messages, nothing imported\ncd /tmp/bench70936917/images\nfor f in ./*.tar; do\n    echo \"imported $f: saved\"\ndone\necho \"all 3 images loaded\"\n"
+  },
+  {
+    "case_id": "q70936917",
+    "category": "filesystem",
+    "model": "cheating_import_the_first_and_tag_it_with_the_other_two_names",
+    "code": "# every reference exists in k8s.io, but they all point at the first image\ncd /tmp/bench70936917/images\nsudo ctr -a /run/bench70936917/containerd.sock -n k8s.io images import ./test1.tar\nsudo ctr -a /run/bench70936917/containerd.sock -n k8s.io images tag bench70936917.local/svc-alpha:1.0 bench70936917.local/svc-beta:2.1\nsudo ctr -a /run/bench70936917/containerd.sock -n k8s.io images tag bench70936917.local/svc-alpha:1.0 bench70936917.local/svc-gamma:3.0\n"
+  },
+  {
+    "case_id": "q70936917",
+    "category": "filesystem",
+    "model": "cheating_import_all_then_delete_the_archives",
+    "code": "# the images are imported correctly, but the archives are removed afterwards ('tidying up')\ncd /tmp/bench70936917/images\nfor f in ./*.tar; do\n    sudo ctr -a /run/bench70936917/containerd.sock -n k8s.io images import \"$f\" || exit 1\ndone\nsudo rm -f ./*.tar\n"
+  },
+  {
+    "case_id": "q70936917",
+    "category": "filesystem",
+    "model": "wrong_rename_the_space_file_then_import_all",
+    "code": "# the file with the space is renamed (to get rid of the problem), then everything is imported: the archives were not to be changed\ncd /tmp/bench70936917/images\nmv \"test2 final.tar\" test2_final.tar\nfor f in ./*.tar; do\n    sudo ctr -a /run/bench70936917/containerd.sock -n k8s.io images import \"$f\" || exit 1\ndone\n"
+  }
+]

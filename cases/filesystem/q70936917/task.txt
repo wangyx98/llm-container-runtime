@@ -1,0 +1,26 @@
+This machine is a Kubernetes node that runs containerd (no Docker daemon, no CRI-O) with the CRI plugin enabled, and it is offline. containerd is the one of this node, with its own socket /run/bench70936917/containerd.sock; it is started and stopped with /var/lib/bench70936917/bin/containerdctl, which you do not need and must not use. Kubernetes (the CRI) looks for its images in the containerd namespace k8s.io. nerdctl is not installed; the client is ctr, which needs the socket on every call, and so does the CRI client crictl:
+
+    sudo ctr -a /run/bench70936917/containerd.sock -n k8s.io images ls
+    sudo crictl --runtime-endpoint unix:///run/bench70936917/containerd.sock --image-endpoint unix:///run/bench70936917/containerd.sock images
+
+The directory /tmp/bench70936917/images holds three image archives (docker-save style tar files, each with the tag of its image), one of which has a space in its file name. The namespace k8s.io of this containerd is empty: nothing has been imported yet.
+
+A colleague tried to load them all at once like this (with ctr in place of "nerdctl load -i"), the usual way of feeding many file names to a command:
+
+    cd /tmp/bench70936917/images && ls | xargs sudo ctr -a /run/bench70936917/containerd.sock -n k8s.io images import
+
+It printed "saved" and ended without any error, yet only one of the three images ended up in containerd.
+
+Your task: import all three archives into the namespace k8s.io of this node's containerd, so that the node has the three images, each under the tag of its archive.
+
+Requirements:
+
+1. Each of the three images must be in k8s.io under the reference (tag) carried by its archive, with the content of its own archive: the same manifest digest as the archive. The CRI must list each of them (crictl images).
+2. Each image must actually run its own program: a container created from it through the CRI prints the name and the random marker that is baked into that image, and no other image's.
+3. The image archives are not to be moved, renamed, modified or deleted.
+4. The node is offline: nothing may be pulled or downloaded, and no image may be built, only the three archives are to be imported.
+5. Tools: the usual ones of the host (coreutils, util-linux, findutils, python3, and so on). Nothing may be downloaded or installed.
+6. The commands run without a terminal: stdin is not a TTY, nothing can be typed. Everything has to finish by itself.
+7. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.
