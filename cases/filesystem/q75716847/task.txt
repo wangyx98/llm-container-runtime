@@ -1,0 +1,21 @@
+An engineer is learning how containers work under the hood and wants to run an nginx container with runc alone (no Docker daemon, no containerd). On this machine they built an OCI bundle in /tmp/bench75716847/bundle: its rootfs/ is the root file system of the image nginx:alpine, unpacked as root so that every file keeps the numeric owner it has in the image (root, uid 0; the user "nginx" of the image is uid/gid 101), and its config.json is the one `runc spec` generates, changed in only three ways: the root file system is writable (root.readonly is false), there is no terminal (process.terminal is false), and the command is `nginx -g "daemon off;"`. The capabilities and everything else are still the defaults of `runc spec`.
+
+When they start it, nginx does not come up. This is the error (the same as in the engineer's question, where they ran nginx from the default shell of the container, as root):
+
+    nginx: [emerg] chown("/var/cache/nginx/client_temp", 101) failed (1: Operation not permitted)
+
+and their question was: "Why? Am I not root?" Inside the container `id` does say uid=0(root), and the root file system is writable.
+
+Your task: find out why, and fix it, so that nginx runs in a runc container named bench75716847 that is started from this bundle (with runc's default state root, /run/runc) and keeps running after your commands have finished, serving the files of /usr/share/nginx/html on port 80 of the container's own network namespace (the default config.json gives the container its own network namespace; nothing has to be published to the host). Do it with the least privilege that works.
+
+Requirements:
+
+1. The container bench75716847 is running (runc state: running), made from /tmp/bench75716847/bundle with the rootfs of that bundle, and nginx is what runs in it: the master process as root (uid 0) and its worker processes as the user nginx of the image (uid and gid 101). Running the workers as root (for instance with `user root;`) or the master as another user is not a solution. A syntax test such as `nginx -t` is not a solution either: the check asks the running container for a file over HTTP and compares the answer with the file's random content.
+2. The container is not privileged and holds no more capabilities than it needs: at most the three capabilities of the default `runc spec` plus those that the start-up of nginx requires (a full set, Docker's default set or `privileged`-like settings are not acceptable). The container keeps its own pid, mount, ipc and uts namespaces and no_new_privs.
+3. The cache directories of nginx below /var/cache/nginx (client_temp, proxy_temp, fastcgi_temp, uwsgi_temp, scgi_temp) belong to the user nginx (101:101) afterwards.
+4. The owners and modes of the other files of the rootfs are not changed (do not "fix" the whole tree with a recursive chown or chmod): the rootfs keeps its numeric owners. Editing nginx's own configuration under /etc/nginx is allowed but is not needed.
+5. Tools: runc and ordinary shell commands (python3 is available). Do not use docker, podman, containerd or nerdctl. Nothing may be downloaded.
+6. The commands run without a terminal and their output is captured through pipes: nothing can be typed, everything has to finish by itself, and a detached container must not keep the caller's stdout/stderr open (give it files to write to), or the commands do not return.
+7. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.

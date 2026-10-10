@@ -1,0 +1,44 @@
+[
+  {
+    "case_id": "q75716847",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q75716847/reference_solution.sh"
+  },
+  {
+    "case_id": "q75716847",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q75716847",
+    "category": "filesystem",
+    "model": "alt_valid_the_cache_is_chowned_on_the_host_and_only_setuid_setgid_are_added",
+    "code": "B=/tmp/bench75716847/bundle\nW=/tmp/bench75716847\nstart() { sudo runc run -d --bundle $B --pid-file $W/nginx.pid bench75716847 </dev/null >$W/nginx.log 2>&1; sleep 2; sudo runc state bench75716847 | grep '\"status\"'; cat $W/nginx.log; }\naddcaps() { sudo python3 - $B/config.json \"$@\" <<'PY'\nimport json, sys\np = sys.argv[1]\nd = json.load(open(p))\nfor caps in d[\"process\"][\"capabilities\"].values():\n    for c in sys.argv[2:]:\n        if c not in caps:\n            caps.append(c)\njson.dump(d, open(p, \"w\"), indent=2)\nPY\n}\n# nginx skips the chown when the directories already belong to its user; the workers still have to drop to it\nfor d in client_temp proxy_temp fastcgi_temp uwsgi_temp scgi_temp; do sudo chown 101:101 $B/rootfs/var/cache/nginx/$d; done\naddcaps CAP_SETUID CAP_SETGID\nstart\n"
+  },
+  {
+    "case_id": "q75716847",
+    "category": "filesystem",
+    "model": "wrong_only_the_container_is_started_the_default_capabilities_stay",
+    "code": "B=/tmp/bench75716847/bundle\nW=/tmp/bench75716847\nstart() { sudo runc run -d --bundle $B --pid-file $W/nginx.pid bench75716847 </dev/null >$W/nginx.log 2>&1; sleep 2; sudo runc state bench75716847 | grep '\"status\"'; cat $W/nginx.log; }\naddcaps() { sudo python3 - $B/config.json \"$@\" <<'PY'\nimport json, sys\np = sys.argv[1]\nd = json.load(open(p))\nfor caps in d[\"process\"][\"capabilities\"].values():\n    for c in sys.argv[2:]:\n        if c not in caps:\n            caps.append(c)\njson.dump(d, open(p, \"w\"), indent=2)\nPY\n}\n# the thread's setup, detached: nginx dies on the chown and the container stops\nstart\n"
+  },
+  {
+    "case_id": "q75716847",
+    "category": "filesystem",
+    "model": "wrong_only_cap_chown_is_added_the_workers_cannot_drop_to_the_nginx_user",
+    "code": "B=/tmp/bench75716847/bundle\nW=/tmp/bench75716847\nstart() { sudo runc run -d --bundle $B --pid-file $W/nginx.pid bench75716847 </dev/null >$W/nginx.log 2>&1; sleep 2; sudo runc state bench75716847 | grep '\"status\"'; cat $W/nginx.log; }\naddcaps() { sudo python3 - $B/config.json \"$@\" <<'PY'\nimport json, sys\np = sys.argv[1]\nd = json.load(open(p))\nfor caps in d[\"process\"][\"capabilities\"].values():\n    for c in sys.argv[2:]:\n        if c not in caps:\n            caps.append(c)\njson.dump(d, open(p, \"w\"), indent=2)\nPY\n}\n# past the chown, but the workers die on setgid(101): the master stays up alone\naddcaps CAP_CHOWN\nstart\n"
+  },
+  {
+    "case_id": "q75716847",
+    "category": "filesystem",
+    "model": "wrong_user_root_in_nginx_conf_the_workers_run_as_root",
+    "code": "B=/tmp/bench75716847/bundle\nW=/tmp/bench75716847\nstart() { sudo runc run -d --bundle $B --pid-file $W/nginx.pid bench75716847 </dev/null >$W/nginx.log 2>&1; sleep 2; sudo runc state bench75716847 | grep '\"status\"'; cat $W/nginx.log; }\naddcaps() { sudo python3 - $B/config.json \"$@\" <<'PY'\nimport json, sys\np = sys.argv[1]\nd = json.load(open(p))\nfor caps in d[\"process\"][\"capabilities\"].values():\n    for c in sys.argv[2:]:\n        if c not in caps:\n            caps.append(c)\njson.dump(d, open(p, \"w\"), indent=2)\nPY\n}\n# nginx has nothing to chown or to drop to with \"user root;\": it starts with the default capabilities, with root workers\nsudo sed -i 's/^user .*/user root;/' $B/rootfs/etc/nginx/nginx.conf\nstart\n"
+  },
+  {
+    "case_id": "q75716847",
+    "category": "filesystem",
+    "model": "wrong_docker_default_capability_set_more_than_nginx_needs",
+    "code": "B=/tmp/bench75716847/bundle\nW=/tmp/bench75716847\nstart() { sudo runc run -d --bundle $B --pid-file $W/nginx.pid bench75716847 </dev/null >$W/nginx.log 2>&1; sleep 2; sudo runc state bench75716847 | grep '\"status\"'; cat $W/nginx.log; }\naddcaps() { sudo python3 - $B/config.json \"$@\" <<'PY'\nimport json, sys\np = sys.argv[1]\nd = json.load(open(p))\nfor caps in d[\"process\"][\"capabilities\"].values():\n    for c in sys.argv[2:]:\n        if c not in caps:\n            caps.append(c)\njson.dump(d, open(p, \"w\"), indent=2)\nPY\n}\n# works, but it is the capability set of a Docker container, not the least privilege that works\naddcaps CAP_CHOWN CAP_DAC_OVERRIDE CAP_FSETID CAP_FOWNER CAP_MKNOD CAP_NET_RAW CAP_SETGID CAP_SETUID CAP_SETFCAP CAP_SETPCAP CAP_SYS_CHROOT\nstart\n"
+  }
+]

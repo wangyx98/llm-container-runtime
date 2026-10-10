@@ -1,0 +1,5 @@
+# The digest of docker.io/library/nginx:alpine that this case is pinned to (the multi-arch index digest, "sha256:" + 64 hex digits).
+# With a digest here, setup.sh pulls that exact image from Docker Hub with skopeo and builds the bundle's rootfs from it (as the thread does
+# with docker export, but keeping the numeric owners). With no digest here, setup.sh builds the rootfs around an offline stand-in for nginx
+# instead (same start-up behaviour: chown of the cache directories, a master as root, workers dropped to uid 101).
+# Get the digest on a machine that can reach Docker Hub:   skopeo inspect --raw docker://docker.io/library/nginx:alpine | sha256sum
