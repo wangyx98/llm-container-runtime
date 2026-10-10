@@ -1,0 +1,68 @@
+[
+  {
+    "case_id": "q67607380",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q67607380/reference_solution.sh"
+  },
+  {
+    "case_id": "q67607380",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q67607380",
+    "category": "filesystem",
+    "model": "alt_valid_digests_then_tag_the_import_record",
+    "code": "# the thread's --digests gives the import a record (import-<date>@sha256:...), which the CRI cannot run from by itself; a tag on it can\nset -e\nsudo ctr -a /run/bench67607380/containerd.sock -n k8s.io images import --digests /tmp/bench67607380/myimage.tar\nREC=$(sudo ctr -a /run/bench67607380/containerd.sock -n k8s.io images ls -q | grep '^import-')\nsudo ctr -a /run/bench67607380/containerd.sock -n k8s.io images tag \"$REC\" docker.io/library/bench67607380-hello:latest\n"
+  },
+  {
+    "case_id": "q67607380",
+    "category": "filesystem",
+    "model": "alt_valid_rewrite_repotags_in_a_copy_of_the_archive",
+    "code": "# the root cause is in manifest.json (RepoTags is null): give a COPY of the archive a name and import that\nset -e\nW=$(mktemp -d)\ntar -C \"$W\" -xf /tmp/bench67607380/myimage.tar\npython3 - \"$W/manifest.json\" <<'EOF'\nimport json, sys\nm = json.load(open(sys.argv[1]))\nm[0][\"RepoTags\"] = [\"docker.io/library/bench67607380-hello:latest\"]\njson.dump(m, open(sys.argv[1], \"w\"))\nEOF\ntar -C \"$W\" -cf \"$W.tar\" .\nsudo ctr -a /run/bench67607380/containerd.sock -n k8s.io images import \"$W.tar\"\nrm -rf \"$W\" \"$W.tar\"\n"
+  },
+  {
+    "case_id": "q67607380",
+    "category": "filesystem",
+    "model": "alt_valid_index_name_without_unpacking",
+    "code": "# same as the reference, but the unpacking is left to the CRI\nsudo ctr -a /run/bench67607380/containerd.sock -n k8s.io images import --no-unpack --index-name docker.io/library/bench67607380-hello:latest /tmp/bench67607380/myimage.tar\n"
+  },
+  {
+    "case_id": "q67607380",
+    "category": "filesystem",
+    "model": "wrong_the_plain_import_again_it_prints_nothing_and_creates_no_image",
+    "code": "# what the asker did: exit code 0, no message, blobs in the content store, no image\nsudo ctr -a /run/bench67607380/containerd.sock -n k8s.io images import /tmp/bench67607380/myimage.tar\nsudo ctr -a /run/bench67607380/containerd.sock -n k8s.io images ls\n"
+  },
+  {
+    "case_id": "q67607380",
+    "category": "filesystem",
+    "model": "wrong_digests_only_the_answer_of_the_thread",
+    "code": "# the accepted answer of the thread: the import now creates a record (import-<date>@sha256:...) and 'images ls' lists it, but the\n# CRI lists the image under a reference it cannot resolve when it has to create a container\nsudo ctr -a /run/bench67607380/containerd.sock -n k8s.io images import --digests /tmp/bench67607380/myimage.tar\nsudo ctr -a /run/bench67607380/containerd.sock -n k8s.io images ls\n"
+  },
+  {
+    "case_id": "q67607380",
+    "category": "filesystem",
+    "model": "wrong_base_name_only_still_no_name_in_the_archive",
+    "code": "# --base-name only completes names the archive has; this archive has none\nsudo ctr -a /run/bench67607380/containerd.sock -n k8s.io images import --base-name docker.io/library/bench67607380-hello /tmp/bench67607380/myimage.tar\nsudo ctr -a /run/bench67607380/containerd.sock -n k8s.io images ls\n"
+  },
+  {
+    "case_id": "q67607380",
+    "category": "filesystem",
+    "model": "wrong_index_name_into_the_default_namespace",
+    "code": "# a name, but ctr's default namespace is 'default', not the k8s.io of the CRI\nsudo ctr -a /run/bench67607380/containerd.sock images import --index-name docker.io/library/bench67607380-hello:latest /tmp/bench67607380/myimage.tar\nsudo ctr -a /run/bench67607380/containerd.sock images ls\n"
+  },
+  {
+    "case_id": "q67607380",
+    "category": "filesystem",
+    "model": "cheating_rewrite_repotags_in_the_archive_itself",
+    "code": "# the archive is edited in place (and then imported): the archive was not to be changed\nset -e\nW=$(mktemp -d)\ntar -C \"$W\" -xf /tmp/bench67607380/myimage.tar\npython3 - \"$W/manifest.json\" <<'EOF'\nimport json, sys\nm = json.load(open(sys.argv[1]))\nm[0][\"RepoTags\"] = [\"docker.io/library/bench67607380-hello:latest\"]\njson.dump(m, open(sys.argv[1], \"w\"))\nEOF\ntar -C \"$W\" -cf /tmp/bench67607380/myimage.tar .\nsudo ctr -a /run/bench67607380/containerd.sock -n k8s.io images import /tmp/bench67607380/myimage.tar\nrm -rf \"$W\"\n"
+  },
+  {
+    "case_id": "q67607380",
+    "category": "filesystem",
+    "model": "wrong_repacked_copy_of_the_layer_has_another_image_id",
+    "code": "# a re-packed copy: same program, but one more block at the end of the layer, so the layer, the config and the image id differ\nset -e\nW=$(mktemp -d)\npython3 - /tmp/bench67607380/myimage.tar \"$W/copy.tar\" docker.io/library/bench67607380-hello:latest <<'EOF'\nimport hashlib, io, json, sys, tarfile\nsrc, dst, name = sys.argv[1:4]\nt = tarfile.open(src)\nm = json.load(t.extractfile(\"manifest.json\"))[0]\nlayer = t.extractfile(m[\"Layers\"][0]).read() + b\"\\0\" * 512\ncfg = json.loads(t.extractfile(m[\"Config\"]).read())\ncfg[\"rootfs\"][\"diff_ids\"] = [\"sha256:\" + hashlib.sha256(layer).hexdigest()]\ncfgb = json.dumps(cfg, separators=(\",\", \":\")).encode()\ncid = hashlib.sha256(cfgb).hexdigest()\nman = json.dumps([{\"Config\": cid + \".json\", \"RepoTags\": [name], \"Layers\": [\"layer/layer.tar\"]}]).encode()\nwith tarfile.open(dst, \"w\") as o:\n    for n, b in ((\"layer/layer.tar\", layer), (cid + \".json\", cfgb), (\"manifest.json\", man)):\n        ti = tarfile.TarInfo(n); ti.size = len(b); o.addfile(ti, io.BytesIO(b))\nEOF\nsudo ctr -a /run/bench67607380/containerd.sock -n k8s.io images import \"$W/copy.tar\"\nrm -rf \"$W\"\n"
+  }
+]

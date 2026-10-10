@@ -1,0 +1,27 @@
+This machine is a single-node Kubernetes cluster (a K3s-style node: containerd with the CRI plugin enabled, no Docker daemon, no CRI-O, no nerdctl) and it is offline. The node's containerd has its own socket, /run/bench67607380/containerd.sock; it is started and stopped with /var/lib/bench67607380/bin/containerdctl, which you do not need and must not use. Kubernetes (the CRI) looks for its images in the containerd namespace k8s.io. ctr and the CRI client crictl have to be given the socket on every call:
+
+    sudo ctr -a /run/bench67607380/containerd.sock -n k8s.io images ls
+    sudo crictl --runtime-endpoint unix:///run/bench67607380/containerd.sock --image-endpoint unix:///run/bench67607380/containerd.sock images
+
+An image was exported from another machine with "docker save" into the archive /tmp/bench67607380/myimage.tar. It has to be imported into this node's containerd, but the import does not seem to work: it prints nothing and ends without an error,
+
+    $ sudo ctr -a /run/bench67607380/containerd.sock -n k8s.io images import /tmp/bench67607380/myimage.tar
+    $ sudo ctr -a /run/bench67607380/containerd.sock -n k8s.io images ls
+    REF   TYPE   DIGEST   SIZE   PLATFORMS   LABELS
+    $
+
+and nothing is listed afterwards. The namespace k8s.io of this containerd is empty: nothing has been imported yet.
+
+Your task: find out why, and get the image of that archive into the namespace k8s.io of this containerd so that the node can use it: the CRI has to list it and to be able to run a container from it. The image has no name that you have to use; choose one if you need one.
+
+Requirements:
+
+1. The image in the node has to be the image of the archive itself (the CRI identifies an image by the digest of its configuration, and the check compares it with the one in the archive), not a look-alike. The blobs being in containerd's content store is not enough: there has to be an image record that the CRI can use.
+2. A container created through the CRI from that image (crictl, in a pod on the node's network) has to run the program of the image, which prints a line with the name of the image and a random marker that exists only in this archive; the check creates the pod and the container itself, after your commands have finished.
+3. The archive is not to be moved, renamed, modified or deleted; to change something in it, work on a copy.
+4. The node is offline: nothing may be pulled or downloaded, and no image may be built, only this archive is to be imported.
+5. Tools: the usual ones of the host (coreutils, util-linux, tar, python3, jq and the like). Nothing may be downloaded or installed.
+6. The commands run without a terminal: stdin is not a TTY, nothing can be typed. Everything has to finish by itself.
+7. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.
