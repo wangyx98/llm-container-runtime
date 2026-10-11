@@ -1,0 +1,14 @@
+A host runs a private Docker daemon whose socket is /run/bench61738905/docker.sock (it belongs to the group of the current user: docker -H unix:///run/bench61738905/docker.sock ps works without sudo; the docker CLI must always be given this -H, because the machine may have a Docker daemon of its own that is not part of this task). Two containers, bench61738905-web and bench61738905-db, run from the image bench/app:1. An administrator ran "sudo runc list" and it shows no container, tried the directory in which Docker keeps the configuration of its containers as the root and was told that the containers do not exist, and wants runc to list the containers that Docker runs. Docker does use runc to run its containers.
+
+runc keeps the state of the containers it runs in a runtime root: a directory with one subdirectory (holding a state.json) per container. "runc list" reads runc's default root, but a container engine may give runc another one with --root, and Docker's daemon does so: the runtime root of the containers of this daemon is not runc's default and not Docker's usual one, its name has a random part chosen when the daemon was started, and it is not given in this task. It cannot be assumed from other machines or from documentation, and "ps | grep runtime-root" shows nothing here, because the daemon was started with a configuration file and not with the options on its command line. The root must be found on this host (the daemon, its configuration and the files under /run tell where it is).
+
+Create the bash script /tmp/bench61738905/find-runc-root.sh (it is run with bash) that takes one argument, the path of an output file, and writes into it one JSON object with the keys:
+- runc_root: the runtime root directory that runc needs (runc --root DIR list) to list Docker's containers, as a string;
+- containers: an array with one object for every container that runc lists with that root, with the keys id (the full container ID, 64 hexadecimal characters), pid (the PID of the container's main process on the host, an integer) and status (as runc shows it, for example running).
+The order of the objects does not matter. The script only reads: it must not start, stop, restart, pause, kill or remove any container, and must not change the daemon, its configuration or runc's roots (do not catch runc's command line by restarting a container). It will be run again later, after the state of the host has changed (a container started and one removed), so it cannot hold a copy of today's output or of today's paths. After creating it, run it with the output file /tmp/bench61738905/runc-root.json.
+
+Allowed: the standard shell tools, python3, sudo, runc and the docker CLI (with the -H above). Do not use strace, nerdctl, ctr or crictl.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo.
+
+Return the commands needed to complete the task.

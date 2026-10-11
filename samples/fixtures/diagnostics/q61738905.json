@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q61738905",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q61738905/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q61738905",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q61738905",
+    "category": "diagnostics",
+    "model": "alt_valid_scans_run_for_state_json",
+    "code": "cat > /tmp/bench61738905/find-runc-root.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nstate=$(sudo find /run -maxdepth 7 -name state.json -path '*/runtime-runc/*' | head -1)\nroot=$(dirname \"$(dirname \"$state\")\")\nsudo runc --root \"$root\" list --format json | python3 -c '\nimport json, sys\nroot = sys.argv[1]\nc = json.load(sys.stdin) or []\njson.dump({\"runc_root\": root, \"containers\": [{\"id\": x[\"id\"], \"pid\": x[\"pid\"], \"status\": x[\"status\"]} for x in c]}, open(sys.argv[2], \"w\"))\n' \"$root\" \"$1\"\nSCRIPT\nchmod +x /tmp/bench61738905/find-runc-root.sh\nbash /tmp/bench61738905/find-runc-root.sh /tmp/bench61738905/runc-root.json\ncat /tmp/bench61738905/runc-root.json\n"
+  },
+  {
+    "case_id": "q61738905",
+    "category": "diagnostics",
+    "model": "wrong_hardcodes_the_usual_docker_root_from_the_answer",
+    "code": "cat > /tmp/bench61738905/find-runc-root.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nroot=/var/run/docker/runtime-runc/moby\n[ -d \"$root\" ] || { echo \"no such runtime root: $root\" >&2; exit 1; }\nsudo runc --root \"$root\" list --format json | python3 -c '\nimport json, sys\nc = json.load(sys.stdin) or []\njson.dump({\"runc_root\": sys.argv[1], \"containers\": [{\"id\": x[\"id\"], \"pid\": x[\"pid\"], \"status\": x[\"status\"]} for x in c]}, open(sys.argv[2], \"w\"))\n' \"$root\" \"$1\"\nSCRIPT\nchmod +x /tmp/bench61738905/find-runc-root.sh\nbash /tmp/bench61738905/find-runc-root.sh /tmp/bench61738905/runc-root.json\ncat /tmp/bench61738905/runc-root.json\n"
+  },
+  {
+    "case_id": "q61738905",
+    "category": "diagnostics",
+    "model": "wrong_looks_for_runtime_root_in_ps_and_falls_back_to_the_default",
+    "code": "cat > /tmp/bench61738905/find-runc-root.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nroot=$(ps aux | grep -o -- '-*runtime-root[= ][^ ]*' | head -1 | sed 's/.*[= ]//')\n[ -n \"$root\" ] || root=/run/runc          # nothing found: runc's own default\nsudo runc --root \"$root\" list --format json | python3 -c '\nimport json, sys\nc = json.load(sys.stdin) or []\njson.dump({\"runc_root\": sys.argv[1], \"containers\": [{\"id\": x[\"id\"], \"pid\": x[\"pid\"], \"status\": x[\"status\"]} for x in c]}, open(sys.argv[2], \"w\"))\n' \"$root\" \"$1\"\nSCRIPT\nchmod +x /tmp/bench61738905/find-runc-root.sh\nbash /tmp/bench61738905/find-runc-root.sh /tmp/bench61738905/runc-root.json\ncat /tmp/bench61738905/runc-root.json\n"
+  },
+  {
+    "case_id": "q61738905",
+    "category": "diagnostics",
+    "model": "wrong_lists_the_short_ids_of_docker_ps",
+    "code": "cat > /tmp/bench61738905/find-runc-root.sh <<'SCRIPT'\n#!/bin/bash\npython3 - \"$1\" <<'PY'\nimport json\nimport os\nimport re\nimport subprocess\nimport sys\n\nout = sys.argv[1]\nDSOCK = \"/run/bench61738905/docker.sock\"\n\n\ndef run(*cmd):\n    return subprocess.run([\"sudo\", *cmd], capture_output=True, text=True).stdout\n\n\nps = subprocess.run([\"ps\", \"-eo\", \"args\"], capture_output=True, text=True).stdout.splitlines()\nline = next(l for l in ps if os.path.basename(l.split()[0]) == \"dockerd\" and DSOCK in l)\n\n\ndef option(name):\n    m = re.search(r\"--%s[= ](\\S+)\" % name, line)\n    return m.group(1) if m else None\n\n\nexec_root = option(\"exec-root\")\nif exec_root is None and option(\"config-file\"):\n    exec_root = json.loads(run(\"cat\", option(\"config-file\"))).get(\"exec-root\")\nroot = os.path.join(exec_root or \"/var/run/docker\", \"runtime-runc\", option(\"containerd-namespace\") or \"moby\")\ncontainers = [{\"id\": i, \"pid\": int(subprocess.run([\"docker\", \"-H\", \"unix://\" + DSOCK, \"inspect\", \"-f\", \"{{.State.Pid}}\", i], capture_output=True, text=True).stdout), \"status\": \"running\"}\n              for i in subprocess.run([\"docker\", \"-H\", \"unix://\" + DSOCK, \"ps\", \"-q\"], capture_output=True, text=True).stdout.split()]\njson.dump({\"runc_root\": root, \"containers\": containers}, open(out, \"w\"), indent=1)\nPY\nSCRIPT\nchmod +x /tmp/bench61738905/find-runc-root.sh\nbash /tmp/bench61738905/find-runc-root.sh /tmp/bench61738905/runc-root.json\ncat /tmp/bench61738905/runc-root.json\n"
+  },
+  {
+    "case_id": "q61738905",
+    "category": "diagnostics",
+    "model": "wrong_replays_the_output_of_the_first_run",
+    "code": "cat > /tmp/bench61738905/find-runc-root.sh <<'SCRIPT'\n#!/bin/bash\npython3 - \"$1\" <<'PY'\nimport os\nimport shutil\nimport sys\n\ncache = \"/tmp/bench61738905-runc-root.json\"\nif os.path.exists(cache):\n    shutil.copy(cache, sys.argv[1])\n    sys.exit(0)\nimport json\nimport os\nimport re\nimport subprocess\nimport sys\n\nout = sys.argv[1]\nDSOCK = \"/run/bench61738905/docker.sock\"\n\n\ndef run(*cmd):\n    return subprocess.run([\"sudo\", *cmd], capture_output=True, text=True).stdout\n\n\nps = subprocess.run([\"ps\", \"-eo\", \"args\"], capture_output=True, text=True).stdout.splitlines()\nline = next(l for l in ps if os.path.basename(l.split()[0]) == \"dockerd\" and DSOCK in l)\n\n\ndef option(name):\n    m = re.search(r\"--%s[= ](\\S+)\" % name, line)\n    return m.group(1) if m else None\n\n\nexec_root = option(\"exec-root\")\nif exec_root is None and option(\"config-file\"):\n    exec_root = json.loads(run(\"cat\", option(\"config-file\"))).get(\"exec-root\")\nroot = os.path.join(exec_root or \"/var/run/docker\", \"runtime-runc\", option(\"containerd-namespace\") or \"moby\")\ncontainers = [{\"id\": c[\"id\"], \"pid\": c[\"pid\"], \"status\": c[\"status\"]}\n              for c in json.loads(run(\"runc\", \"--root\", root, \"list\", \"--format\", \"json\") or \"null\") or []]\njson.dump({\"runc_root\": root, \"containers\": containers}, open(out, \"w\"), indent=1)\nshutil.copy(sys.argv[1], cache)\nPY\nSCRIPT\nchmod +x /tmp/bench61738905/find-runc-root.sh\nbash /tmp/bench61738905/find-runc-root.sh /tmp/bench61738905/runc-root.json\ncat /tmp/bench61738905/runc-root.json\n"
+  },
+  {
+    "case_id": "q61738905",
+    "category": "diagnostics",
+    "model": "wrong_restarts_a_container_to_catch_the_command_line_of_runc",
+    "code": "cat > /tmp/bench61738905/find-runc-root.sh <<'SCRIPT'\n#!/bin/bash\npython3 - \"$1\" <<'PY'\nimport json\nimport os\nimport re\nimport subprocess\nimport sys\n\nout = sys.argv[1]\nDSOCK = \"/run/bench61738905/docker.sock\"\n\n\ndef run(*cmd):\n    return subprocess.run([\"sudo\", *cmd], capture_output=True, text=True).stdout\n\n\nsubprocess.run([\"docker\", \"-H\", \"unix://\" + DSOCK, \"restart\", \"bench61738905-web\"], capture_output=True)   # \"to see the arguments of runc\"\nps = subprocess.run([\"ps\", \"-eo\", \"args\"], capture_output=True, text=True).stdout.splitlines()\nline = next(l for l in ps if os.path.basename(l.split()[0]) == \"dockerd\" and DSOCK in l)\n\n\ndef option(name):\n    m = re.search(r\"--%s[= ](\\S+)\" % name, line)\n    return m.group(1) if m else None\n\n\nexec_root = option(\"exec-root\")\nif exec_root is None and option(\"config-file\"):\n    exec_root = json.loads(run(\"cat\", option(\"config-file\"))).get(\"exec-root\")\nroot = os.path.join(exec_root or \"/var/run/docker\", \"runtime-runc\", option(\"containerd-namespace\") or \"moby\")\ncontainers = [{\"id\": c[\"id\"], \"pid\": c[\"pid\"], \"status\": c[\"status\"]}\n              for c in json.loads(run(\"runc\", \"--root\", root, \"list\", \"--format\", \"json\") or \"null\") or []]\njson.dump({\"runc_root\": root, \"containers\": containers}, open(out, \"w\"), indent=1)\nPY\nSCRIPT\nchmod +x /tmp/bench61738905/find-runc-root.sh\nbash /tmp/bench61738905/find-runc-root.sh /tmp/bench61738905/runc-root.json\ncat /tmp/bench61738905/runc-root.json\n"
+  }
+]
