@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q71582111",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q71582111/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q71582111",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q71582111",
+    "category": "diagnostics",
+    "model": "alt_valid_python_walks_the_namespaces_with_ctr",
+    "code": "cat > /tmp/bench71582111/list-images.sh <<'SCRIPT'\n#!/bin/bash\npython3 - \"$1\" <<'PY'\nimport subprocess, sys\n\nsock = \"/run/bench71582111/containerd/containerd.sock\"\n\ndef ctr(*a):\n    return subprocess.run([\"sudo\", \"ctr\", \"-a\", sock, *a], capture_output=True, text=True).stdout\n\nwith open(sys.argv[1], \"w\") as f:\n    for ns in ctr(\"namespaces\", \"list\", \"-q\").split():\n        for line in ctr(\"-n\", ns, \"images\", \"list\").splitlines()[1:]:\n            ref, _type, digest = line.split()[:3]\n            if not ref.startswith(\"sha256:\"):\n                f.write(\"%s %s %s\\n\" % (ns, ref, digest))\nPY\nSCRIPT\nchmod +x /tmp/bench71582111/list-images.sh\nbash /tmp/bench71582111/list-images.sh /tmp/bench71582111/images.txt\n"
+  },
+  {
+    "case_id": "q71582111",
+    "category": "diagnostics",
+    "model": "wrong_only_the_default_namespace_that_ctr_looks_at",
+    "code": "cat > /tmp/bench71582111/list-images.sh <<'SCRIPT'\n#!/bin/bash\nSOCK=/run/bench71582111/containerd/containerd.sock\nCTR=(sudo ctr -a \"$SOCK\")\nCRI=(sudo crictl --runtime-endpoint \"unix://$SOCK\" --image-endpoint \"unix://$SOCK\")\n: > \"$1\"\n\"${CTR[@]}\" images ls 2>/dev/null | awk 'NR > 1 { print \"default\", $1, $3 }' >> \"$1\"\nSCRIPT\nchmod +x /tmp/bench71582111/list-images.sh\nbash /tmp/bench71582111/list-images.sh /tmp/bench71582111/images.txt\n"
+  },
+  {
+    "case_id": "q71582111",
+    "category": "diagnostics",
+    "model": "wrong_crictl_images_of_k8s_io_with_the_image_id_as_digest",
+    "code": "cat > /tmp/bench71582111/list-images.sh <<'SCRIPT'\n#!/bin/bash\nSOCK=/run/bench71582111/containerd/containerd.sock\nCTR=(sudo ctr -a \"$SOCK\")\nCRI=(sudo crictl --runtime-endpoint \"unix://$SOCK\" --image-endpoint \"unix://$SOCK\")\n: > \"$1\"\n\"${CRI[@]}\" images --no-trunc | awk 'NR > 1 { print \"k8s.io\", $1 \":\" $2, $3 }' >> \"$1\"\nSCRIPT\nchmod +x /tmp/bench71582111/list-images.sh\nbash /tmp/bench71582111/list-images.sh /tmp/bench71582111/images.txt\n"
+  },
+  {
+    "case_id": "q71582111",
+    "category": "diagnostics",
+    "model": "wrong_includes_the_entries_named_by_image_id",
+    "code": "cat > /tmp/bench71582111/list-images.sh <<'SCRIPT'\n#!/bin/bash\nSOCK=/run/bench71582111/containerd/containerd.sock\nCTR=(sudo ctr -a \"$SOCK\")\nCRI=(sudo crictl --runtime-endpoint \"unix://$SOCK\" --image-endpoint \"unix://$SOCK\")\n: > \"$1\"\nfor ns in $(\"${CTR[@]}\" namespaces ls -q 2>/dev/null); do\n    \"${CTR[@]}\" -n \"$ns\" images ls 2>/dev/null | awk -v ns=\"$ns\" 'NR > 1 { print ns, $1, $3 }' >> \"$1\"\ndone\nSCRIPT\nchmod +x /tmp/bench71582111/list-images.sh\nbash /tmp/bench71582111/list-images.sh /tmp/bench71582111/images.txt\n"
+  },
+  {
+    "case_id": "q71582111",
+    "category": "diagnostics",
+    "model": "wrong_one_line_per_name_across_namespaces",
+    "code": "cat > /tmp/bench71582111/list-images.sh <<'SCRIPT'\n#!/bin/bash\nSOCK=/run/bench71582111/containerd/containerd.sock\nCTR=(sudo ctr -a \"$SOCK\")\nCRI=(sudo crictl --runtime-endpoint \"unix://$SOCK\" --image-endpoint \"unix://$SOCK\")\n: > \"$1\"\nfor ns in $(\"${CTR[@]}\" namespaces ls -q 2>/dev/null); do\n    \"${CTR[@]}\" -n \"$ns\" images ls 2>/dev/null | awk -v ns=\"$ns\" 'NR > 1 && $1 !~ /^sha256:/ { print ns, $1, $3 }' >> \"$1\"\ndone\nsort -u -k2,2 \"$1\" -o \"$1\"\nSCRIPT\nchmod +x /tmp/bench71582111/list-images.sh\nbash /tmp/bench71582111/list-images.sh /tmp/bench71582111/images.txt\n"
+  },
+  {
+    "case_id": "q71582111",
+    "category": "diagnostics",
+    "model": "wrong_one_line_per_image_not_per_name",
+    "code": "cat > /tmp/bench71582111/list-images.sh <<'SCRIPT'\n#!/bin/bash\nSOCK=/run/bench71582111/containerd/containerd.sock\nCTR=(sudo ctr -a \"$SOCK\")\nCRI=(sudo crictl --runtime-endpoint \"unix://$SOCK\" --image-endpoint \"unix://$SOCK\")\n: > \"$1\"\nfor ns in $(\"${CTR[@]}\" namespaces ls -q 2>/dev/null); do\n    \"${CTR[@]}\" -n \"$ns\" images ls 2>/dev/null | awk -v ns=\"$ns\" 'NR > 1 && $1 !~ /^sha256:/ { print ns, $1, $3 }' >> \"$1\"\ndone\nsort -u -k3,3 \"$1\" -o \"$1\"\nSCRIPT\nchmod +x /tmp/bench71582111/list-images.sh\nbash /tmp/bench71582111/list-images.sh /tmp/bench71582111/images.txt\n"
+  },
+  {
+    "case_id": "q71582111",
+    "category": "diagnostics",
+    "model": "wrong_prunes_the_unused_images_after_listing",
+    "code": "cat > /tmp/bench71582111/list-images.sh <<'SCRIPT'\n#!/bin/bash\nSOCK=/run/bench71582111/containerd/containerd.sock\nCTR=(sudo ctr -a \"$SOCK\")\nCRI=(sudo crictl --runtime-endpoint \"unix://$SOCK\" --image-endpoint \"unix://$SOCK\")\n: > \"$1\"\nfor ns in $(\"${CTR[@]}\" namespaces ls -q 2>/dev/null); do\n    \"${CTR[@]}\" -n \"$ns\" images ls 2>/dev/null | awk -v ns=\"$ns\" 'NR > 1 && $1 !~ /^sha256:/ { print ns, $1, $3 }' >> \"$1\"\ndone\n# tidy up: remove the images no container uses\n\"${CRI[@]}\" rmi --prune >/dev/null\nSCRIPT\nchmod +x /tmp/bench71582111/list-images.sh\nbash /tmp/bench71582111/list-images.sh /tmp/bench71582111/images.txt\n"
+  },
+  {
+    "case_id": "q71582111",
+    "category": "diagnostics",
+    "model": "wrong_replays_the_list_of_today",
+    "code": "F=/tmp/bench71582111/frozen.txt\nSOCK=/run/bench71582111/containerd/containerd.sock\nCTR=(sudo ctr -a \"$SOCK\")\n: > \"$F\"\nfor ns in $(\"${CTR[@]}\" namespaces ls -q 2>/dev/null); do\n    \"${CTR[@]}\" -n \"$ns\" images ls 2>/dev/null | awk -v ns=\"$ns\" 'NR > 1 && $1 !~ /^sha256:/ { print ns, $1, $3 }' >> \"$F\"\ndone\ncat > /tmp/bench71582111/list-images.sh <<'SCRIPT'\n#!/bin/bash\ncp /tmp/bench71582111/frozen.txt \"$1\"\nSCRIPT\nchmod +x /tmp/bench71582111/list-images.sh\nbash /tmp/bench71582111/list-images.sh /tmp/bench71582111/images.txt\n"
+  }
+]

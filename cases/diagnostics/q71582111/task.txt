@@ -1,0 +1,9 @@
+A Kubernetes worker node (think of an AKS node) runs containerd as its container runtime, on its own socket: /run/bench71582111/containerd/containerd.sock (not the default one). There is no Docker on it. An administrator wants the equivalent of "docker images" for this node: the list of all the images that its containerd holds locally. Plain "ctr images ls" lists some images, but not all of them: containerd keeps its objects in namespaces, and the images that the kubelet uses are not in the namespace that "ctr" looks at when it is given no namespace option. The same image name can exist in two namespaces as two different images, and an image can have several names.
+
+Create the bash script /tmp/bench71582111/list-images.sh (it is run with bash) that takes one argument, the path of an output file, and writes into it one line per image name of this containerd in every namespace: the namespace, one space, the image name, one space, the digest of that name, as the DIGEST column of "ctr images ls" shows it (sha256:...). An image that has several names has one line per name. Entries whose name is just an image ID (sha256:...), which the CRI plugin of containerd adds for the images it knows, are not image names and must not be in the file. The order of the lines does not matter. The script only reads: it must not pull, import, tag, remove or prune anything, nor change a namespace or restart containerd. It will be run again later, after images have been added to the node, so it cannot hold a copy of today's list. After creating it, run it with the output file /tmp/bench71582111/images.txt.
+
+Allowed: the standard shell tools, sudo, ctr and crictl. Do not use Docker or nerdctl.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo.
+
+Return the commands needed to complete the task.
