@@ -1,0 +1,74 @@
+[
+  {
+    "case_id": "q78432931",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q78432931/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q78432931",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q78432931",
+    "category": "diagnostics",
+    "model": "alt_valid_polls_every_300_ms",
+    "code": "# a slower poll is as good\npython3 - <<'PY' | bash\ns = open(\"cases/diagnostics/q78432931/reference_solution.sh\").read().split('echo \"[solution] pulling')[0]\na0 = '''100 * time.Millisecond'''\nb0 = '''300 * time.Millisecond'''\nassert a0 in s, 'patch 0 does not apply'\ns = s.replace(a0, b0)\nprint(s, end='')\nPY\n"
+  },
+  {
+    "case_id": "q78432931",
+    "category": "diagnostics",
+    "model": "wrong_docker_client_of_the_threads_answer",
+    "code": "# the answer of the thread: a Docker client, its ImagePull stream and a progress bar\ncat > /tmp/bench78432931/app/main.go <<'EOF'\npackage main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"io\"\n\t\"os\"\n\n\t\"github.com/docker/docker/api/types/image\"\n\t\"github.com/docker/docker/client\"\n\t\"github.com/schollz/progressbar/v3\"\n)\n\nfunc main() {\n\tcli, err := client.NewClientWithOpts(client.FromEnv)\n\tif err != nil {\n\t\tpanic(err)\n\t}\n\tout, err := cli.ImagePull(context.Background(), os.Args[len(os.Args)-1], image.PullOptions{})\n\tif err != nil {\n\t\tpanic(err)\n\t}\n\tdefer out.Close()\n\tbar := progressbar.DefaultBytes(-1, \"Pulling image\")\n\tif _, err := io.Copy(io.MultiWriter(os.Stdout, bar), out); err != nil {\n\t\tpanic(err)\n\t}\n\tfmt.Println(\"image has been successfully pulled.\")\n}\nEOF\n"
+  },
+  {
+    "case_id": "q78432931",
+    "category": "diagnostics",
+    "model": "wrong_records_written_only_when_the_pull_is_over",
+    "code": "# the records are collected and written after client.Pull returns: they do not follow the download\npython3 - <<'PY' | bash\ns = open(\"cases/diagnostics/q78432931/reference_solution.sh\").read().split('echo \"[solution] pulling')[0]\na0 = '''func progress(d string, offset, total int64) {\n\tstdout.Encode(map[string]any{\"event\": \"progress\", \"digest\": d, \"offset\": offset, \"total\": total})\n}'''\nb0 = '''var buffered []map[string]any\n\nfunc progress(d string, offset, total int64) {\n\tbuffered = append(buffered, map[string]any{\"event\": \"progress\", \"digest\": d, \"offset\": offset, \"total\": total})\n}'''\nassert a0 in s, 'patch 0 does not apply'\ns = s.replace(a0, b0)\na1 = '''<-stopped // the last progress records are out before anything else is printed'''\nb1 = '''<-stopped\n\tfor _, e := range buffered {\n\t\tstdout.Encode(e)\n\t}'''\nassert a1 in s, 'patch 1 does not apply'\ns = s.replace(a1, b1)\nprint(s, end='')\nPY\n"
+  },
+  {
+    "case_id": "q78432931",
+    "category": "diagnostics",
+    "model": "wrong_progress_made_up_from_the_clock",
+    "code": "# the progress is estimated (a download is assumed to take 5 s), not read from the download\npython3 - <<'PY' | bash\ns = open(\"cases/diagnostics/q78432931/reference_solution.sh\").read().split('echo \"[solution] pulling')[0]\na0 = '''var stdout = json.NewEncoder(os.Stdout)'''\nb0 = '''var stdout = json.NewEncoder(os.Stdout)\nvar started = time.Now()'''\nassert a0 in s, 'patch 0 does not apply'\ns = s.replace(a0, b0)\na1 = '''progress(d, s.Offset, s.Total)'''\nb1 = '''progress(d, min(s.Total, int64(float64(s.Total)*time.Since(started).Seconds()/5)), s.Total)'''\nassert a1 in s, 'patch 1 does not apply'\ns = s.replace(a1, b1)\nprint(s, end='')\nPY\n"
+  },
+  {
+    "case_id": "q78432931",
+    "category": "diagnostics",
+    "model": "wrong_digest_is_the_ingest_ref",
+    "code": "# the record carries the ref of the active download (layer-sha256:...), not the digest of the blob\npython3 - <<'PY' | bash\ns = open(\"cases/diagnostics/q78432931/reference_solution.sh\").read().split('echo \"[solution] pulling')[0]\na0 = '''progress(d, s.Offset, s.Total)'''\nb0 = '''progress(s.Ref, s.Offset, s.Total)'''\nassert a0 in s, 'patch 0 does not apply'\ns = s.replace(a0, b0)\nprint(s, end='')\nPY\n"
+  },
+  {
+    "case_id": "q78432931",
+    "category": "diagnostics",
+    "model": "wrong_counter_restarts_when_the_blob_is_committed",
+    "code": "# a blob that completed is reported with offset 0: the counter goes backwards\npython3 - <<'PY' | bash\ns = open(\"cases/diagnostics/q78432931/reference_solution.sh\").read().split('echo \"[solution] pulling')[0]\na0 = '''progress(d, info.Size, info.Size)'''\nb0 = '''progress(d, 0, info.Size)'''\nassert a0 in s, 'patch 0 does not apply'\ns = s.replace(a0, b0)\nprint(s, end='')\nPY\n"
+  },
+  {
+    "case_id": "q78432931",
+    "category": "diagnostics",
+    "model": "wrong_polls_every_3_seconds",
+    "code": "# too few samples while a layer downloads\npython3 - <<'PY' | bash\ns = open(\"cases/diagnostics/q78432931/reference_solution.sh\").read().split('echo \"[solution] pulling')[0]\na0 = '''100 * time.Millisecond'''\nb0 = '''3 * time.Second'''\nassert a0 in s, 'patch 0 does not apply'\ns = s.replace(a0, b0)\nprint(s, end='')\nPY\n"
+  },
+  {
+    "case_id": "q78432931",
+    "category": "diagnostics",
+    "model": "wrong_no_record_reports_a_blob_complete",
+    "code": "# only the active downloads are reported: the last offset of a layer is short of its size\npython3 - <<'PY' | bash\ns = open(\"cases/diagnostics/q78432931/reference_solution.sh\").read().split('echo \"[solution] pulling')[0]\na0 = '''\t\t\tif info, err := cs.Info(ctx, digest.Digest(d)); err == nil {\n\t\t\t\tcomplete[d] = true\n\t\t\t\tlast[d] = info.Size\n\t\t\t\tprogress(d, info.Size, info.Size)\n\t\t\t}'''\nb0 = '''\t\t\t_ = digest.Digest(d)\n\t\t\tcomplete[d] = true'''\nassert a0 in s, 'patch 0 does not apply'\ns = s.replace(a0, b0)\nprint(s, end='')\nPY\n"
+  },
+  {
+    "case_id": "q78432931",
+    "category": "diagnostics",
+    "model": "wrong_failed_pull_reported_as_done",
+    "code": "# the error of client.Pull is logged and a done record is printed anyway; exit status 0\npython3 - <<'PY' | bash\ns = open(\"cases/diagnostics/q78432931/reference_solution.sh\").read().split('echo \"[solution] pulling')[0]\na0 = '''\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\n\ttarget := image.Target()\n\tstdout.Encode(map[string]any{\"event\": \"done\", \"name\": image.Name(), \"digest\": target.Digest.String(), \"size\": target.Size})'''\nb0 = '''\tif err != nil {\n\t\tlog.Print(err)\n\t\tstdout.Encode(map[string]any{\"event\": \"done\", \"name\": *ref})\n\t\treturn\n\t}\n\n\ttarget := image.Target()\n\tstdout.Encode(map[string]any{\"event\": \"done\", \"name\": image.Name(), \"digest\": target.Digest.String(), \"size\": target.Size})'''\nassert a0 in s, 'patch 0 does not apply'\ns = s.replace(a0, b0)\nprint(s, end='')\nPY\n"
+  },
+  {
+    "case_id": "q78432931",
+    "category": "diagnostics",
+    "model": "wrong_done_record_carries_the_config_digest",
+    "code": "# done.digest is the digest of the image config, not of the image (its manifest)\npython3 - <<'PY' | bash\ns = open(\"cases/diagnostics/q78432931/reference_solution.sh\").read().split('echo \"[solution] pulling')[0]\na0 = '''\ttarget := image.Target()'''\nb0 = '''\ttarget, err := image.Config(ctx)\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}'''\nassert a0 in s, 'patch 0 does not apply'\ns = s.replace(a0, b0)\nprint(s, end='')\nPY\n"
+  }
+]

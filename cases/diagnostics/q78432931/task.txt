@@ -1,0 +1,30 @@
+A small Go program pulls a container image with the containerd Go client. It works, and it is completely silent: nothing is printed until the pull is over. For images of hundreds of megabytes that is no way to run it, so it has to show how far the download is while it runs: for every blob it downloads, the bytes pulled so far and the bytes in total.
+
+The program is in /tmp/bench78432931/app (main.go and go.mod; it is built with `GOFLAGS=-mod=mod go build -o pull .` there, and the Go modules are downloaded on the first build; the starter is built already). It uses containerd's Go client, github.com/containerd/containerd/v2 at version v2.0.5:
+
+    pull --address SOCKET --namespace NS --ref REF
+
+and pulls REF with client.Pull and containerd.WithPullUnpack, through a resolver that allows plain HTTP (the registry of this machine is plain HTTP). On this machine:
+
+  - containerd is a private one, with its own socket, /run/bench78432931/containerd/containerd.sock (it belongs to the current user: the program connects to it directly, no sudo). The namespace is k8s.io. For ctr give the socket on every call: sudo ctr -a /run/bench78432931/containerd/containerd.sock -n k8s.io images ls
+  - the registry is at 127.0.0.1:43293, plain HTTP, and it holds the image 127.0.0.1:43293/bench/app:1 to try with. It has three layers of 4 to 6 MiB each, and it serves them slowly, as a real registry does: a pull takes about ten seconds. The images the check uses are made when it runs, with their own random layers; nothing about them is known today. Nothing on this machine may be fetched over the network (only the Go modules of the build).
+
+Your task is to change the program so that it prints the progress of the pull as JSON lines on stdout, while the download goes on:
+
+    {"event":"progress","digest":"sha256:<digest of the blob>","offset":<bytes of the blob pulled so far>,"total":<size of the blob in bytes>}
+
+one for every change in the progress of every blob (every layer; the config and the manifest may be given too). "digest" is the digest of the blob as in the image manifest, "total" its size, "offset" the number of bytes of it that were downloaded, an integer that only grows, for each blob up to "total". When the pull has succeeded, as the last line:
+
+    {"event":"done","name":"<the reference of the image>","digest":"sha256:<digest of the image: its manifest>","size":<size of the manifest>}
+
+The log lines that the program writes to stderr (and any other line of stdout that does not begin with "{") do not matter. The program keeps its flags and its behavior: the image is pulled and unpacked in the given namespace.
+
+Requirements:
+
+1. The check builds the sources in /tmp/bench78432931/app (so leave the program's source there, with its go.mod), pulls a new image with the built program and reads its stdout as it comes. It requires that the progress is the real one: for every layer at least three records with an offset strictly between 0 and the size, printed while that layer was being downloaded (not afterwards); offsets that do not run ahead of what the registry has sent, nor stay far behind it (containerd's content store counts a download in steps of 1 MiB, and that much behind is accepted); offsets that only grow; every layer's last record equal to its size; and a done record with the digest and the size of the image, after all the others. It then checks that the image is in the namespace (the digest, the blobs byte for byte, unpacked).
+2. The progress is made while client.Pull runs: the Docker client of the answers that talk about `docker pull` is not an option (there is no Docker daemon on this node, and the question is about containerd). Do not run other programs from the Go program (os/exec); the numbers come from the containerd client.
+3. A pull that fails must still fail: the check pulls a second new image, one of whose layers does not match its digest, and requires a non-zero exit status and no done record.
+4. Do not change the containerd, its configuration, or the registry. The current user has passwordless sudo. python3 is available. Nothing may be downloaded except the Go modules.
+5. Your commands must finish by themselves: no interactive prompts, and no command that waits forever.
+
+Return the commands needed to complete the task (for example the commands that write the new main.go and build it).
