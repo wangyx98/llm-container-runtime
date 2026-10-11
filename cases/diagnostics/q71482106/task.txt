@@ -1,0 +1,15 @@
+A Kubernetes-style worker node runs containerd as its CRI runtime, on its own socket: /run/bench71482106/containerd/containerd.sock (not the default one). There is no Docker on it. Its pods were created through the CRI. Someone looked at the node with `crictl ps -a`, saw the workload containers of the pods but no pause container anywhere, and suspects that the pods have none. They do: the CRI keeps the pod sandbox apart from the containers (`crictl ps` lists containers, `crictl pods` lists sandboxes), and the process of the sandbox is what holds the pod's network namespace for its containers. A process that is called pause is not necessarily a pod's sandbox (a workload may run a program of that name too), so the sandbox's process must be found through the runtime, not through a process name.
+
+Create the bash script /tmp/bench71482106/pause-map.sh (it is run with bash) that takes one argument, the path of an output file, and writes into it a JSON list with one object per pod sandbox on the node. Each object has these keys:
+- sandbox_id: the full ID of the pod sandbox (64 hexadecimal characters);
+- pod: the Kubernetes namespace and name of the pod, written as namespace/name;
+- pause_pid: the host PID of the process of that sandbox (its pause container);
+- netns: the number of the network namespace of that process, as an integer (the number in net:[...] that /proc/PID/ns/net points to);
+- containers: a list with one object for every container of that pod (running or not, and not the sandbox itself), each with the keys id (the full container ID), name (the container name), pid (the host PID of the container's main process) and netns (the number of the network namespace that process is in, as an integer).
+The PIDs and IDs are discovered at run time; they are different on every run. The script must only read the node: it must not create, stop, restart or remove any pod, container or image. It will be run again later, after pods and containers have been added, so it cannot hold a copy of today's mapping. After creating it, run it with /tmp/bench71482106/pause-map.json as the output file.
+
+Allowed: the standard shell tools, python3, sudo, and the node's own tools (crictl, ctr). Do not use Docker.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo.
+
+Return the commands needed to complete the task.
