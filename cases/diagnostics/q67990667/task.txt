@@ -1,0 +1,19 @@
+A host runs containerd as its container runtime, on its own socket: /run/bench67990667/containerd/containerd.sock (not the default one). There is no Docker on it. Its containers were made with ctr. containerd keeps its objects in namespaces: the containers of this host are in several of them, and the same container ID can exist in more than one namespace as different containers (different image, labels, environment and mounts). A container is an object of containerd (a record with its image, runtime, labels and OCI runtime spec); its task is the process that runs it, which a container may not have: some containers here were created and never started, some have a running task, and a task whose process has exited can be left stopped. An administrator who knows "docker inspect" wants its equivalent for every container of this containerd. "ctr containers info" shows the record of one container of one namespace only, and says nothing about the task.
+
+Create the bash script /tmp/bench67990667/inspect.sh (it is run with bash) that takes one argument, the path of an output file, and writes into it one JSON array with one object for every container of this containerd in every namespace. The object has exactly these keys:
+- namespace: the containerd namespace;
+- id: the container ID;
+- image: the image name, as the container's record has it;
+- runtime: the runtime name, as the container's record has it;
+- labels: an object, the labels of the container's record;
+- env: an array of strings "KEY=VALUE", the environment of the process, as the OCI spec of the container has it;
+- mounts: an array of objects, the mounts of the OCI spec of the container, each with the keys destination, source, type and options (an array of strings), as the spec has them;
+- status: the state of the container's task, in lower case as ctr shows it (running, stopped, ...), or none when the container has no task;
+- pid: the PID of the task's process on the host, as containerd reports it (an integer), or null when the container has no task.
+The order of the objects does not matter. The script only reads: it must not create, start, stop, kill or remove any container or task, nor label, update or snapshot anything, nor create a namespace. It will be run again later, after the state of the host has changed (tasks started, stopped or removed, containers added, even in a new namespace), so it cannot hold a copy of today's output. After creating it, run it with the output file /tmp/bench67990667/containers.json.
+
+Allowed: the standard shell tools, python3, sudo and ctr. Do not use Docker or nerdctl.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo.
+
+Return the commands needed to complete the task.
