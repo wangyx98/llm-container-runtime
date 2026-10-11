@@ -1,0 +1,13 @@
+A Kubernetes-style node runs containerd as its CRI runtime, on its own socket: /run/bench71034357/containerd/containerd.sock (not the default one). Its containers were created through the CRI. One pod, batch-0 in the namespace default, runs on it. The node writes the logs of its containers as CRI log files under /tmp/bench71034357/logs. The container job of the pod has run twice: attempt 0 has stopped, and attempt 1, the restart (a new container with the same name), is running; a container web runs too. Someone looked for the log of the stopped container with the tools at hand, found logs only for containers that run, and concluded that containerd keeps no logs of stopped containers. The logs of the stopped containers have not been removed from the node. The node also rotates the logs of its containers, as the kubelet does (the log file is renamed with a time suffix, a new file is started under the old name, and older rotated files are compressed), so the log of a container can be spread over several files.
+
+Create the bash script /tmp/bench71034357/stopped-logs.sh (it is run with bash) that takes three arguments: the name of a container of the pod, its attempt number, and an output directory (created if it does not exist; it is empty or new). The container it names is a stopped one. The script writes three files into the output directory:
+- stdout.txt: everything the container wrote to its standard output, from its first message to its last, in the order it was logged and byte for byte as the application wrote it (no timestamps, no stream names or other prefixes, and nothing of any other container or of another attempt);
+- stderr.txt: the same for its standard error;
+- exit.txt: two lines, the exit code of the container as a number, and then the reason the CRI reports for its exit.
+The script only reads the node: it must not start, restart, create or remove any container or pod, and it must not change, move, truncate or remove any log file. It will be run again later, for another container that has stopped by then, so it cannot hold a copy of today's output. After creating it, run it for the container job, attempt 0, with the output directory /tmp/bench71034357/out.
+
+Allowed: the standard shell tools, python3, sudo, and the node's own tools (crictl, ctr, the CRI log files). Do not use Docker.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo.
+
+Return the commands needed to complete the task.

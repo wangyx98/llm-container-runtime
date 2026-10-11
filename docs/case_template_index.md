@@ -23,6 +23,7 @@ with "Return the commands needed to complete the task.").
 | containerd namespaces, images, digests (`ctr`, `k8s.io` vs `default`) | `diagnostics/q71582111`, `diagnostics/q72541317` | Imported images in several namespaces, a record of names and digests in `truth.json`, an oracle that parses `NAMESPACE NAME DIGEST` |
 | containerd run as a **systemd unit** and its **journal** (pull errors, log windows) | `diagnostics/q71584810`, `compatibility/q68630961` | Unit file, a registry stub (`registry.py`, `hosts.toml` through `config_path`), journal cursors |
 | Container logs (CRI log files, partial/full records) | `diagnostics/q73176776`, `diagnostics/q73123230`, `diagnostics/q73415919` | Pods that write logs, `app.c`, log-file checks; q73415919 also changes a containerd config value and restarts the daemon |
+| Logs of **stopped** containers, restarts (attempts), kubelet-style log rotation | `diagnostics/q71034357` | Containers that log what a script tells them to and exit with a chosen code (`app.c` with `x CODE`), a restart as a second attempt of the same name, `reopen.py` (ReopenContainerLog over raw gRPC, since `crictl` cannot) so a log really rotates into `N.log`, `N.log.TIMESTAMP` and `N.log.TIMESTAMP.gz`, `truth.json` with the bytes of each stream and the hashes of the log files, an oracle that stops a second container and asks again |
 | Imported image can't be pulled or run (`ctr images import`, namespace `k8s.io`) | `diagnostics/q74804543` | Image import, tripwire for "must not pull" |
 | A Go program that has to be changed (containerd client, Docker daemon query) | `diagnostics/q78432931`, `diagnostics/q76119356` | `starter/` source tree, compile-and-run oracle, a stub registry or daemon behind it |
 | A private Docker daemon that stopped working | `diagnostics/q75346313` | `start-docker.sh`, a daemon with its own containerd and data directory |
@@ -62,6 +63,11 @@ containerd with `setsid -f`, the helper-hash check in `precondition.sh` and `ora
   positional arguments (`crictl inspectp -o json ID`).
 - `crictl` shows `unknown` for pod and namespace unless the pod and container configs carry the kubelet labels
   (`io.kubernetes.pod.name`, `io.kubernetes.pod.namespace`, `io.kubernetes.pod.uid`, `io.kubernetes.container.name`).
+- `crictl logs` reads only the current log file of a container: what the log rotation moved away is not in it. A rotated log is `N.log.TIMESTAMP`
+  (timestamps sort in time order); all but the newest rotated file are gzipped. A record is `TIMESTAMP STREAM TAG TEXT`, TAG `P` for a part of a
+  line that goes on in the next record (a write over 16 KiB), `F` for the end of a line.
+- A restarted container is a NEW container (same name, next attempt number, its own log file `ATTEMPT.log`): the newest container of a name is
+  not the one asked for. `crictl ps -a --name '^NAME$'` lists all attempts, newest first; `crictl inspect` gives `status.logPath`, `exitCode`, `reason`.
 - `ctr` 2.x prints a cgroup-v1 deprecation warning on stderr: use `2>/dev/null` where its output is parsed.
 - An imported (not pulled) image has no repo digest in `crictl`; the CRI plugin also adds `sha256:` entries for it in `k8s.io`.
 - systemd 249: `journalctl -u UNIT --after-cursor` drops one line when the cursor entry is not selected by the unit filter; put cursors on
