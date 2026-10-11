@@ -1,0 +1,22 @@
+A small Go program is meant to tell which container runtimes a Docker daemon is configured with: its default runtime and the runtimes it offers (the ones `docker run --runtime NAME` accepts). The version in the program does it wrongly: it does not ask any daemon, it looks for a dockerd process in the process list of the machine and reads its command line, and it answers the same whichever endpoint it is given. Docker clients have no runtime of their own: the runtime configuration is the daemon's, and the daemon reports it through its API (it is what `docker info` prints as the default runtime and the runtimes). The program has to ask the daemon behind the endpoint it is given.
+
+The program is in /tmp/bench76119356/app (main.go and go.mod; it is built with `GOFLAGS=-mod=mod go build -o rtinfo .` there, and the starter is built already). It is run as
+
+    rtinfo --host unix:///run/bench76119356/a/docker.sock
+
+and has to print one JSON object on stdout, one line, and exit 0:
+
+    {"host":"unix:///run/bench76119356/a/docker.sock","default_runtime":"myrt","runtimes":["io.containerd.runc.v2","myrt","runc"]}
+
+"host" is the endpoint it was given, "default_runtime" the daemon's default runtime, "runtimes" the names of all the runtimes the daemon has, sorted (the values above are made up). It reports the daemon: not a Kubernetes Pod runtime or RuntimeClass, and not anything about the client. If the endpoint is not a Docker daemon that answers (no such socket, nothing listening, another kind of server, a port that is closed), it prints nothing on stdout, writes a message on stderr and exits non-zero, within a few seconds; it never makes up an answer. Without --host it fails the same way (it does not read DOCKER_HOST: the endpoint is the one that was given).
+
+On this machine there are two Docker daemons, each with its own containerd and its own configuration, and different runtimes: the endpoints unix:///run/bench76119356/a/docker.sock and unix:///run/bench76119356/b/docker.sock. The sockets belong to the group of the current user, so docker and the program need no sudo for them (for the docker CLI: docker -H unix:///run/bench76119356/a/docker.sock info). The check also starts a third daemon of its own, whose runtime names are not known today, and runs the program on all three, one after the other and repeatedly, with DOCKER_HOST and DOCKER_CONTEXT set to other things.
+
+Requirements:
+
+1. The check builds the sources in /tmp/bench76119356/app (leave the program's source there, with its go.mod). The standard library is enough: the Docker Engine API is HTTP, over the socket of the endpoint (GET /info). The Docker Go SDK (github.com/docker/docker at version v27.5.1+incompatible) may be used too, but that version has no go.mod, so its dependencies are taken at their latest versions by `GOFLAGS=-mod=mod go build`, and the latest github.com/docker/go-connections no longer has a function this SDK calls (sockets.DialPipe): if you use it, pin the dependencies that do not compile. Do not run other programs from the Go program (os/exec: no `docker` command), and do not look at the processes of the machine (/proc).
+2. Do not stop, restart or reconfigure the daemons or their containerd, do not create containers or images on them, and do not change the runtime configuration of anything. Nothing may be downloaded except the Go modules.
+3. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo. python3 is available.
+4. Your commands must finish by themselves: no interactive prompts, and no command that waits forever.
+
+Return the commands needed to complete the task (for example the commands that write the new main.go and build it).
