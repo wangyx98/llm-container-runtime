@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q73176776",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q73176776/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q73176776",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q73176776",
+    "category": "diagnostics",
+    "model": "alt_valid_unpacks_the_cri_log_file_with_awk",
+    "code": "cat > /tmp/bench73176776/logs.sh <<'SCRIPT'\n#!/bin/bash\n# the CRI log file of the container found with crictl, its records unpacked by hand: stdout records to stdout, stderr records to stderr\nLOG=$(sudo crictl --runtime-endpoint unix:///run/bench73176776/containerd/containerd.sock --image-endpoint unix:///run/bench73176776/containerd/containerd.sock inspect -o go-template --template '{{.status.logPath}}' \"$1\")\nsudo cat \"$LOG\" | awk '{ s=$2; sub(/^[^ ]+ [^ ]+ [^ ]+ /, \"\"); if (s==\"stderr\") print > \"/dev/stderr\"; else print }'\nSCRIPT\nchmod +x /tmp/bench73176776/logs.sh\nbash /tmp/bench73176776/logs.sh \"$(cat /tmp/bench73176776/target.id)\"\n"
+  },
+  {
+    "case_id": "q73176776",
+    "category": "diagnostics",
+    "model": "wrong_prints_the_raw_cri_log_file_with_its_prefixes",
+    "code": "cat > /tmp/bench73176776/logs.sh <<'SCRIPT'\n#!/bin/bash\n# the raw CRI log file: every record with its timestamp, stream and P/F tag, both streams on stdout\nLOG=$(sudo crictl --runtime-endpoint unix:///run/bench73176776/containerd/containerd.sock --image-endpoint unix:///run/bench73176776/containerd/containerd.sock inspect -o go-template --template '{{.status.logPath}}' \"$1\")\nsudo cat \"$LOG\"\nSCRIPT\nchmod +x /tmp/bench73176776/logs.sh\nbash /tmp/bench73176776/logs.sh \"$(cat /tmp/bench73176776/target.id)\"\n"
+  },
+  {
+    "case_id": "q73176776",
+    "category": "diagnostics",
+    "model": "wrong_merges_stderr_into_stdout",
+    "code": "cat > /tmp/bench73176776/logs.sh <<'SCRIPT'\n#!/bin/bash\n# one stream for both: stderr merged into stdout\nexec sudo crictl --runtime-endpoint unix:///run/bench73176776/containerd/containerd.sock logs \"$1\" 2>&1\nSCRIPT\nchmod +x /tmp/bench73176776/logs.sh\nbash /tmp/bench73176776/logs.sh \"$(cat /tmp/bench73176776/target.id)\"\n"
+  },
+  {
+    "case_id": "q73176776",
+    "category": "diagnostics",
+    "model": "wrong_prints_the_logs_of_every_container_of_the_node",
+    "code": "cat > /tmp/bench73176776/logs.sh <<'SCRIPT'\n#!/bin/bash\n# every container of the node: the id is ignored\nfor id in $(sudo crictl --runtime-endpoint unix:///run/bench73176776/containerd/containerd.sock --image-endpoint unix:///run/bench73176776/containerd/containerd.sock ps -q); do\n  sudo crictl --runtime-endpoint unix:///run/bench73176776/containerd/containerd.sock logs \"$id\"\ndone\nSCRIPT\nchmod +x /tmp/bench73176776/logs.sh\nbash /tmp/bench73176776/logs.sh \"$(cat /tmp/bench73176776/target.id)\"\n"
+  },
+  {
+    "case_id": "q73176776",
+    "category": "diagnostics",
+    "model": "wrong_prints_snapshots_taken_when_the_commands_run",
+    "code": "# a copy of today's output of each container, taken now and printed back later\nmkdir -p /tmp/bench73176776/snap\nfor id in $(sudo crictl --runtime-endpoint unix:///run/bench73176776/containerd/containerd.sock --image-endpoint unix:///run/bench73176776/containerd/containerd.sock ps -q --no-trunc); do\n  sudo crictl --runtime-endpoint unix:///run/bench73176776/containerd/containerd.sock logs \"$id\" > /tmp/bench73176776/snap/$id.out 2> /tmp/bench73176776/snap/$id.err\ndone\ncat > /tmp/bench73176776/logs.sh <<'SCRIPT'\n#!/bin/bash\ncat \"/tmp/bench73176776/snap/$1.out\"\ncat \"/tmp/bench73176776/snap/$1.err\" >&2\nSCRIPT\nchmod +x /tmp/bench73176776/logs.sh\nbash /tmp/bench73176776/logs.sh \"$(cat /tmp/bench73176776/target.id)\"\n"
+  },
+  {
+    "case_id": "q73176776",
+    "category": "diagnostics",
+    "model": "wrong_truncates_the_log_file_after_reading_it",
+    "code": "cat > /tmp/bench73176776/logs.sh <<'SCRIPT'\n#!/bin/bash\n# 'consume' the log after showing it, so that the next call prints only what is new\nLOG=$(sudo crictl --runtime-endpoint unix:///run/bench73176776/containerd/containerd.sock --image-endpoint unix:///run/bench73176776/containerd/containerd.sock inspect -o go-template --template '{{.status.logPath}}' \"$1\")\nsudo crictl --runtime-endpoint unix:///run/bench73176776/containerd/containerd.sock logs \"$1\"\nsudo truncate -s 0 \"$LOG\"\nSCRIPT\nchmod +x /tmp/bench73176776/logs.sh\n# (not run here: a first run would already have consumed the log)\n"
+  }
+]

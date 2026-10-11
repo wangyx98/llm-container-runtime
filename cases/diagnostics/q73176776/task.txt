@@ -1,0 +1,9 @@
+A Kubernetes-style node runs containerd as its CRI runtime, on its own socket: /run/bench73176776/containerd/containerd.sock (not the default one). Its containers were created through the CRI. Two containers of one pod run on it: the target container, whose full container ID (64 hexadecimal characters) is in the file /tmp/bench73176776/target.id, and a neighbor container of the same pod, which logs too. Both applications write lines to stdout and to stderr. The node writes the logs of its containers as CRI log files under /tmp/bench73176776/logs.
+
+With Docker, "docker logs" with a container ID prints that container's stdout on its own standard output and its stderr on its own standard error. Docker is not used on this node. Create the bash script /tmp/bench73176776/logs.sh (it is run with bash) that does the same for this containerd node: it takes a full container ID as its first argument and prints the whole log of that container, from its first message on: the messages of its stdout on the script's standard output and the messages of its stderr on the script's standard error, each stream in the order the messages were logged and byte for byte as the application wrote them (no timestamps, no stream names or other prefixes, and no messages of any other container). It reads the real log: it must not change, move, truncate or remove the container, its log file or anything else of the node. The script will be run again later, for this container and for the neighbor, after the applications have logged more messages, and it must then print those too, so it cannot hold a copy of today's output. After creating it, run it for the target container.
+
+Allowed: the standard shell tools, sudo, and the node's own tools (crictl, ctr, the CRI log files). Do not use Docker.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo.
+
+Return the commands needed to complete the task.
