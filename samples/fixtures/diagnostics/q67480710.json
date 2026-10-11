@@ -1,0 +1,56 @@
+[
+  {
+    "case_id": "q67480710",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q67480710/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q67480710",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q67480710",
+    "category": "diagnostics",
+    "model": "alt_valid_uses_the_built_in_cri_multiline_parser_of_the_tail_input",
+    "code": "cat > /tmp/bench67480710/fluent-bit/pipeline.conf <<'CONF'\n[INPUT]\n    Name              tail\n    Tag               kube.*\n    Path              /tmp/bench67480710/var/log/containers/*.log\n    multiline.parser  cri\n    Read_from_Head    On\n    Refresh_Interval  5\n    Mem_Buf_Limit     5MB\n    Skip_Long_Lines   On\nCONF\n/tmp/bench67480710/fluent-bit/bin/fluent-bit --dry-run -c /tmp/bench67480710/fluent-bit/main.conf 2>&1 | tail -3\n"
+  },
+  {
+    "case_id": "q67480710",
+    "category": "diagnostics",
+    "model": "wrong_cri_regex_leaves_the_flag_in_the_text",
+    "code": "cat > /tmp/bench67480710/fluent-bit/parsers.conf <<'CONF'\n[PARSER]\n    Name         docker\n    Format       json\n    Time_Key     time\n    Time_Format  %Y-%m-%dT%H:%M:%S.%L\n    Time_Keep    On\n\n[PARSER]\n    Name         cri\n    Format       regex\n    Regex        ^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<log>.*)$\n    Time_Key     time\n    Time_Format  %Y-%m-%dT%H:%M:%S.%L%z\nCONF\ncat > /tmp/bench67480710/fluent-bit/pipeline.conf <<'CONF'\n[INPUT]\n    Name              tail\n    Tag               kube.*\n    Path              /tmp/bench67480710/var/log/containers/*.log\n    Parser            cri\n    Read_from_Head    On\n    Refresh_Interval  5\n    Mem_Buf_Limit     5MB\n    Skip_Long_Lines   On\nCONF\n/tmp/bench67480710/fluent-bit/bin/fluent-bit --dry-run -c /tmp/bench67480710/fluent-bit/main.conf 2>&1 | tail -3\n"
+  },
+  {
+    "case_id": "q67480710",
+    "category": "diagnostics",
+    "model": "wrong_cri_regex_takes_the_flag_for_the_stream",
+    "code": "cat > /tmp/bench67480710/fluent-bit/parsers.conf <<'CONF'\n[PARSER]\n    Name         docker\n    Format       json\n    Time_Key     time\n    Time_Format  %Y-%m-%dT%H:%M:%S.%L\n    Time_Keep    On\n\n[PARSER]\n    Name         cri\n    Format       regex\n    Regex        ^(?<time>[^ ]+) (?<_s>stdout|stderr) (?<stream>[FP]) (?<log>.*)$\n    Time_Key     time\n    Time_Format  %Y-%m-%dT%H:%M:%S.%L%z\nCONF\ncat > /tmp/bench67480710/fluent-bit/pipeline.conf <<'CONF'\n[INPUT]\n    Name              tail\n    Tag               kube.*\n    Path              /tmp/bench67480710/var/log/containers/*.log\n    Parser            cri\n    Read_from_Head    On\n    Refresh_Interval  5\n    Mem_Buf_Limit     5MB\n    Skip_Long_Lines   On\nCONF\n/tmp/bench67480710/fluent-bit/bin/fluent-bit --dry-run -c /tmp/bench67480710/fluent-bit/main.conf 2>&1 | tail -3\n"
+  },
+  {
+    "case_id": "q67480710",
+    "category": "diagnostics",
+    "model": "wrong_names_the_cri_parser_without_defining_it",
+    "code": "cat > /tmp/bench67480710/fluent-bit/pipeline.conf <<'CONF'\n[INPUT]\n    Name              tail\n    Tag               kube.*\n    Path              /tmp/bench67480710/var/log/containers/*.log\n    Parser            cri\n    Read_from_Head    On\n    Refresh_Interval  5\n    Mem_Buf_Limit     5MB\n    Skip_Long_Lines   On\nCONF\n/tmp/bench67480710/fluent-bit/bin/fluent-bit --dry-run -c /tmp/bench67480710/fluent-bit/main.conf 2>&1 | tail -3\n"
+  },
+  {
+    "case_id": "q67480710",
+    "category": "diagnostics",
+    "model": "wrong_reads_only_what_is_written_after_the_start",
+    "code": "cat > /tmp/bench67480710/fluent-bit/parsers.conf <<'CONF'\n[PARSER]\n    Name         docker\n    Format       json\n    Time_Key     time\n    Time_Format  %Y-%m-%dT%H:%M:%S.%L\n    Time_Keep    On\n\n[PARSER]\n    Name         cri\n    Format       regex\n    Regex        ^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]*) (?<log>.*)$\n    Time_Key     time\n    Time_Format  %Y-%m-%dT%H:%M:%S.%L%z\nCONF\ncat > /tmp/bench67480710/fluent-bit/pipeline.conf <<'CONF'\n[INPUT]\n    Name              tail\n    Tag               kube.*\n    Path              /tmp/bench67480710/var/log/containers/*.log\n    Parser            cri\n    Read_from_Head    Off\n    Refresh_Interval  5\n    Mem_Buf_Limit     5MB\n    Skip_Long_Lines   On\nCONF\n/tmp/bench67480710/fluent-bit/bin/fluent-bit --dry-run -c /tmp/bench67480710/fluent-bit/main.conf 2>&1 | tail -3\n"
+  },
+  {
+    "case_id": "q67480710",
+    "category": "diagnostics",
+    "model": "wrong_tails_a_docker_format_copy_made_today",
+    "code": "mkdir -p /tmp/bench67480710/converted\npython3 - <<'PY'\nimport glob\nimport json\nimport os\nimport re\nimport subprocess\n\nfor link in glob.glob(\"/tmp/bench67480710/var/log/containers/*.log\"):\n    raw = subprocess.run([\"sudo\", \"cat\", os.path.realpath(link)], capture_output=True, text=True).stdout\n    with open(\"/tmp/bench67480710/converted/\" + os.path.basename(link), \"w\") as out:\n        for line in raw.splitlines():\n            m = re.match(r\"^(\\S+) (stdout|stderr) [FP] (.*)$\", line)\n            out.write(json.dumps({\"log\": m.group(3), \"stream\": m.group(2), \"time\": m.group(1)}) + \"\\n\")\nPY\ncat > /tmp/bench67480710/fluent-bit/pipeline.conf <<'CONF'\n[INPUT]\n    Name              tail\n    Tag               kube.*\n    Path              /tmp/bench67480710/converted/*.log\n    Parser            docker\n    Read_from_Head    On\n    Refresh_Interval  5\n    Mem_Buf_Limit     5MB\n    Skip_Long_Lines   On\nCONF\n/tmp/bench67480710/fluent-bit/bin/fluent-bit --dry-run -c /tmp/bench67480710/fluent-bit/main.conf 2>&1 | tail -3\n"
+  },
+  {
+    "case_id": "q67480710",
+    "category": "diagnostics",
+    "model": "wrong_rewrites_the_runtime_logs_in_place_as_docker_json",
+    "code": "sudo python3 - <<'PY'\nimport glob\nimport json\nimport os\nimport re\n\nfor link in glob.glob(\"/tmp/bench67480710/var/log/containers/*.log\"):\n    target = os.path.realpath(link)\n    lines = open(target).read().splitlines()\n    with open(target, \"r+\") as f:\n        f.truncate(0)\n        for line in lines:\n            m = re.match(r\"^(\\S+) (stdout|stderr) [FP] (.*)$\", line)\n            f.write(json.dumps({\"log\": m.group(3) + \"\\n\", \"stream\": m.group(2), \"time\": m.group(1)}) + \"\\n\")\nPY\n"
+  }
+]
