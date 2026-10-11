@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q73123230",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q73123230/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q73123230",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q73123230",
+    "category": "diagnostics",
+    "model": "alt_valid_tail_with_docker_and_cri_multiline_parsers",
+    "code": "# the usual auto-detecting form of the tail input: the Docker and the CRI built-in multiline parsers\ncat > /tmp/bench73123230/fluent-bit/parsers.conf <<'CONF'\n[MULTILINE_PARSER]\n    name           app_event\n    type           regex\n    flush_timeout  5000\n    rule  \"start_state\"  \"/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2},\\d{3}/\"           \"cont\"\n    rule  \"cont\"         \"/^(?!\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2},\\d{3}).*/\"     \"cont\"\nCONF\ncat > /tmp/bench73123230/fluent-bit/pipeline.conf <<'CONF'\n[INPUT]\n    Name              tail\n    Path              /tmp/bench73123230/logs/*.log\n    Tag               cri.*\n    Read_from_Head    On\n    multiline.parser  docker, cri\n\n[FILTER]\n    Name                   multiline\n    Match                  *\n    multiline.key_content  log\n    multiline.parser       app_event\nCONF\n"
+  },
+  {
+    "case_id": "q73123230",
+    "category": "diagnostics",
+    "model": "wrong_docker_json_parser_on_cri_files",
+    "code": "# the Docker (JSON) parser of the old configuration on CRI files: the envelope stays in the log\ncat > /tmp/bench73123230/fluent-bit/parsers.conf <<'CONF'\n[PARSER]\n    Name         docker\n    Format       json\n    Time_Key     time\n    Time_Format  %Y-%m-%dT%H:%M:%S.%L\n    Time_Keep    On\nCONF\ncat > /tmp/bench73123230/fluent-bit/pipeline.conf <<'CONF'\n[INPUT]\n    Name              tail\n    Path              /tmp/bench73123230/logs/*.log\n    Tag               cri.*\n    Read_from_Head    On\n    Parser            docker\nCONF\n"
+  },
+  {
+    "case_id": "q73123230",
+    "category": "diagnostics",
+    "model": "wrong_cri_parser_alone_events_not_joined",
+    "code": "# the envelope is gone, but every line of an event is a record of its own\ncat > /tmp/bench73123230/fluent-bit/parsers.conf <<'CONF'\nCONF\ncat > /tmp/bench73123230/fluent-bit/pipeline.conf <<'CONF'\n[INPUT]\n    Name              tail\n    Path              /tmp/bench73123230/logs/*.log\n    Tag               cri.*\n    Read_from_Head    On\n    multiline.parser  cri\nCONF\n"
+  },
+  {
+    "case_id": "q73123230",
+    "category": "diagnostics",
+    "model": "wrong_lua_step_strips_the_ansi_sequences",
+    "code": "cat > /tmp/bench73123230/fluent-bit/strip.lua <<'LUA'\nfunction strip_ansi(tag, ts, record)\n  record[\"log\"] = (string.gsub(record[\"log\"], \"\\27%[[%d;]*m\", \"\"))\n  return 2, ts, record\nend\nLUA\ncat > /tmp/bench73123230/fluent-bit/parsers.conf <<'CONF'\n[MULTILINE_PARSER]\n    name           app_event\n    type           regex\n    flush_timeout  5000\n    rule  \"start_state\"  \"/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2},\\d{3}/\"           \"cont\"\n    rule  \"cont\"         \"/^(?!\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2},\\d{3}).*/\"     \"cont\"\nCONF\ncat > /tmp/bench73123230/fluent-bit/pipeline.conf <<'CONF'\n[INPUT]\n    Name              tail\n    Path              /tmp/bench73123230/logs/*.log\n    Tag               cri.*\n    Read_from_Head    On\n    multiline.parser  cri\n\n[FILTER]\n    Name                   multiline\n    Match                  *\n    multiline.key_content  log\n    multiline.parser       app_event\n\n[FILTER]\n    Name    lua\n    Match   *\n    script  /tmp/bench73123230/fluent-bit/strip.lua\n    call    strip_ansi\nCONF\n"
+  },
+  {
+    "case_id": "q73123230",
+    "category": "diagnostics",
+    "model": "wrong_tag_without_wildcard_mixes_the_containers",
+    "code": "# one tag for both files: one multiline stream for both containers\ncat > /tmp/bench73123230/fluent-bit/parsers.conf <<'CONF'\n[MULTILINE_PARSER]\n    name           app_event\n    type           regex\n    flush_timeout  5000\n    rule  \"start_state\"  \"/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2},\\d{3}/\"           \"cont\"\n    rule  \"cont\"         \"/^(?!\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2},\\d{3}).*/\"     \"cont\"\nCONF\ncat > /tmp/bench73123230/fluent-bit/pipeline.conf <<'CONF'\n[INPUT]\n    Name              tail\n    Path              /tmp/bench73123230/logs/*.log\n    Tag               app\n    Read_from_Head    On\n    multiline.parser  cri\n\n[FILTER]\n    Name                   multiline\n    Match                  *\n    multiline.key_content  log\n    multiline.parser       app_event\nCONF\n"
+  },
+  {
+    "case_id": "q73123230",
+    "category": "diagnostics",
+    "model": "wrong_regex_cri_parser_pieces_of_a_long_line_not_joined",
+    "code": "# a plain regex parser for the CRI format: no handling of the P pieces\ncat > /tmp/bench73123230/fluent-bit/parsers.conf <<'CONF'\n[MULTILINE_PARSER]\n    name           app_event\n    type           regex\n    flush_timeout  5000\n    rule  \"start_state\"  \"/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2},\\d{3}/\"           \"cont\"\n    rule  \"cont\"         \"/^(?!\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2},\\d{3}).*/\"     \"cont\"\n\n[PARSER]\n    Name         cri\n    Format       regex\n    Regex        ^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]*) (?<message>.*)$\n    Time_Key     time\n    Time_Format  %Y-%m-%dT%H:%M:%S.%L%z\nCONF\ncat > /tmp/bench73123230/fluent-bit/pipeline.conf <<'CONF'\n[INPUT]\n    Name              tail\n    Path              /tmp/bench73123230/logs/*.log\n    Tag               cri.*\n    Read_from_Head    On\n    Parser            cri\n\n[FILTER]\n    Name    modify\n    Match   *\n    Rename  message log\n\n[FILTER]\n    Name                   multiline\n    Match                  *\n    multiline.key_content  log\n    multiline.parser       app_event\nCONF\n"
+  }
+]
