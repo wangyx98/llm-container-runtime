@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q66754136",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q66754136/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q66754136",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q66754136",
+    "category": "diagnostics",
+    "model": "alt_valid_escapes_with_bracket_expressions_instead_of_backslashes",
+    "code": "cat > /tmp/bench66754136/ref-filter.sh <<'SCRIPT'\n#!/bin/bash\npython3 - \"$1\" \"$2\" <<'PY'\nimport sys\n\ntext, out = sys.argv[1:3]\n\n\ndef esc(c):\n    if c in \".+*?()|{}$\":\n        return \"[\" + c + \"]\"            # a bracket expression holds the character as it is\n    if c in \"[]^\":\n        return \"\\\\\\\\\" + c\n    if c == \"\\\\\":\n        return \"\\\\\\\\\\\\\\\\\"\n    return c\n\n\nopen(out, \"w\").write('name~=\"%s\"\\n' % \"\".join(esc(c) for c in text))\nPY\nSCRIPT\nchmod +x /tmp/bench66754136/ref-filter.sh\nbash /tmp/bench66754136/ref-filter.sh kafka /tmp/bench66754136/filter.txt\ncat /tmp/bench66754136/filter.txt\n"
+  },
+  {
+    "case_id": "q66754136",
+    "category": "diagnostics",
+    "model": "wrong_filters_on_the_field_ref",
+    "code": "cat > /tmp/bench66754136/ref-filter.sh <<'SCRIPT'\n#!/bin/bash\npython3 - \"$1\" \"$2\" <<'PY'\nimport re\nimport sys\n\ntext, out = sys.argv[1:3]\nopen(out, \"w\").write('ref~=\"%s\"\\n' % re.escape(text).replace(\"\\\\\", \"\\\\\\\\\"))\nPY\nSCRIPT\nchmod +x /tmp/bench66754136/ref-filter.sh\nbash /tmp/bench66754136/ref-filter.sh kafka /tmp/bench66754136/filter.txt\ncat /tmp/bench66754136/filter.txt\n"
+  },
+  {
+    "case_id": "q66754136",
+    "category": "diagnostics",
+    "model": "wrong_does_not_escape_the_regular_expression",
+    "code": "cat > /tmp/bench66754136/ref-filter.sh <<'SCRIPT'\n#!/bin/bash\npython3 - \"$1\" \"$2\" <<'PY'\nimport re\nimport sys\n\ntext, out = sys.argv[1:3]\nopen(out, \"w\").write('name~=\"%s\"\\n' % text)\nPY\nSCRIPT\nchmod +x /tmp/bench66754136/ref-filter.sh\nbash /tmp/bench66754136/ref-filter.sh kafka /tmp/bench66754136/filter.txt\ncat /tmp/bench66754136/filter.txt\n"
+  },
+  {
+    "case_id": "q66754136",
+    "category": "diagnostics",
+    "model": "wrong_escapes_with_single_backslashes_inside_the_quotes",
+    "code": "cat > /tmp/bench66754136/ref-filter.sh <<'SCRIPT'\n#!/bin/bash\npython3 - \"$1\" \"$2\" <<'PY'\nimport re\nimport sys\n\ntext, out = sys.argv[1:3]\nopen(out, \"w\").write('name~=\"%s\"\\n' % re.escape(text))\nPY\nSCRIPT\nchmod +x /tmp/bench66754136/ref-filter.sh\nbash /tmp/bench66754136/ref-filter.sh kafka /tmp/bench66754136/filter.txt\ncat /tmp/bench66754136/filter.txt\n"
+  },
+  {
+    "case_id": "q66754136",
+    "category": "diagnostics",
+    "model": "wrong_lists_the_refs_of_the_day_the_script_first_ran",
+    "code": "cat > /tmp/bench66754136/ref-filter.sh <<'SCRIPT'\n#!/bin/bash\npython3 - \"$1\" \"$2\" <<'PY'\nimport os\nimport re\nimport subprocess\nimport sys\n\ntext, out = sys.argv[1:3]\nsnap = \"/tmp/bench66754136-refs.txt\"\nif not os.path.exists(snap):\n    refs = subprocess.run([\"sudo\", \"ctr\", \"-a\", \"/run/bench66754136/containerd/containerd.sock\", \"-n\", \"k8s.io\", \"images\", \"list\", \"-q\"], capture_output=True, text=True).stdout.split()\n    open(snap, \"w\").write(\"\\n\".join(refs) + \"\\n\")\nrefs = [r for r in open(snap).read().split() if text in r]\nalt = \"|\".join(re.escape(r).replace(\"\\\\\", \"\\\\\\\\\") for r in refs)\nopen(out, \"w\").write('name~=\"^(%s)$\"\\n' % alt)\nPY\nSCRIPT\nchmod +x /tmp/bench66754136/ref-filter.sh\nbash /tmp/bench66754136/ref-filter.sh kafka /tmp/bench66754136/filter.txt\ncat /tmp/bench66754136/filter.txt\n"
+  },
+  {
+    "case_id": "q66754136",
+    "category": "diagnostics",
+    "model": "wrong_removes_the_images_that_do_not_match_first",
+    "code": "cat > /tmp/bench66754136/ref-filter.sh <<'SCRIPT'\n#!/bin/bash\nfor r in $(sudo ctr -a /run/bench66754136/containerd/containerd.sock -n k8s.io images ls -q 2>/dev/null); do\n    case \"$r\" in *\"$1\"*) ;; *) sudo ctr -a /run/bench66754136/containerd/containerd.sock -n k8s.io images rm \"$r\" >/dev/null 2>&1 ;; esac\ndone\npython3 - \"$1\" \"$2\" <<'PY'\nimport re\nimport sys\n\ntext, out = sys.argv[1:3]\nopen(out, \"w\").write('name~=\"%s\"\\n' % re.escape(text).replace(\"\\\\\", \"\\\\\\\\\"))\nPY\nSCRIPT\nchmod +x /tmp/bench66754136/ref-filter.sh\nbash /tmp/bench66754136/ref-filter.sh kafka /tmp/bench66754136/filter.txt\ncat /tmp/bench66754136/filter.txt\n"
+  }
+]
