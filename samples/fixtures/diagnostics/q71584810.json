@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q71584810",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q71584810/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q71584810",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q71584810",
+    "category": "diagnostics",
+    "model": "alt_valid_python_reads_the_json_journal_and_compares_the_timestamps",
+    "code": "cat > /tmp/bench71584810/export-pull-log.sh <<'SCRIPT'\n#!/bin/bash\nset -e\npython3 - \"$1\" \"$2\" \"$3\" <<'PY'\nimport json, subprocess, sys\n\ndef usec(path):\n    fields = dict(p.split(\"=\", 1) for p in open(path).read().strip().split(\";\"))\n    return int(fields[\"t\"], 16)\n\nt0, t1 = usec(sys.argv[1]), usec(sys.argv[2])\nout = subprocess.run([\"sudo\", \"journalctl\", \"-o\", \"json\", \"--no-pager\", \"_SYSTEMD_UNIT=bench71584810-containerd.service\"],\n                     capture_output=True, text=True).stdout\nwith open(sys.argv[3], \"w\") as f:\n    for line in out.splitlines():\n        e = json.loads(line)\n        if t0 < int(e[\"__REALTIME_TIMESTAMP\"]) <= t1:\n            f.write(e[\"MESSAGE\"] + \"\\n\")\nPY\nSCRIPT\nchmod +x /tmp/bench71584810/export-pull-log.sh\nbash /tmp/bench71584810/export-pull-log.sh /tmp/bench71584810/cursor.start /tmp/bench71584810/cursor.end /tmp/bench71584810/pull-window.log\n"
+  },
+  {
+    "case_id": "q71584810",
+    "category": "diagnostics",
+    "model": "wrong_whole_journal_between_the_cursors_filtered_by_words",
+    "code": "cat > /tmp/bench71584810/export-pull-log.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nUNIT=bench71584810-containerd.service\nstart=$(cat \"$1\")\nend=$(cat \"$2\")\nt=$(printf '%s' \"$end\" | tr ';' '\\n' | sed -n 's/^t=//p')\nusec=$((16#$t))\nuntil_ts=$(printf '@%d.%06d' $((usec / 1000000)) $((usec % 1000000)))\nsudo journalctl --after-cursor \"$start\" --until \"$until_ts\" -o cat --no-pager | grep -iE 'pull|429|too many' > \"$3\"\nSCRIPT\nchmod +x /tmp/bench71584810/export-pull-log.sh\nbash /tmp/bench71584810/export-pull-log.sh /tmp/bench71584810/cursor.start /tmp/bench71584810/cursor.end /tmp/bench71584810/pull-window.log\n"
+  },
+  {
+    "case_id": "q71584810",
+    "category": "diagnostics",
+    "model": "wrong_syslog_identifier_containerd_matches_the_application_too",
+    "code": "cat > /tmp/bench71584810/export-pull-log.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nUNIT=bench71584810-containerd.service\nstart=$(cat \"$1\")\nend=$(cat \"$2\")\nt=$(printf '%s' \"$end\" | tr ';' '\\n' | sed -n 's/^t=//p')\nusec=$((16#$t))\nuntil_ts=$(printf '@%d.%06d' $((usec / 1000000)) $((usec % 1000000)))\nsudo journalctl -t containerd --after-cursor \"$start\" --until \"$until_ts\" -o cat --no-pager > \"$3\"\nSCRIPT\nchmod +x /tmp/bench71584810/export-pull-log.sh\nbash /tmp/bench71584810/export-pull-log.sh /tmp/bench71584810/cursor.start /tmp/bench71584810/cursor.end /tmp/bench71584810/pull-window.log\n"
+  },
+  {
+    "case_id": "q71584810",
+    "category": "diagnostics",
+    "model": "wrong_last_lines_of_the_unit",
+    "code": "cat > /tmp/bench71584810/export-pull-log.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nUNIT=bench71584810-containerd.service\nstart=$(cat \"$1\")\nend=$(cat \"$2\")\nt=$(printf '%s' \"$end\" | tr ';' '\\n' | sed -n 's/^t=//p')\nusec=$((16#$t))\nuntil_ts=$(printf '@%d.%06d' $((usec / 1000000)) $((usec % 1000000)))\nsudo journalctl -u \"$UNIT\" -n 12 -o cat --no-pager > \"$3\"\nSCRIPT\nchmod +x /tmp/bench71584810/export-pull-log.sh\nbash /tmp/bench71584810/export-pull-log.sh /tmp/bench71584810/cursor.start /tmp/bench71584810/cursor.end /tmp/bench71584810/pull-window.log\n"
+  },
+  {
+    "case_id": "q71584810",
+    "category": "diagnostics",
+    "model": "wrong_only_the_error_line_of_the_window",
+    "code": "cat > /tmp/bench71584810/export-pull-log.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nUNIT=bench71584810-containerd.service\nstart=$(cat \"$1\")\nend=$(cat \"$2\")\nt=$(printf '%s' \"$end\" | tr ';' '\\n' | sed -n 's/^t=//p')\nusec=$((16#$t))\nuntil_ts=$(printf '@%d.%06d' $((usec / 1000000)) $((usec % 1000000)))\nsudo journalctl -u \"$UNIT\" --after-cursor \"$start\" --until \"$until_ts\" -o cat --no-pager | grep 'level=error' > \"$3\"\nSCRIPT\nchmod +x /tmp/bench71584810/export-pull-log.sh\nbash /tmp/bench71584810/export-pull-log.sh /tmp/bench71584810/cursor.start /tmp/bench71584810/cursor.end /tmp/bench71584810/pull-window.log\n"
+  },
+  {
+    "case_id": "q71584810",
+    "category": "diagnostics",
+    "model": "wrong_lines_with_the_timestamp_and_host_of_the_journal",
+    "code": "cat > /tmp/bench71584810/export-pull-log.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nUNIT=bench71584810-containerd.service\nstart=$(cat \"$1\")\nend=$(cat \"$2\")\nt=$(printf '%s' \"$end\" | tr ';' '\\n' | sed -n 's/^t=//p')\nusec=$((16#$t))\nuntil_ts=$(printf '@%d.%06d' $((usec / 1000000)) $((usec % 1000000)))\nsudo journalctl -u \"$UNIT\" --after-cursor \"$start\" --until \"$until_ts\" -o short-iso --no-pager > \"$3\"\nSCRIPT\nchmod +x /tmp/bench71584810/export-pull-log.sh\nbash /tmp/bench71584810/export-pull-log.sh /tmp/bench71584810/cursor.start /tmp/bench71584810/cursor.end /tmp/bench71584810/pull-window.log\n"
+  },
+  {
+    "case_id": "q71584810",
+    "category": "diagnostics",
+    "model": "wrong_restarts_the_containerd_unit_for_a_debug_log_level",
+    "code": "cat > /tmp/bench71584810/export-pull-log.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nUNIT=bench71584810-containerd.service\nstart=$(cat \"$1\")\nend=$(cat \"$2\")\nt=$(printf '%s' \"$end\" | tr ';' '\\n' | sed -n 's/^t=//p')\nusec=$((16#$t))\nuntil_ts=$(printf '@%d.%06d' $((usec / 1000000)) $((usec % 1000000)))\nsudo journalctl -u \"$UNIT\" --after-cursor \"$start\" --until \"$until_ts\" -o cat --no-pager > \"$3\"\n# more detail next time: debug level in the config, then restart\nsudo systemctl restart \"$UNIT\"\nSCRIPT\nchmod +x /tmp/bench71584810/export-pull-log.sh\nbash /tmp/bench71584810/export-pull-log.sh /tmp/bench71584810/cursor.start /tmp/bench71584810/cursor.end /tmp/bench71584810/pull-window.log\n"
+  },
+  {
+    "case_id": "q71584810",
+    "category": "diagnostics",
+    "model": "wrong_replays_the_lines_of_today",
+    "code": "F=/tmp/bench71584810/frozen.log\nUNIT=bench71584810-containerd.service\nstart=$(cat /tmp/bench71584810/cursor.start)\nend=$(cat /tmp/bench71584810/cursor.end)\nt=$(printf '%s' \"$end\" | tr ';' '\\n' | sed -n 's/^t=//p')\nusec=$((16#$t))\nsudo journalctl --unit \"$UNIT\" --after-cursor \"$start\" --until \"$(printf '@%d.%06d' $((usec / 1000000)) $((usec % 1000000)))\" -o cat --no-pager > \"$F\"\ncat > /tmp/bench71584810/export-pull-log.sh <<'SCRIPT'\n#!/bin/bash\ncp /tmp/bench71584810/frozen.log \"$3\"\nSCRIPT\nchmod +x /tmp/bench71584810/export-pull-log.sh\nbash /tmp/bench71584810/export-pull-log.sh /tmp/bench71584810/cursor.start /tmp/bench71584810/cursor.end /tmp/bench71584810/pull-window.log\n"
+  }
+]
