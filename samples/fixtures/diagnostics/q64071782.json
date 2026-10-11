@@ -1,0 +1,56 @@
+[
+  {
+    "case_id": "q64071782",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q64071782/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q64071782",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q64071782",
+    "category": "diagnostics",
+    "model": "alt_valid_reads_runc_events_stats_and_proc_cgroup",
+    "code": "cat > /tmp/bench64071782/cpu-usage.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nid=$1\nout=$2\npid=$(sudo runc state \"$id\" | python3 -c 'import json, sys; print(json.load(sys.stdin)[\"pid\"])')\ntotal=$(sudo runc events --stats \"$id\" | python3 -c 'import json, sys; print(json.load(sys.stdin)[\"data\"][\"cpu\"][\"usage\"][\"total\"])')\nif [ \"$(stat -fc %T /sys/fs/cgroup)\" = cgroup2fs ]; then\n    path=$(awk -F: '$1 == \"0\" {print $3}' /proc/$pid/cgroup)\nelse\n    path=$(awk -F: '$2 ~ /(^|,)cpuacct(,|$)/ {print $3}' /proc/$pid/cgroup)\nfi\nprintf '{\"cgroup\": \"%s\", \"usage_ns\": %s}\\n' \"$path\" \"$total\" > \"$out\"\nSCRIPT\nchmod +x /tmp/bench64071782/cpu-usage.sh\nbash /tmp/bench64071782/cpu-usage.sh bench64071782-app /tmp/bench64071782/app-cpu.json\ncat /tmp/bench64071782/app-cpu.json\n"
+  },
+  {
+    "case_id": "q64071782",
+    "category": "diagnostics",
+    "model": "wrong_assumes_the_path_from_the_so_answer",
+    "code": "cat > /tmp/bench64071782/cpu-usage.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nid=$1\nout=$2\nusage=$(cat /sys/fs/cgroup/cpu,cpuacct/user.slice/$id/cpuacct.usage)\necho \"{\\\"cgroup\\\": \\\"/user.slice/$id\\\", \\\"usage_ns\\\": $usage}\" > \"$out\"\nSCRIPT\nchmod +x /tmp/bench64071782/cpu-usage.sh\nbash /tmp/bench64071782/cpu-usage.sh bench64071782-app /tmp/bench64071782/app-cpu.json\ncat /tmp/bench64071782/app-cpu.json\n"
+  },
+  {
+    "case_id": "q64071782",
+    "category": "diagnostics",
+    "model": "wrong_finds_the_process_by_its_name_instead_of_the_container_id",
+    "code": "cat > /tmp/bench64071782/cpu-usage.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nid=$1\nout=$2\npid=$(pgrep -x app | head -1)\npython3 - \"$pid\" \"$out\" <<'PY'\nimport json\nimport os\nimport sys\n\npid, out = sys.argv[1:3]\nv1 = v2 = None\nfor line in open(\"/proc/self/mountinfo\"):\n    left, right = line.split(\" - \", 1)\n    fs, _, opts = right.split()[:3]\n    if fs == \"cgroup\" and \"cpuacct\" in opts.split(\",\") and v1 is None:\n        v1 = left.split()[4]\n    if fs == \"cgroup2\" and v2 is None:\n        v2 = left.split()[4]\nfor line in open(\"/proc/%s/cgroup\" % pid):\n    _, ctrl, path = line.rstrip(\"\\n\").split(\":\", 2)\n    if v1 and \"cpuacct\" in ctrl.split(\",\"):\n        break\n    if not v1 and ctrl == \"\":\n        break\n\n\ndef counter(path):\n    if v1:\n        return int(open(v1 + path + \"/cpuacct.usage\").read())\n    return next(int(l.split()[1]) for l in open(v2 + path + \"/cpu.stat\") if l.startswith(\"usage_usec \")) * 1000\n\n\nusage = counter(path)\njson.dump({\"cgroup\": path, \"usage_ns\": usage}, open(out, \"w\"))\nPY\nSCRIPT\nchmod +x /tmp/bench64071782/cpu-usage.sh\nbash /tmp/bench64071782/cpu-usage.sh bench64071782-app /tmp/bench64071782/app-cpu.json\ncat /tmp/bench64071782/app-cpu.json\n"
+  },
+  {
+    "case_id": "q64071782",
+    "category": "diagnostics",
+    "model": "wrong_reads_the_counter_of_the_parent_cgroup",
+    "code": "cat > /tmp/bench64071782/cpu-usage.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nid=$1\nout=$2\npid=$(sudo runc state \"$id\" | python3 -c 'import json, sys; print(json.load(sys.stdin)[\"pid\"])')\npython3 - \"$pid\" \"$out\" <<'PY'\nimport json\nimport os\nimport sys\n\npid, out = sys.argv[1:3]\nv1 = v2 = None\nfor line in open(\"/proc/self/mountinfo\"):\n    left, right = line.split(\" - \", 1)\n    fs, _, opts = right.split()[:3]\n    if fs == \"cgroup\" and \"cpuacct\" in opts.split(\",\") and v1 is None:\n        v1 = left.split()[4]\n    if fs == \"cgroup2\" and v2 is None:\n        v2 = left.split()[4]\nfor line in open(\"/proc/%s/cgroup\" % pid):\n    _, ctrl, path = line.rstrip(\"\\n\").split(\":\", 2)\n    if v1 and \"cpuacct\" in ctrl.split(\",\"):\n        break\n    if not v1 and ctrl == \"\":\n        break\n\n\ndef counter(path):\n    if v1:\n        return int(open(v1 + path + \"/cpuacct.usage\").read())\n    return next(int(l.split()[1]) for l in open(v2 + path + \"/cpu.stat\") if l.startswith(\"usage_usec \")) * 1000\n\n\nusage = counter(os.path.dirname(path))\njson.dump({\"cgroup\": path, \"usage_ns\": usage}, open(out, \"w\"))\nPY\nSCRIPT\nchmod +x /tmp/bench64071782/cpu-usage.sh\nbash /tmp/bench64071782/cpu-usage.sh bench64071782-app /tmp/bench64071782/app-cpu.json\ncat /tmp/bench64071782/app-cpu.json\n"
+  },
+  {
+    "case_id": "q64071782",
+    "category": "diagnostics",
+    "model": "wrong_reads_the_cpu_time_of_the_first_process",
+    "code": "cat > /tmp/bench64071782/cpu-usage.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nid=$1\nout=$2\npid=$(sudo runc state \"$id\" | python3 -c 'import json, sys; print(json.load(sys.stdin)[\"pid\"])')\npython3 - \"$pid\" \"$out\" <<'PY'\nimport json\nimport os\nimport sys\n\npid, out = sys.argv[1:3]\nv1 = v2 = None\nfor line in open(\"/proc/self/mountinfo\"):\n    left, right = line.split(\" - \", 1)\n    fs, _, opts = right.split()[:3]\n    if fs == \"cgroup\" and \"cpuacct\" in opts.split(\",\") and v1 is None:\n        v1 = left.split()[4]\n    if fs == \"cgroup2\" and v2 is None:\n        v2 = left.split()[4]\nfor line in open(\"/proc/%s/cgroup\" % pid):\n    _, ctrl, path = line.rstrip(\"\\n\").split(\":\", 2)\n    if v1 and \"cpuacct\" in ctrl.split(\",\"):\n        break\n    if not v1 and ctrl == \"\":\n        break\n\n\ndef counter(path):\n    if v1:\n        return int(open(v1 + path + \"/cpuacct.usage\").read())\n    return next(int(l.split()[1]) for l in open(v2 + path + \"/cpu.stat\") if l.startswith(\"usage_usec \")) * 1000\n\n\nst = open(\"/proc/%s/stat\" % pid).read().rsplit(\")\", 1)[1].split()\nusage = (int(st[11]) + int(st[12])) * 10_000_000      # utime + stime of the process, in ticks of 10 ms\njson.dump({\"cgroup\": path, \"usage_ns\": usage}, open(out, \"w\"))\nPY\nSCRIPT\nchmod +x /tmp/bench64071782/cpu-usage.sh\nbash /tmp/bench64071782/cpu-usage.sh bench64071782-app /tmp/bench64071782/app-cpu.json\ncat /tmp/bench64071782/app-cpu.json\n"
+  },
+  {
+    "case_id": "q64071782",
+    "category": "diagnostics",
+    "model": "wrong_reports_microseconds_as_nanoseconds",
+    "code": "cat > /tmp/bench64071782/cpu-usage.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nid=$1\nout=$2\npid=$(sudo runc state \"$id\" | python3 -c 'import json, sys; print(json.load(sys.stdin)[\"pid\"])')\npython3 - \"$pid\" \"$out\" <<'PY'\nimport json\nimport os\nimport sys\n\npid, out = sys.argv[1:3]\nv1 = v2 = None\nfor line in open(\"/proc/self/mountinfo\"):\n    left, right = line.split(\" - \", 1)\n    fs, _, opts = right.split()[:3]\n    if fs == \"cgroup\" and \"cpuacct\" in opts.split(\",\") and v1 is None:\n        v1 = left.split()[4]\n    if fs == \"cgroup2\" and v2 is None:\n        v2 = left.split()[4]\nfor line in open(\"/proc/%s/cgroup\" % pid):\n    _, ctrl, path = line.rstrip(\"\\n\").split(\":\", 2)\n    if v1 and \"cpuacct\" in ctrl.split(\",\"):\n        break\n    if not v1 and ctrl == \"\":\n        break\n\n\ndef counter(path):\n    if v1:\n        return int(open(v1 + path + \"/cpuacct.usage\").read())\n    return next(int(l.split()[1]) for l in open(v2 + path + \"/cpu.stat\") if l.startswith(\"usage_usec \")) * 1000\n\n\nusage = counter(path) // 1000\njson.dump({\"cgroup\": path, \"usage_ns\": usage}, open(out, \"w\"))\nPY\nSCRIPT\nchmod +x /tmp/bench64071782/cpu-usage.sh\nbash /tmp/bench64071782/cpu-usage.sh bench64071782-app /tmp/bench64071782/app-cpu.json\ncat /tmp/bench64071782/app-cpu.json\n"
+  },
+  {
+    "case_id": "q64071782",
+    "category": "diagnostics",
+    "model": "wrong_keeps_the_cgroup_of_the_first_container",
+    "code": "cat > /tmp/bench64071782/cpu-usage.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nid=$1\nout=$2\npid=$(sudo runc state \"$id\" | python3 -c 'import json, sys; print(json.load(sys.stdin)[\"pid\"])')\npython3 - \"$pid\" \"$out\" <<'PY'\nimport json\nimport os\nimport sys\n\npid, out = sys.argv[1:3]\nv1 = v2 = None\nfor line in open(\"/proc/self/mountinfo\"):\n    left, right = line.split(\" - \", 1)\n    fs, _, opts = right.split()[:3]\n    if fs == \"cgroup\" and \"cpuacct\" in opts.split(\",\") and v1 is None:\n        v1 = left.split()[4]\n    if fs == \"cgroup2\" and v2 is None:\n        v2 = left.split()[4]\nfor line in open(\"/proc/%s/cgroup\" % pid):\n    _, ctrl, path = line.rstrip(\"\\n\").split(\":\", 2)\n    if v1 and \"cpuacct\" in ctrl.split(\",\"):\n        break\n    if not v1 and ctrl == \"\":\n        break\n\n\ndef counter(path):\n    if v1:\n        return int(open(v1 + path + \"/cpuacct.usage\").read())\n    return next(int(l.split()[1]) for l in open(v2 + path + \"/cpu.stat\") if l.startswith(\"usage_usec \")) * 1000\n\n\ncache = \"/tmp/bench64071782-cgroup\"\nif os.path.exists(cache):\n    path = open(cache).read()\nelse:\n    open(cache, \"w\").write(path)\nusage = counter(path)\njson.dump({\"cgroup\": path, \"usage_ns\": usage}, open(out, \"w\"))\nPY\nSCRIPT\nchmod +x /tmp/bench64071782/cpu-usage.sh\nbash /tmp/bench64071782/cpu-usage.sh bench64071782-app /tmp/bench64071782/app-cpu.json\ncat /tmp/bench64071782/app-cpu.json\n"
+  }
+]

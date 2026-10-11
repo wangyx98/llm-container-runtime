@@ -1,0 +1,14 @@
+Two bare runc containers run on this host, started from OCI bundles with "runc run": bench64071782-job and bench64071782-app ("sudo runc list" shows them). In each, the first process of the container only sleeps and a child of it does the work, and the work of bench64071782-app comes in bursts. An engineer wants to know how much CPU time bench64071782-app has used, but /proc/PID/ of the PID that runc shows has no file with that information, and the directories under /sys/fs/cgroup hold many files and no obvious answer.
+
+The kernel counts the CPU time of a container in the cgroup of the container, for all its processes together. Which cgroup a container is in, and where it is in the cgroup tree, depends on how it was started: the path is not the same for every container and must be found for the container that is asked for, never assumed. The cgroup version of this host (v1 with the cpuacct controller, or v2 with cpu.stat) is not given and must be found too; the script has to work with the one that this host has.
+
+Create the bash script /tmp/bench64071782/cpu-usage.sh (it is run with bash) that takes two arguments, the runc container ID and the path of an output file, and writes into it one JSON object with the keys:
+- cgroup: the cgroup of the container as a path from the root of the cgroup hierarchy, in the form that /proc/PID/cgroup shows it (it starts with /; with cgroup v1 it is the path in the hierarchy of the cpuacct controller);
+- usage_ns: the total CPU time, user and system, that all the processes of that cgroup have used since the container started, in nanoseconds, as an integer: the number the kernel keeps for the cgroup (not a sum over processes, and not the CPU time of one process).
+The script will be run again later, for the same container and for a container that is started after you have finished (another ID, and not in the same cgroup path), at times when the container works and when it is idle; each time it must report the current value, so it cannot hold a copy of what it found today. The script only reads: it must not start, stop, pause, kill or restart any container, nor change a limit, reset or write a counter. After creating it, run it for bench64071782-app with the output file /tmp/bench64071782/app-cpu.json.
+
+Allowed: the standard shell tools, python3, sudo and runc. Do not use systemd-cgtop, systemd-run, nerdctl, ctr, docker or crictl.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo.
+
+Return the commands needed to complete the task.
