@@ -1,0 +1,14 @@
+A Kubernetes-style worker node (think of an AKS node) uses containerd as its CRI runtime, on its own socket: /run/bench71705752/containerd/containerd.sock (not the default one). There is no Docker on it. Its pods and containers were created through the CRI. Looking at the node with plain ctr (no options) shows no containers and no images at all. Several pods on the node are called rabbitmq-0 and have a container called rabbitmq, each in a different Kubernetes namespace, so a container name alone does not identify a container. The image of these containers is minimal: besides the application it has only /bin/cat and /bin/id. A container keeps a random token in the file /data/token.txt, readable only by the user the container runs as, and containers do not all run as the same user.
+
+Create the bash script /tmp/bench71705752/inspect-node.sh (it is run with bash) that takes four arguments: the Kubernetes namespace of a pod, the name of the pod, the name of a container of that pod, and an output directory (created if it does not exist; it is empty or new). The script writes four files into the output directory:
+- containers.txt: the full container ID (64 hexadecimal characters) of every container on the node, running or exited, one per line (the pod sandboxes are not containers);
+- images.txt: every image on the node as repository:tag, one per line (not the entries of an image by digest or by image ID);
+- token.txt: the content of /data/token.txt of the one container the three names identify, read from inside that container;
+- uid.txt: the numeric ID of the user that reading ran as, as the container reports it.
+Reading must happen by running a command inside the container as the user the container is configured to run as: do not assume root, and do not change the container, its user or its image. The script must not create, stop, restart or remove any container, pod or image. It will be run again later, for other containers, after pods, containers and images have been added and removed, so it cannot hold a copy of today's lists. After creating it, run it for the namespace prod, the pod rabbitmq-0 and the container rabbitmq, with the output directory /tmp/bench71705752/out.
+
+Allowed: the standard shell tools, sudo, and the node's own tools (crictl, ctr). Do not use Docker.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo.
+
+Return the commands needed to complete the task.

@@ -1,0 +1,68 @@
+[
+  {
+    "case_id": "q71705752",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q71705752/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q71705752",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q71705752",
+    "category": "diagnostics",
+    "model": "alt_valid_ctr_in_the_k8s_io_namespace_with_the_cri_labels",
+    "code": "cat > /tmp/bench71705752/inspect-node.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nSOCK=/run/bench71705752/containerd/containerd.sock\nCRI=(sudo crictl --runtime-endpoint \"unix://$SOCK\" --image-endpoint \"unix://$SOCK\")\nCTR=(sudo ctr -a \"$SOCK\" -n k8s.io)\nns=$1 pod=$2 name=$3 out=$4\nmkdir -p \"$out\"\n\"${CTR[@]}\" containers ls -q 'labels.\"io.cri-containerd.kind\"==container' 2>/dev/null > \"$out/containers.txt\"\n\"${CTR[@]}\" images ls -q 2>/dev/null | grep -vE '@sha256:|^sha256:' > \"$out/images.txt\"\nid=$(\"${CTR[@]}\" containers ls -q \"labels.\\\"io.kubernetes.pod.namespace\\\"==$ns,labels.\\\"io.kubernetes.pod.name\\\"==$pod,labels.\\\"io.kubernetes.container.name\\\"==$name\" 2>/dev/null)\n\"${CTR[@]}\" tasks exec --exec-id \"inspect-$$-1\" \"$id\" /bin/cat /data/token.txt > \"$out/token.txt\" 2>/dev/null\n\"${CTR[@]}\" tasks exec --exec-id \"inspect-$$-2\" \"$id\" /bin/id -u > \"$out/uid.txt\" 2>/dev/null\nSCRIPT\nchmod +x /tmp/bench71705752/inspect-node.sh\nbash /tmp/bench71705752/inspect-node.sh prod rabbitmq-0 rabbitmq /tmp/bench71705752/out\n"
+  },
+  {
+    "case_id": "q71705752",
+    "category": "diagnostics",
+    "model": "wrong_lists_the_default_containerd_namespace_which_is_empty",
+    "code": "cat > /tmp/bench71705752/inspect-node.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nSOCK=/run/bench71705752/containerd/containerd.sock\nCRI=(sudo crictl --runtime-endpoint \"unix://$SOCK\" --image-endpoint \"unix://$SOCK\")\nCTR=(sudo ctr -a \"$SOCK\" -n k8s.io)\nns=$1 pod=$2 name=$3 out=$4\nmkdir -p \"$out\"\nsudo ctr -a \"$SOCK\" containers ls -q > \"$out/containers.txt\" 2>/dev/null || true\nsudo ctr -a \"$SOCK\" images ls -q > \"$out/images.txt\" 2>/dev/null || true\nid=$(\"${CRI[@]}\" ps -a -q --no-trunc --label \"io.kubernetes.pod.namespace=$ns\" --label \"io.kubernetes.pod.name=$pod\" --label \"io.kubernetes.container.name=$name\")\n\"${CRI[@]}\" exec \"$id\" /bin/cat /data/token.txt > \"$out/token.txt\"\n\"${CRI[@]}\" exec \"$id\" /bin/id -u > \"$out/uid.txt\"\nSCRIPT\nchmod +x /tmp/bench71705752/inspect-node.sh\nbash /tmp/bench71705752/inspect-node.sh prod rabbitmq-0 rabbitmq /tmp/bench71705752/out\n"
+  },
+  {
+    "case_id": "q71705752",
+    "category": "diagnostics",
+    "model": "wrong_lists_only_the_running_containers",
+    "code": "cat > /tmp/bench71705752/inspect-node.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nSOCK=/run/bench71705752/containerd/containerd.sock\nCRI=(sudo crictl --runtime-endpoint \"unix://$SOCK\" --image-endpoint \"unix://$SOCK\")\nCTR=(sudo ctr -a \"$SOCK\" -n k8s.io)\nns=$1 pod=$2 name=$3 out=$4\nmkdir -p \"$out\"\n\"${CRI[@]}\" ps -q --no-trunc > \"$out/containers.txt\"\n\"${CRI[@]}\" images --no-trunc | awk 'NR > 1 { print $1 \":\" $2 }' > \"$out/images.txt\"\nid=$(\"${CRI[@]}\" ps -a -q --no-trunc --label \"io.kubernetes.pod.namespace=$ns\" --label \"io.kubernetes.pod.name=$pod\" --label \"io.kubernetes.container.name=$name\")\n\"${CRI[@]}\" exec \"$id\" /bin/cat /data/token.txt > \"$out/token.txt\"\n\"${CRI[@]}\" exec \"$id\" /bin/id -u > \"$out/uid.txt\"\nSCRIPT\nchmod +x /tmp/bench71705752/inspect-node.sh\nbash /tmp/bench71705752/inspect-node.sh prod rabbitmq-0 rabbitmq /tmp/bench71705752/out\n"
+  },
+  {
+    "case_id": "q71705752",
+    "category": "diagnostics",
+    "model": "wrong_counts_the_pod_sandboxes_as_containers",
+    "code": "cat > /tmp/bench71705752/inspect-node.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nSOCK=/run/bench71705752/containerd/containerd.sock\nCRI=(sudo crictl --runtime-endpoint \"unix://$SOCK\" --image-endpoint \"unix://$SOCK\")\nCTR=(sudo ctr -a \"$SOCK\" -n k8s.io)\nns=$1 pod=$2 name=$3 out=$4\nmkdir -p \"$out\"\n\"${CTR[@]}\" containers ls -q 2>/dev/null > \"$out/containers.txt\"\n\"${CRI[@]}\" images --no-trunc | awk 'NR > 1 { print $1 \":\" $2 }' > \"$out/images.txt\"\nid=$(\"${CRI[@]}\" ps -a -q --no-trunc --label \"io.kubernetes.pod.namespace=$ns\" --label \"io.kubernetes.pod.name=$pod\" --label \"io.kubernetes.container.name=$name\")\n\"${CRI[@]}\" exec \"$id\" /bin/cat /data/token.txt > \"$out/token.txt\"\n\"${CRI[@]}\" exec \"$id\" /bin/id -u > \"$out/uid.txt\"\nSCRIPT\nchmod +x /tmp/bench71705752/inspect-node.sh\nbash /tmp/bench71705752/inspect-node.sh prod rabbitmq-0 rabbitmq /tmp/bench71705752/out\n"
+  },
+  {
+    "case_id": "q71705752",
+    "category": "diagnostics",
+    "model": "wrong_images_with_their_digest_and_image_id_entries",
+    "code": "cat > /tmp/bench71705752/inspect-node.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nSOCK=/run/bench71705752/containerd/containerd.sock\nCRI=(sudo crictl --runtime-endpoint \"unix://$SOCK\" --image-endpoint \"unix://$SOCK\")\nCTR=(sudo ctr -a \"$SOCK\" -n k8s.io)\nns=$1 pod=$2 name=$3 out=$4\nmkdir -p \"$out\"\n\"${CRI[@]}\" ps -a -q --no-trunc > \"$out/containers.txt\"\n\"${CTR[@]}\" images ls -q 2>/dev/null > \"$out/images.txt\"\nid=$(\"${CRI[@]}\" ps -a -q --no-trunc --label \"io.kubernetes.pod.namespace=$ns\" --label \"io.kubernetes.pod.name=$pod\" --label \"io.kubernetes.container.name=$name\")\n\"${CRI[@]}\" exec \"$id\" /bin/cat /data/token.txt > \"$out/token.txt\"\n\"${CRI[@]}\" exec \"$id\" /bin/id -u > \"$out/uid.txt\"\nSCRIPT\nchmod +x /tmp/bench71705752/inspect-node.sh\nbash /tmp/bench71705752/inspect-node.sh prod rabbitmq-0 rabbitmq /tmp/bench71705752/out\n"
+  },
+  {
+    "case_id": "q71705752",
+    "category": "diagnostics",
+    "model": "wrong_takes_the_first_container_called_rabbitmq_in_any_namespace",
+    "code": "cat > /tmp/bench71705752/inspect-node.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nSOCK=/run/bench71705752/containerd/containerd.sock\nCRI=(sudo crictl --runtime-endpoint \"unix://$SOCK\" --image-endpoint \"unix://$SOCK\")\nCTR=(sudo ctr -a \"$SOCK\" -n k8s.io)\nns=$1 pod=$2 name=$3 out=$4\nmkdir -p \"$out\"\n\"${CRI[@]}\" ps -a -q --no-trunc > \"$out/containers.txt\"\n\"${CRI[@]}\" images --no-trunc | awk 'NR > 1 { print $1 \":\" $2 }' > \"$out/images.txt\"\nid=$(\"${CRI[@]}\" ps -q --no-trunc --name \"^$name$\" | head -1)\n\"${CRI[@]}\" exec \"$id\" /bin/cat /data/token.txt > \"$out/token.txt\"\n\"${CRI[@]}\" exec \"$id\" /bin/id -u > \"$out/uid.txt\"\nSCRIPT\nchmod +x /tmp/bench71705752/inspect-node.sh\nbash /tmp/bench71705752/inspect-node.sh prod rabbitmq-0 rabbitmq /tmp/bench71705752/out\n"
+  },
+  {
+    "case_id": "q71705752",
+    "category": "diagnostics",
+    "model": "wrong_execs_as_root_with_ctr_user_0",
+    "code": "cat > /tmp/bench71705752/inspect-node.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nSOCK=/run/bench71705752/containerd/containerd.sock\nCRI=(sudo crictl --runtime-endpoint \"unix://$SOCK\" --image-endpoint \"unix://$SOCK\")\nCTR=(sudo ctr -a \"$SOCK\" -n k8s.io)\nns=$1 pod=$2 name=$3 out=$4\nmkdir -p \"$out\"\n\"${CRI[@]}\" ps -a -q --no-trunc > \"$out/containers.txt\"\n\"${CRI[@]}\" images --no-trunc | awk 'NR > 1 { print $1 \":\" $2 }' > \"$out/images.txt\"\nid=$(\"${CRI[@]}\" ps -a -q --no-trunc --label \"io.kubernetes.pod.namespace=$ns\" --label \"io.kubernetes.pod.name=$pod\" --label \"io.kubernetes.container.name=$name\")\n\"${CTR[@]}\" tasks exec --user 0 --exec-id \"inspect-$$-1\" \"$id\" /bin/cat /data/token.txt > \"$out/token.txt\" 2>/dev/null\n\"${CTR[@]}\" tasks exec --user 0 --exec-id \"inspect-$$-2\" \"$id\" /bin/id -u > \"$out/uid.txt\" 2>/dev/null\nSCRIPT\nchmod +x /tmp/bench71705752/inspect-node.sh\nbash /tmp/bench71705752/inspect-node.sh prod rabbitmq-0 rabbitmq /tmp/bench71705752/out\n"
+  },
+  {
+    "case_id": "q71705752",
+    "category": "diagnostics",
+    "model": "wrong_prunes_the_exited_containers_after_reading",
+    "code": "cat > /tmp/bench71705752/inspect-node.sh <<'SCRIPT'\n#!/bin/bash\nset -e\nSOCK=/run/bench71705752/containerd/containerd.sock\nCRI=(sudo crictl --runtime-endpoint \"unix://$SOCK\" --image-endpoint \"unix://$SOCK\")\nCTR=(sudo ctr -a \"$SOCK\" -n k8s.io)\nns=$1 pod=$2 name=$3 out=$4\nmkdir -p \"$out\"\n\"${CRI[@]}\" ps -a -q --no-trunc > \"$out/containers.txt\"\n\"${CRI[@]}\" images --no-trunc | awk 'NR > 1 { print $1 \":\" $2 }' > \"$out/images.txt\"\nid=$(\"${CRI[@]}\" ps -a -q --no-trunc --label \"io.kubernetes.pod.namespace=$ns\" --label \"io.kubernetes.pod.name=$pod\" --label \"io.kubernetes.container.name=$name\")\n\"${CRI[@]}\" exec \"$id\" /bin/cat /data/token.txt > \"$out/token.txt\"\n\"${CRI[@]}\" exec \"$id\" /bin/id -u > \"$out/uid.txt\"\n# tidy up: remove the containers that have finished\n\"${CRI[@]}\" ps -a --state exited -q | xargs -r sudo crictl --runtime-endpoint \"unix://$SOCK\" rm >/dev/null\nSCRIPT\nchmod +x /tmp/bench71705752/inspect-node.sh\nbash /tmp/bench71705752/inspect-node.sh prod rabbitmq-0 rabbitmq /tmp/bench71705752/out\n"
+  },
+  {
+    "case_id": "q71705752",
+    "category": "diagnostics",
+    "model": "wrong_replays_the_lists_and_tokens_of_today",
+    "code": "F=/tmp/bench71705752/frozen\nSOCK=/run/bench71705752/containerd/containerd.sock\nCRI=(sudo crictl --runtime-endpoint \"unix://$SOCK\" --image-endpoint \"unix://$SOCK\")\nmkdir -p \"$F\"\n\"${CRI[@]}\" ps -a -q --no-trunc > \"$F/containers.txt\"\n\"${CRI[@]}\" images --no-trunc | awk 'NR > 1 { print $1 \":\" $2 }' > \"$F/images.txt\"\nfor id in $(\"${CRI[@]}\" ps -q --no-trunc); do\n    key=$(\"${CRI[@]}\" inspect -o go-template --template '{{index .status.labels \"io.kubernetes.pod.namespace\"}}_{{index .status.labels \"io.kubernetes.pod.name\"}}_{{.status.metadata.name}}' \"$id\")\n    mkdir -p \"$F/$key\"\n    \"${CRI[@]}\" exec \"$id\" /bin/cat /data/token.txt > \"$F/$key/token.txt\"\n    \"${CRI[@]}\" exec \"$id\" /bin/id -u > \"$F/$key/uid.txt\"\ndone\ncat > /tmp/bench71705752/inspect-node.sh <<'SCRIPT'\n#!/bin/bash\nF=/tmp/bench71705752/frozen\nmkdir -p \"$4\"\ncp \"$F/containers.txt\" \"$F/images.txt\" \"$F/$1_$2_$3/token.txt\" \"$F/$1_$2_$3/uid.txt\" \"$4/\"\nSCRIPT\nchmod +x /tmp/bench71705752/inspect-node.sh\nbash /tmp/bench71705752/inspect-node.sh prod rabbitmq-0 rabbitmq /tmp/bench71705752/out\n"
+  }
+]
