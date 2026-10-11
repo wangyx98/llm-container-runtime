@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "q75346313",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q75346313/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q75346313",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q75346313",
+    "category": "diagnostics",
+    "model": "alt_valid_copy_of_the_parser_and_the_profile_named_explicitly",
+    "code": "# a copy, not a link, of the parser; and the default profile asked for by name: the same confinement\nPARSER=$(PATH=\"$PATH:/usr/sbin:/sbin\" command -v apparmor_parser)\ncp -L \"$PARSER\" /tmp/bench75346313/tools/apparmor_parser\nbash /tmp/bench75346313/start-docker.sh\ndocker -H unix:///run/bench75346313/docker.sock load -i /tmp/bench75346313/app.tar\ndocker -H unix:///run/bench75346313/docker.sock run -d --name bench75346313-web --security-opt apparmor=docker-default bench/app:1\n"
+  },
+  {
+    "case_id": "q75346313",
+    "category": "diagnostics",
+    "model": "wrong_container_run_unconfined_to_get_it_going",
+    "code": "# the workaround of the comments: the daemon is back, the container escapes the profile\nPARSER=$(PATH=\"$PATH:/usr/sbin:/sbin\" command -v apparmor_parser)\nln -sf \"$PARSER\" /tmp/bench75346313/tools/apparmor_parser\nbash /tmp/bench75346313/start-docker.sh\ndocker -H unix:///run/bench75346313/docker.sock load -i /tmp/bench75346313/app.tar\n# a first container with the default settings: the daemon loads docker-default for it\ndocker -H unix:///run/bench75346313/docker.sock run --rm bench/app:1 attr\ndocker -H unix:///run/bench75346313/docker.sock run -d --name bench75346313-web --security-opt apparmor=unconfined bench/app:1\n"
+  },
+  {
+    "case_id": "q75346313",
+    "category": "diagnostics",
+    "model": "wrong_container_run_privileged",
+    "code": "PARSER=$(PATH=\"$PATH:/usr/sbin:/sbin\" command -v apparmor_parser)\nln -sf \"$PARSER\" /tmp/bench75346313/tools/apparmor_parser\nbash /tmp/bench75346313/start-docker.sh\ndocker -H unix:///run/bench75346313/docker.sock load -i /tmp/bench75346313/app.tar\n# a first container with the default settings: the daemon loads docker-default for it\ndocker -H unix:///run/bench75346313/docker.sock run --rm bench/app:1 attr\ndocker -H unix:///run/bench75346313/docker.sock run -d --name bench75346313-web --privileged bench/app:1\n"
+  },
+  {
+    "case_id": "q75346313",
+    "category": "diagnostics",
+    "model": "wrong_the_daemon_is_back_but_no_container_was_started",
+    "code": "PARSER=$(PATH=\"$PATH:/usr/sbin:/sbin\" command -v apparmor_parser)\nln -sf \"$PARSER\" /tmp/bench75346313/tools/apparmor_parser\nbash /tmp/bench75346313/start-docker.sh\ndocker -H unix:///run/bench75346313/docker.sock load -i /tmp/bench75346313/app.tar\n# a first container with the default settings: the daemon loads docker-default for it\ndocker -H unix:///run/bench75346313/docker.sock run --rm bench/app:1 attr\ndocker -H unix:///run/bench75346313/docker.sock images\n"
+  }
+]
