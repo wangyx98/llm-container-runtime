@@ -1,0 +1,19 @@
+A single-node Kubernetes cluster runs containerd, and K3s-style tooling is used on it. Someone loaded an application image into the node's containerd from a tar file, with `ctr image import`, in the namespace k8s.io (the one the kubelet uses). The image is listed by `ctr images ls`, but when they tried to use it, both things they tried failed: `ctr images pull` on its name answered "pull access denied, repository does not exist", and `ctr run` on the name, written without the version, answered "image: not found". The tar file is gone.
+
+The node's containerd listens on /run/bench74804543/k3s/containerd/containerd.sock. ctr is not configured for it, so give the socket and the namespace on every call:
+
+    sudo ctr -a /run/bench74804543/k3s/containerd/containerd.sock -n k8s.io images ls
+
+The node has two versions of the application, myawx, in the same repository: version 1.0.0 and an older one, 0.9.0. Their names point at a registry at 127.0.0.1:43741 that holds nothing: that machine has no registry, and nothing on this node may be fetched over the network. The exact names are not given here; they are what `ctr images ls` shows.
+
+Your task is to run version 1.0.0 of the application from the image the node already has, with ctr, as the container bench74804543-awx in the namespace k8s.io, and to save what the program in the container prints on stdout in the file /tmp/bench74804543/out.txt. The program prints one line and exits.
+
+Requirements:
+
+1. The check reads /tmp/bench74804543/out.txt and requires exactly the line that version 1.0.0 prints (the output of the older version, or of any other program, is wrong, and so is a file you wrote yourself: the line contains a random token that only the program knows). It also requires the container bench74804543-awx to exist in the namespace k8s.io, created from the image of version 1.0.0: keep it, do not use --rm and do not delete it.
+2. Use ctr, with the image the node has: do not pull anything (the check records every connection made to the registry address and requires none), do not import anything again (there is no tar file) and do not tag, remove or change the images: they have to keep their names and digests.
+3. Do not restart, replace or reconfigure the containerd: it keeps its socket and its namespace.
+4. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo. python3 is available. Only ctr is the tool of this task.
+5. Your commands must finish by themselves: no interactive prompts, and no command that waits forever.
+
+Return the commands needed to complete the task.

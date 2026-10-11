@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "q74804543",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q74804543/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q74804543",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q74804543",
+    "category": "diagnostics",
+    "model": "alt_valid_detached_container_with_a_log_file",
+    "code": "REF=$(sudo ctr -a /run/bench74804543/k3s/containerd/containerd.sock -n k8s.io images ls -q | grep -x '.*/myawx:v1\\.0\\.0')\nsudo ctr -a /run/bench74804543/k3s/containerd/containerd.sock -n k8s.io run -d --log-uri file:///tmp/bench74804543/out.txt \"$REF\" bench74804543-awx\nfor _ in $(seq 1 20); do [ -s /tmp/bench74804543/out.txt ] && break; sleep 0.5; done\n"
+  },
+  {
+    "case_id": "q74804543",
+    "category": "diagnostics",
+    "model": "wrong_pull_the_image_from_the_registry_of_its_name",
+    "code": "# the question's first attempt: pull the name of the image (it asks the registry in the name, which has nothing)\nsudo ctr -a /run/bench74804543/k3s/containerd/containerd.sock -n k8s.io images pull 127.0.0.1:43741/lab/myawx:v1.0.0 || true\nsudo ctr -a /run/bench74804543/k3s/containerd/containerd.sock -n k8s.io run 127.0.0.1:43741/lab/myawx:v1.0.0 bench74804543-awx > /tmp/bench74804543/out.txt\n"
+  },
+  {
+    "case_id": "q74804543",
+    "category": "diagnostics",
+    "model": "wrong_run_the_name_without_its_tag",
+    "code": "# the question's second attempt: the repository name without the version\nsudo ctr -a /run/bench74804543/k3s/containerd/containerd.sock -n k8s.io run 127.0.0.1:43741/lab/myawx bench74804543-awx > /tmp/bench74804543/out.txt || true\n"
+  },
+  {
+    "case_id": "q74804543",
+    "category": "diagnostics",
+    "model": "wrong_the_older_version_is_run",
+    "code": "# the first image of the repository that the listing shows, not the right version\nREF=$(sudo ctr -a /run/bench74804543/k3s/containerd/containerd.sock -n k8s.io images ls -q | grep -x '.*/myawx:v0\\.9\\.0')\nsudo ctr -a /run/bench74804543/k3s/containerd/containerd.sock -n k8s.io run \"$REF\" bench74804543-awx > /tmp/bench74804543/out.txt\n"
+  }
+]
