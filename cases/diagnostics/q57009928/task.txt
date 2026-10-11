@@ -1,0 +1,18 @@
+A host runs a private Docker daemon whose socket is /run/bench57009928/docker.sock (it belongs to the group of the current user: docker -H unix:///run/bench57009928/docker.sock ps works without sudo; the docker CLI must always be given this -H, because the machine may have a Docker daemon of its own that is not part of this task). Two containers run from the image bench/app:1, and Docker keeps its images in containerd. An administrator ran "runc list" and "ctr containers list" / "ctr images list" and they show nothing, and wants runc and containerd to show the containers and images that Docker has.
+
+runc keeps the state of the containers it runs in a runtime root: a directory with one subdirectory (holding a state.json) per container. "runc list" reads runc's default root, but a container engine may give runc another one with --root, and Docker's daemon does so: the daemon here was started with an exec root and a containerd socket that are not Docker's defaults and are not given in this task, and Docker's containers are in a containerd namespace of its own. Neither the runtime root nor the socket nor the namespace can be assumed from other machines or from documentation: they must be found on this host (the daemon, the containerd shims and the files under /run tell where they are). runc has no notion of an image (it runs bundles, and building a bundle from an image is the work of the engine that calls it), so there is no runc command that lists images; the images are containerd's.
+
+Create the bash script /tmp/bench57009928/find-runtime.sh (it is run with bash) that takes one argument, the path of an output file, and writes into it one JSON object with the keys:
+- runc_root: the runtime root directory that runc needs (runc --root DIR list) to list Docker's containers, as a string;
+- containers: an array with one object for every container that runc lists with that root, with the keys id (the full container ID), pid (the PID of the container's main process on the host, an integer) and status (as runc shows it, for example running);
+- containerd_socket: the path of the containerd socket that Docker uses;
+- containerd_namespace: the containerd namespace in which Docker keeps its containers and images;
+- images: an array with one object for every image of that containerd namespace, with the keys ref (the image name as ctr shows it) and digest (sha256:..., as ctr shows it);
+- runc_has_images: a boolean, true if runc itself can list or show images and false if it cannot (do not fabricate an image list from runc).
+The order of the objects does not matter. The script only reads: it must not start, stop, restart, pause, kill or remove any container, nor load, pull, tag or remove any image, nor change the daemon, containerd or runc's roots. It will be run again later, after the state of the host has changed (containers started or removed, an image loaded), so it cannot hold a copy of today's output or of today's paths. After creating it, run it with the output file /tmp/bench57009928/runtime.json.
+
+Allowed: the standard shell tools, python3, sudo, runc, ctr and the docker CLI (with the -H above). Do not use nerdctl, crictl or strace.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo.
+
+Return the commands needed to complete the task.
