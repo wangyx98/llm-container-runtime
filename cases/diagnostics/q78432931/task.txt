@@ -11,11 +11,11 @@ and pulls REF with client.Pull and containerd.WithPullUnpack, through a resolver
 
 Your task is to change the program so that it prints the progress of the pull as JSON lines on stdout, while the download goes on:
 
-    {"event":"progress","digest":"sha256:<digest of the blob>","offset":<bytes of the blob pulled so far>,"total":<size of the blob in bytes>}
+    {"event":"progress","digest":"sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","offset":2097152,"total":5242880}
 
-one for every change in the progress of every blob (every layer; the config and the manifest may be given too). "digest" is the digest of the blob as in the image manifest, "total" its size, "offset" the number of bytes of it that were downloaded, an integer that only grows, for each blob up to "total". When the pull has succeeded, as the last line:
+one for every change in the progress of every blob (every layer; the config and the manifest may be given too). "digest" is the digest of the blob as in the image manifest (the string "sha256:" followed by 64 hexadecimal digits; the one above is made up), "total" its size in bytes, "offset" the number of bytes of it that were downloaded so far, an integer that only grows, for each blob up to "total". When the pull has succeeded, as the last line, a record of this shape (again with made-up values; "name" is the reference that was pulled, "digest" the digest of the image, that is of its manifest, and "size" the size of the manifest in bytes):
 
-    {"event":"done","name":"<the reference of the image>","digest":"sha256:<digest of the image: its manifest>","size":<size of the manifest>}
+    {"event":"done","name":"127.0.0.1:43293/bench/app:1","digest":"sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210","size":481}
 
 The log lines that the program writes to stderr (and any other line of stdout that does not begin with "{") do not matter. The program keeps its flags and its behavior: the image is pulled and unpacked in the given namespace.
 

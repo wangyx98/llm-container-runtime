@@ -10,13 +10,14 @@ The node holds several pods; some have the same name in different namespaces, so
 Your task is to write a shell script to /tmp/bench69636534/pods.sh that, run on this node, prints on stdout one JSON object: the pods that are running on the node (pod sandboxes in the state Ready; stopped pods are not part of the answer), keyed by the UID of the pod, each entry giving the namespace and the name of the pod and its containers:
 
     {
-      "<pod uid>": {
-        "namespace": "<kubernetes namespace of the pod>",
-        "name": "<name of the pod>",
-        "containers": { "<container name>": "<full container id>", ... }
-      },
-      ...
+      "11111111-2222-3333-4444-555555555555": {
+        "namespace": "example-namespace",
+        "name": "example-pod",
+        "containers": { "example-container": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" }
+      }
     }
+
+The example shows the shape only (a made-up pod UID, namespace, name and container ID). The keys of the outer object are the pod UIDs, "containers" maps each container name to the full container ID, and there is one entry per running pod.
 
 The containers of a pod are given by container name; for a container that was restarted (the kubelet numbers the instances of a container with the metadata field "attempt") the id of the current instance is given, the one with the highest attempt number, whatever its state. A pod without any container has an empty "containers" object. The example above shows the shape only.
 
