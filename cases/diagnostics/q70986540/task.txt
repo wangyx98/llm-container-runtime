@@ -1,0 +1,9 @@
+A Kubernetes worker node runs containerd as its CRI runtime, on its own socket: /run/bench70986540/containerd/containerd.sock (not the default one). There is no Docker on it. Its images are listed by `crictl images`, which prints a table of image, tag, image ID and size and has no column for the date an image was created, which `docker images` has. The date wanted is the one stored in the image: the `created` field of the image's configuration, the time the image was built, which is not the time it reached the node (the images of this node were imported long after they were built). The configuration of some images has no `created` field at all.
+
+Create the bash script /tmp/bench70986540/image-created.sh (it is run with bash) that takes one argument, the path of an output file, and writes into it one line for each image name that `crictl images` lists (an image with two names has two lines): the name as repository:tag, one space, the full image ID as `crictl images --no-trunc` prints it (sha256:...), one space, and the value of the `created` field of the configuration of that image, written exactly as the configuration has it (a timestamp with its fraction of a second and its time zone, not converted or shortened), or the word unknown when the configuration has no `created` field. The order of the lines does not matter. The script only reads: it must not pull, import, tag, remove or prune anything, nor change a namespace or restart containerd. It will be run again later, after images have been added to the node, so it cannot hold a copy of today's list. After creating it, run it with the output file /tmp/bench70986540/image-created.txt.
+
+Allowed: the standard shell tools, python3, sudo, crictl and ctr. Do not use Docker or nerdctl.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo.
+
+Return the commands needed to complete the task.
