@@ -1,0 +1,16 @@
+A Kubernetes-style worker node runs containerd as its CRI runtime, on its own socket: /run/bench70948748/containerd/containerd.sock (not the default one). There is no Docker on it, no kubectl and no Kubernetes API server. Its pods were created through the CRI. Several pods run on it, each with several containers, and pods of the same name run in different Kubernetes namespaces. A container runs more than its first process: the first process starts others, which start others, and a process whose parent has exited is taken over by the first process of its container. `crictl inspect` shows the PID of the first process of a container only. Someone has a PID as `ps` shows it on the node and wants to know to which pod and container that process belongs.
+
+Create the bash script /tmp/bench70948748/pid-owner.sh (it is run with bash) that takes two arguments: a host PID, and the path of an output file. It writes into the file one JSON value. For a process that is in a container of a pod, an object with these keys:
+- container_id: the full ID of the container (64 hexadecimal characters);
+- pod_uid: the UID of the pod;
+- pod_namespace: the Kubernetes namespace of the pod;
+- pod_name: the name of the pod;
+- container_name: the name of the container;
+- init_pid: the host PID of the first process of that container.
+For a process that is in no container of a pod (a process of the node itself), the value null. The owner has to be exact whatever the process is (the first process of its container or one deeper in it): pods of the same name in different namespaces must not be mixed up, and the pod must not be taken from the host name or from the environment variables of the process, which the process can change. The script only reads: it must not signal, stop or change any process, and must not create, stop or remove any container or pod. It will be run again later for other PIDs, among them processes that were started after today, so it cannot hold a table of today's PIDs. The PID of one process whose owner is wanted is in the file /tmp/bench70948748/target.pid. After creating the script, run it for that PID with the output file /tmp/bench70948748/owner.json.
+
+Allowed: the standard shell tools, python3, sudo, the node's own tools (crictl, ctr) and the proc filesystem. Do not use Docker.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo.
+
+Return the commands needed to complete the task.

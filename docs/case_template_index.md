@@ -20,6 +20,7 @@ with "Return the commands needed to complete the task.").
 |---|---|---|
 | A CRI node (containerd's CRI plugin, `crictl`, pods and containers with names, namespaces, users) | `diagnostics/q71705752` | Private containerd on its own socket, `patch_config.py`, `mkimg.py` (offline OCI image), `lab.py up/more/check`, `verify.py`, the "node changes after the solution" oracle step |
 | The same, but pods need a network namespace each (pause, sandbox, CNI) | `diagnostics/q71482106` | `cni-stub.sh` (a CNI plugin that sets nothing up), `/var/run/netns` bookkeeping in `cleanup.sh`, `idle.c` for the sandbox and workload programs |
+| Processes of containers and the host (which pod/container owns a PID; cgroup, parent chain, same-named pods, first process vs descendants) | `diagnostics/q70948748` | `app.c` that starts a process tree on a script line (`t`: child and grandchild, `r`: an orphan the first process takes over; processes named with `prctl`), pods of the same name in two namespaces with random UIDs, a decoy host process, a `truth.json` from the host process table, a verify that asks for several PIDs (a different depth each) and re-asks after the lab adds pods and containers |
 | containerd namespaces, images, digests (`ctr`, `k8s.io` vs `default`) | `diagnostics/q71582111`, `diagnostics/q72541317` | Imported images in several namespaces, a record of names and digests in `truth.json`, an oracle that parses `NAMESPACE NAME DIGEST` |
 | What the CRI says about an **image** (`crictl images` / `inspecti`: config fields such as `created`, image ID, several names, a retagged name) | `diagnostics/q70986540` | `mkimg.py REF VARIANT CREATED OUT` (the `created` field of the config is set, or absent with `-`; a history that never gives the same date), a `truth.json` of `{name: {id, created}}` with timestamps in the form Go writes back, `lab.py more` that imports an image and moves a name, a verify that tells an import time from a build time and a lost fraction from a different instant |
 | containerd run as a **systemd unit** and its **journal** (pull errors, log windows) | `diagnostics/q71584810`, `compatibility/q68630961` | Unit file, a registry stub (`registry.py`, `hosts.toml` through `config_path`), journal cursors |
@@ -77,7 +78,16 @@ containerd with `setsid -f`, the helper-hash check in `precondition.sh` and `ora
 - An imported (not pulled) image has no repo digest in `crictl`; the CRI plugin also adds `sha256:` entries for it in `k8s.io`.
 - systemd 249: `journalctl -u UNIT --after-cursor` drops one line when the cursor entry is not selected by the unit filter; put cursors on
   entries of the unit itself. containerd logs an error and "stop pulling image" from different goroutines, in no fixed order.
-- Never `pkill -f` a pattern that appears in your own command line; kill by exact `comm` and check the command line.
+- CRI namespace modes: `namespace_options` is an enum with POD = 0 (the default), CONTAINER = 1, NODE = 2. Set `pid: 1` in the pod AND in each
+  container config to get what the kubelet gives (a PID namespace per container); with the default all containers of a pod share one PID namespace
+  with the pause process as its first process (which then takes over the orphans, and a container's first process is not PID 1). Unset `network` is
+  POD (a netns of its own: it needs a CNI plugin, see q71482106).
+- A container's processes are in a cgroup `/k8s.io/<container id>` (cgroup v1 on every controller line, v2 on the one `0::` line): the 64
+  hexadecimal characters are in `/proc/PID/cgroup` for every descendant. `/proc/PID/environ` and `ns/*` of a root-owned process need root: in a
+  script run by a normal user, `sudo cat FILE | ...`, never `sudo cmd < FILE` (the redirect runs as the user).
+- Never `pkill -f` a pattern that appears in your own command line; kill by exact `comm` and check the command line. The same goes for
+  `kill_ours bash`: the shell running the test, or the tool's own `bash -c` with the case's paths in its text, matches `$WORK_DIR` and is killed.
+  Start a long-lived host process with `exec -a PATH-IN-WORK_DIR sleep N` so it is a `sleep` that `kill_ours sleep` can find.
 - A killed containerd leaves the net namespace mounts of its pods in `/var/run/netns`; record the new entries when the pod starts and
   remove only those.
 - Image programs must be static (`gcc -static`) and built offline; Docker Hub, `mirror.gcr.io` and some package hosts are blocked in the

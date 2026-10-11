@@ -1,0 +1,56 @@
+[
+  {
+    "case_id": "q70948748",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q70948748/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q70948748",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q70948748",
+    "category": "diagnostics",
+    "model": "alt_valid_climbs_the_parent_chain_to_the_first_process_of_a_container",
+    "code": "cat > /tmp/bench70948748/pid-owner.sh <<'SCRIPT'\n#!/bin/bash\nset -e\npython3 - \"$@\" <<'PY'\nimport json\nimport re\nimport subprocess\nimport sys\n\nSOCK = \"/run/bench70948748/containerd/containerd.sock\"\npid, out = sys.argv[1:3]\n\n\ndef cri(*args):\n    r = subprocess.run([\"sudo\", \"crictl\", \"--runtime-endpoint\", \"unix://\" + SOCK, \"--image-endpoint\", \"unix://\" + SOCK, *args],\n                       capture_output=True, text=True)\n    return r\n\n\ndef record(d):\n    labels = d[\"status\"][\"labels\"]\n    return {\"container_id\": d[\"status\"][\"id\"], \"pod_uid\": labels[\"io.kubernetes.pod.uid\"], \"pod_namespace\": labels[\"io.kubernetes.pod.namespace\"],\n            \"pod_name\": labels[\"io.kubernetes.pod.name\"], \"container_name\": labels[\"io.kubernetes.container.name\"], \"init_pid\": int(d[\"info\"][\"pid\"])}\n\n\n\ndef ppid(p):\n    raw = open(\"/proc/%d/stat\" % p).read()\n    return int(raw[raw.rindex(\")\") + 2:].split()[1])\n\n\nfirsts = {}\nfor c in json.loads(cri(\"ps\", \"-o\", \"json\").stdout)[\"containers\"]:\n    d = json.loads(cri(\"inspect\", \"-o\", \"json\", c[\"id\"]).stdout)\n    firsts[int(d[\"info\"][\"pid\"])] = d\np, owner = int(pid), None\nwhile p > 1:\n    if p in firsts:\n        owner = record(firsts[p])\n        break\n    p = ppid(p)\njson.dump(owner, open(out, \"w\"))\nPY\nSCRIPT\nchmod +x /tmp/bench70948748/pid-owner.sh\nbash /tmp/bench70948748/pid-owner.sh \"$(cat /tmp/bench70948748/target.pid)\" /tmp/bench70948748/owner.json\n"
+  },
+  {
+    "case_id": "q70948748",
+    "category": "diagnostics",
+    "model": "wrong_takes_the_pod_from_the_host_name_of_the_process",
+    "code": "cat > /tmp/bench70948748/pid-owner.sh <<'SCRIPT'\n#!/bin/bash\nset -e\npython3 - \"$@\" <<'PY'\nimport json\nimport re\nimport subprocess\nimport sys\n\nSOCK = \"/run/bench70948748/containerd/containerd.sock\"\npid, out = sys.argv[1:3]\n\n\ndef cri(*args):\n    r = subprocess.run([\"sudo\", \"crictl\", \"--runtime-endpoint\", \"unix://\" + SOCK, \"--image-endpoint\", \"unix://\" + SOCK, *args],\n                       capture_output=True, text=True)\n    return r\n\n\ndef record(d):\n    labels = d[\"status\"][\"labels\"]\n    return {\"container_id\": d[\"status\"][\"id\"], \"pod_uid\": labels[\"io.kubernetes.pod.uid\"], \"pod_namespace\": labels[\"io.kubernetes.pod.namespace\"],\n            \"pod_name\": labels[\"io.kubernetes.pod.name\"], \"container_name\": labels[\"io.kubernetes.container.name\"], \"init_pid\": int(d[\"info\"][\"pid\"])}\n\n\n\nhost = subprocess.run([\"sudo\", \"nsenter\", \"-t\", pid, \"-u\", \"hostname\"], capture_output=True, text=True).stdout.strip()\nowner = None\nfor c in json.loads(cri(\"ps\", \"-o\", \"json\").stdout)[\"containers\"]:\n    d = json.loads(cri(\"inspect\", \"-o\", \"json\", c[\"id\"]).stdout)\n    if d[\"status\"][\"labels\"][\"io.kubernetes.pod.name\"] == host:\n        owner = record(d)\n        break\njson.dump(owner, open(out, \"w\"))\nPY\nSCRIPT\nchmod +x /tmp/bench70948748/pid-owner.sh\nbash /tmp/bench70948748/pid-owner.sh \"$(cat /tmp/bench70948748/target.pid)\" /tmp/bench70948748/owner.json\n"
+  },
+  {
+    "case_id": "q70948748",
+    "category": "diagnostics",
+    "model": "wrong_compares_only_with_the_first_process_of_each_container",
+    "code": "cat > /tmp/bench70948748/pid-owner.sh <<'SCRIPT'\n#!/bin/bash\nset -e\npython3 - \"$@\" <<'PY'\nimport json\nimport re\nimport subprocess\nimport sys\n\nSOCK = \"/run/bench70948748/containerd/containerd.sock\"\npid, out = sys.argv[1:3]\n\n\ndef cri(*args):\n    r = subprocess.run([\"sudo\", \"crictl\", \"--runtime-endpoint\", \"unix://\" + SOCK, \"--image-endpoint\", \"unix://\" + SOCK, *args],\n                       capture_output=True, text=True)\n    return r\n\n\ndef record(d):\n    labels = d[\"status\"][\"labels\"]\n    return {\"container_id\": d[\"status\"][\"id\"], \"pod_uid\": labels[\"io.kubernetes.pod.uid\"], \"pod_namespace\": labels[\"io.kubernetes.pod.namespace\"],\n            \"pod_name\": labels[\"io.kubernetes.pod.name\"], \"container_name\": labels[\"io.kubernetes.container.name\"], \"init_pid\": int(d[\"info\"][\"pid\"])}\n\n\n\nowner = None\nfor c in json.loads(cri(\"ps\", \"-o\", \"json\").stdout)[\"containers\"]:\n    d = json.loads(cri(\"inspect\", \"-o\", \"json\", c[\"id\"]).stdout)\n    if str(d[\"info\"][\"pid\"]) == pid:\n        owner = record(d)\njson.dump(owner, open(out, \"w\"))\nPY\nSCRIPT\nchmod +x /tmp/bench70948748/pid-owner.sh\nbash /tmp/bench70948748/pid-owner.sh \"$(cat /tmp/bench70948748/target.pid)\" /tmp/bench70948748/owner.json\n"
+  },
+  {
+    "case_id": "q70948748",
+    "category": "diagnostics",
+    "model": "wrong_gives_the_short_container_id",
+    "code": "cat > /tmp/bench70948748/pid-owner.sh <<'SCRIPT'\n#!/bin/bash\nset -e\npython3 - \"$@\" <<'PY'\nimport json\nimport re\nimport subprocess\nimport sys\n\nSOCK = \"/run/bench70948748/containerd/containerd.sock\"\npid, out = sys.argv[1:3]\n\n\ndef cri(*args):\n    r = subprocess.run([\"sudo\", \"crictl\", \"--runtime-endpoint\", \"unix://\" + SOCK, \"--image-endpoint\", \"unix://\" + SOCK, *args],\n                       capture_output=True, text=True)\n    return r\n\n\ndef record(d):\n    labels = d[\"status\"][\"labels\"]\n    return {\"container_id\": d[\"status\"][\"id\"], \"pod_uid\": labels[\"io.kubernetes.pod.uid\"], \"pod_namespace\": labels[\"io.kubernetes.pod.namespace\"],\n            \"pod_name\": labels[\"io.kubernetes.pod.name\"], \"container_name\": labels[\"io.kubernetes.container.name\"], \"init_pid\": int(d[\"info\"][\"pid\"])}\n\n\ncgroup = open(\"/proc/%s/cgroup\" % pid).read()\nids = re.findall(r\"[0-9a-f]{64}\", cgroup)\nowner = None\nfor cid in dict.fromkeys(ids):\n    r = cri(\"inspect\", \"-o\", \"json\", cid)\n    if r.returncode != 0:\n        continue\n    d = json.loads(r.stdout)\n    owner = dict(record(json.loads(r.stdout)), container_id=cid[:13])\n    break\njson.dump(owner, open(out, \"w\"))\nPY\nSCRIPT\nchmod +x /tmp/bench70948748/pid-owner.sh\nbash /tmp/bench70948748/pid-owner.sh \"$(cat /tmp/bench70948748/target.pid)\" /tmp/bench70948748/owner.json\n"
+  },
+  {
+    "case_id": "q70948748",
+    "category": "diagnostics",
+    "model": "wrong_reports_the_given_pid_as_the_first_process",
+    "code": "cat > /tmp/bench70948748/pid-owner.sh <<'SCRIPT'\n#!/bin/bash\nset -e\npython3 - \"$@\" <<'PY'\nimport json\nimport re\nimport subprocess\nimport sys\n\nSOCK = \"/run/bench70948748/containerd/containerd.sock\"\npid, out = sys.argv[1:3]\n\n\ndef cri(*args):\n    r = subprocess.run([\"sudo\", \"crictl\", \"--runtime-endpoint\", \"unix://\" + SOCK, \"--image-endpoint\", \"unix://\" + SOCK, *args],\n                       capture_output=True, text=True)\n    return r\n\n\ndef record(d):\n    labels = d[\"status\"][\"labels\"]\n    return {\"container_id\": d[\"status\"][\"id\"], \"pod_uid\": labels[\"io.kubernetes.pod.uid\"], \"pod_namespace\": labels[\"io.kubernetes.pod.namespace\"],\n            \"pod_name\": labels[\"io.kubernetes.pod.name\"], \"container_name\": labels[\"io.kubernetes.container.name\"], \"init_pid\": int(d[\"info\"][\"pid\"])}\n\n\ncgroup = open(\"/proc/%s/cgroup\" % pid).read()\nids = re.findall(r\"[0-9a-f]{64}\", cgroup)\nowner = None\nfor cid in dict.fromkeys(ids):\n    r = cri(\"inspect\", \"-o\", \"json\", cid)\n    if r.returncode != 0:\n        continue\n    d = json.loads(r.stdout)\n    owner = dict(record(json.loads(r.stdout)), init_pid=int(pid))\n    break\njson.dump(owner, open(out, \"w\"))\nPY\nSCRIPT\nchmod +x /tmp/bench70948748/pid-owner.sh\nbash /tmp/bench70948748/pid-owner.sh \"$(cat /tmp/bench70948748/target.pid)\" /tmp/bench70948748/owner.json\n"
+  },
+  {
+    "case_id": "q70948748",
+    "category": "diagnostics",
+    "model": "wrong_fails_for_a_process_that_is_in_no_container",
+    "code": "cat > /tmp/bench70948748/pid-owner.sh <<'SCRIPT'\n#!/bin/bash\nset -e\npython3 - \"$@\" <<'PY'\nimport json\nimport re\nimport subprocess\nimport sys\n\nSOCK = \"/run/bench70948748/containerd/containerd.sock\"\npid, out = sys.argv[1:3]\n\n\ndef cri(*args):\n    r = subprocess.run([\"sudo\", \"crictl\", \"--runtime-endpoint\", \"unix://\" + SOCK, \"--image-endpoint\", \"unix://\" + SOCK, *args],\n                       capture_output=True, text=True)\n    return r\n\n\ndef record(d):\n    labels = d[\"status\"][\"labels\"]\n    return {\"container_id\": d[\"status\"][\"id\"], \"pod_uid\": labels[\"io.kubernetes.pod.uid\"], \"pod_namespace\": labels[\"io.kubernetes.pod.namespace\"],\n            \"pod_name\": labels[\"io.kubernetes.pod.name\"], \"container_name\": labels[\"io.kubernetes.container.name\"], \"init_pid\": int(d[\"info\"][\"pid\"])}\n\n\ncgroup = open(\"/proc/%s/cgroup\" % pid).read()\nids = [re.findall(r\"[0-9a-f]{64}\", cgroup)[0]]\nowner = None\nfor cid in dict.fromkeys(ids):\n    r = cri(\"inspect\", \"-o\", \"json\", cid)\n    if r.returncode != 0:\n        continue\n    d = json.loads(r.stdout)\n    owner = record(json.loads(r.stdout))\n    break\njson.dump(owner, open(out, \"w\"))\nPY\nSCRIPT\nchmod +x /tmp/bench70948748/pid-owner.sh\nbash /tmp/bench70948748/pid-owner.sh \"$(cat /tmp/bench70948748/target.pid)\" /tmp/bench70948748/owner.json\n"
+  },
+  {
+    "case_id": "q70948748",
+    "category": "diagnostics",
+    "model": "wrong_replays_the_owner_of_today",
+    "code": "bash cases/diagnostics/q70948748/reference_solution.sh >/dev/null\ncp /tmp/bench70948748/owner.json /tmp/bench70948748/frozen.json\ncat > /tmp/bench70948748/pid-owner.sh <<'SCRIPT'\n#!/bin/bash\ncp /tmp/bench70948748/frozen.json \"$2\"\nSCRIPT\nbash /tmp/bench70948748/pid-owner.sh \"$(cat /tmp/bench70948748/target.pid)\" /tmp/bench70948748/owner.json\n"
+  }
+]
