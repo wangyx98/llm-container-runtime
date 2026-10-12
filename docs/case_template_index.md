@@ -7,7 +7,7 @@ case to open first, so a new case starts from one working case instead of from a
 `cleanup.sh`, `helpers/lab.py` and the generator of its samples; read nothing else unless the pattern below is not enough.
 
 **Scope.** This index is built from the Diagnostics cases, which are the ones that were worked through in detail, plus the few other cases
-whose notes are in `docs/`. The other categories (compatibility, configuration, filesystem, isolation, networking) have many finished cases
+whose notes are in `docs/`. The other categories (compatibility, configuration, filesystem, isolation, networking) have many finished cases (isolation has its first detailed rows now: q66547508, q66478456)
 that are not listed here yet. Add a row, and what it gives you, when you next build or revisit a case of those kinds, after reading that
 case, so every row stays something that was checked.
 
@@ -38,6 +38,8 @@ with "Return the commands needed to complete the task.").
 | A Go program that has to be changed (containerd client, Docker daemon query) | `diagnostics/q78432931`, `diagnostics/q76119356` | `starter/` source tree, compile-and-run oracle, a stub registry or daemon behind it |
 | A private Docker daemon that stopped working | `diagnostics/q75346313` | `start-docker.sh`, a daemon with its own containerd and data directory |
 | Bare runc (no containerd, no Docker), stuck process, stack trace | `diagnostics/q70089899` | Plain-bash case with no helpers: setup, precondition, oracle only |
+| **User namespace + host namespace on a bare runc bundle** (root of the container mapped to an unprivileged host id, together with the host's network namespace; `mount sysfs: operation not permitted`; any "namespace A allowed, A+B refused" error): the mount or option the kernel refuses with that combination, solved by changing the bundle (`config.json`), not a tool's flags | `isolation/q66547508` | `helpers/lab.py up/controls/rotate/check`: a bundle whose rootfs and data dir belong NUMERICALLY to the mapped host id, a host service on 127.0.0.1 that sends a nonce (`nonce_server.py`), `app.c` that reads it and writes `/data/state` as it sees its own uid/gid, **three controls** in `precondition.sh` (private net + mapping starts, host net + no mapping starts, host net + mapping fails with the exact error) so the failing cause is proved to be the combination; `verify.py` takes everything from the host (`/proc/PID/{uid_map,gid_map,ns/user,ns/net,mountinfo}`, owner of the process) and ends with a fresh nonce the container's own program must carry to the host (no replay, no hand-written file) |
+| A user namespace made with `ctr run --uidmap/--gidmap` (only one of the two given: no namespace is created) and the owner of the files it writes | `isolation/q66478456` | Image import, a data dir owned by the mapped id, a per-run token the program writes, host-side checks of the main process' uid/gid and maps (read the case; this row was added from its header, not re-run) |
 | Registry, mirror or local image problems (microk8s, ctr run of a Docker image) | `compatibility/q69088569`, `compatibility/q59393496` | Case notes in `docs/` explain the decisions |
 
 If none of the rows fits (a runtime not yet used, for example Podman or k3s), start from the nearest row only for `cleanup.sh` and the
@@ -160,6 +162,14 @@ containerd with `setsid -f`, the helper-hash check in `precondition.sh` and `ora
 - Never prove "nothing shows runtime-root" with `ps aux | grep -c ...`: the command line of the shell that runs the check (or of a tool call that quotes the word) matches. Look at the command lines of the processes by NAME
   (`pgrep -x dockerd`) instead. And never run `runc --root SOMEDIR list` in a precondition for a directory that may be real (`/var/lib/docker/containers`): runc creates a missing root.
 - A script that hardcodes Docker's usual root (`/var/run/docker/runtime-runc/moby`) must test `-d` first (the sample), or it leaves the directory behind; on a host with a system Docker the directory exists and the precondition checks that it holds nothing.
+
+- Isolation with a user namespace (q66547508): (1) a mapped root cannot create anything in a rootfs owned by host root (`mkdir .../rootfs/proc: permission denied`): `chown -R` the rootfs, the data dir and every bundle parent the
+  mapped id must pass to THE MAPPED HOST ID, numerically, and keep the bundle under `/var/lib` (not a `noexec` `/tmp`). (2) Mounting `sysfs` needs `CAP_SYS_ADMIN` over the network namespace it shows, so a user namespace with the HOST's network
+  namespace gets `operation not permitted` at `/sys`; the allowed forms are no `/sys` mount, or a bind of the host's `/sys` (`rbind,nosuid,noexec,nodev,ro`; the cgroup mount below it comes along with `rbind`). A reference that drops the
+  `/sys/fs/cgroup` mount as well is the same on cgroup v1 and v2. (3) `ctr`'s `--uidmap/--gidmap/--net-host` cannot express either fix: build the case on runc and say so in `task.txt` (the tools line names what is allowed).
+  (4) `runc run -d` keeps the container's stdio on runc's pipes: the solution and the reference redirect `</dev/null >/dev/null 2>&1`, and `task.txt` tells the model to. (5) Prove the claim "inside root is host 5000" from the host side
+  (`/proc/PID/uid_map`, the owner of `/proc/PID`, a file the program wrote is owned by 5000), and the claim "host network" with the inode of `/proc/PID/ns/net` against `/proc/self/ns/net`; a `tmpfs` at `/sys` and a read-write bind of `/sys`
+  are separate wrong samples (`mountinfo` fstype and options).
 
 ## 5. How to verify a new case (the loop the series used)
 

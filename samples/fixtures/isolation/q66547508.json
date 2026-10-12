@@ -1,0 +1,44 @@
+[
+  {
+    "case_id": "q66547508",
+    "category": "isolation",
+    "model": "reference_solution",
+    "code": "bash cases/isolation/q66547508/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q66547508",
+    "category": "isolation",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q66547508",
+    "category": "isolation",
+    "model": "alt_valid_removes_the_sys_and_cgroup_mounts",
+    "code": "sudo python3 - <<'PY'\nimport json\np = \"/var/lib/bench66547508/bundle/config.json\"\nc = json.load(open(p))\nc[\"mounts\"] = [m for m in c[\"mounts\"] if m[\"destination\"] not in (\"/sys\", \"/sys/fs/cgroup\")]\njson.dump(c, open(p, \"w\"), indent=2)\nPY\nsudo runc run -d --bundle /var/lib/bench66547508/bundle bench66547508 </dev/null >/dev/null 2>&1 || true\nsudo runc state bench66547508 | grep -E '\"status\"' || true\n"
+  },
+  {
+    "case_id": "q66547508",
+    "category": "isolation",
+    "model": "wrong_drops_the_user_namespace",
+    "code": "sudo python3 - <<'PY'\nimport json\np = \"/var/lib/bench66547508/bundle/config.json\"\nc = json.load(open(p))\nc[\"linux\"][\"namespaces\"] = [n for n in c[\"linux\"][\"namespaces\"] if n[\"type\"] != \"user\"]\ndel c[\"linux\"][\"uidMappings\"]\ndel c[\"linux\"][\"gidMappings\"]\njson.dump(c, open(p, \"w\"), indent=2)\nPY\nsudo runc run -d --bundle /var/lib/bench66547508/bundle bench66547508 </dev/null >/dev/null 2>&1 || true\nsudo runc state bench66547508 | grep -E '\"status\"' || true\n"
+  },
+  {
+    "case_id": "q66547508",
+    "category": "isolation",
+    "model": "wrong_gives_the_container_a_network_namespace_of_its_own",
+    "code": "sudo python3 - <<'PY'\nimport json\np = \"/var/lib/bench66547508/bundle/config.json\"\nc = json.load(open(p))\nc[\"linux\"][\"namespaces\"].append({\"type\": \"network\"})\njson.dump(c, open(p, \"w\"), indent=2)\nPY\nsudo runc run -d --bundle /var/lib/bench66547508/bundle bench66547508 </dev/null >/dev/null 2>&1 || true\nsudo runc state bench66547508 | grep -E '\"status\"' || true\n"
+  },
+  {
+    "case_id": "q66547508",
+    "category": "isolation",
+    "model": "wrong_replaces_sys_by_a_tmpfs",
+    "code": "sudo python3 - <<'PY'\nimport json\np = \"/var/lib/bench66547508/bundle/config.json\"\nc = json.load(open(p))\nfor m in c[\"mounts\"]:\n    if m[\"destination\"] == \"/sys\":\n        m.update(type=\"tmpfs\", source=\"tmpfs\", options=[\"nosuid\", \"noexec\", \"nodev\", \"ro\"])\nc[\"mounts\"] = [m for m in c[\"mounts\"] if m[\"destination\"] != \"/sys/fs/cgroup\"]\njson.dump(c, open(p, \"w\"), indent=2)\nPY\nsudo runc run -d --bundle /var/lib/bench66547508/bundle bench66547508 </dev/null >/dev/null 2>&1 || true\nsudo runc state bench66547508 | grep -E '\"status\"' || true\n"
+  },
+  {
+    "case_id": "q66547508",
+    "category": "isolation",
+    "model": "wrong_binds_the_host_sys_read_write",
+    "code": "sudo python3 - <<'PY'\nimport json\np = \"/var/lib/bench66547508/bundle/config.json\"\nc = json.load(open(p))\nc[\"mounts\"] = [m for m in c[\"mounts\"] if m[\"destination\"] != \"/sys/fs/cgroup\"]\nfor m in c[\"mounts\"]:\n    if m[\"destination\"] == \"/sys\":\n        m.update(type=\"bind\", source=\"/sys\", options=[\"rbind\", \"nosuid\", \"noexec\", \"nodev\"])\njson.dump(c, open(p, \"w\"), indent=2)\nPY\nsudo runc run -d --bundle /var/lib/bench66547508/bundle bench66547508 </dev/null >/dev/null 2>&1 || true\nsudo runc state bench66547508 | grep -E '\"status\"' || true\n"
+  }
+]

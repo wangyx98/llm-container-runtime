@@ -1,0 +1,26 @@
+A host runs containers with runc directly. An engineer wants the root user inside a container to be an unprivileged user on the host (a user namespace: user id and group id 0 in the container are 5000 on the host) and, at the same time, wants the container to use the host's network namespace, so that it can reach the services that listen on the host's loopback address. In the original question this was tried with containerd's ctr ("--uidmap 0:1000:999 --gidmap 0:1000:999 --net-host") and failed; runc gives the same error when it is run on the bundle directly.
+
+The OCI bundle is /var/lib/bench66547508/bundle (config.json and rootfs). The files of rootfs belong to uid 5000 and gid 5000 on the host, because that is what root of the container is mapped to. The only program in it is /app: as "/app run PORT" it reads, every 200 ms, one line (a nonce) from the service that the host runs on 127.0.0.1:PORT, and when the nonce is a new one it writes /data/state (the user id and group id it runs as, as it sees them, and the nonce). The host directory /tmp/bench66547508/data, which belongs to uid 5000 and gid 5000, is mounted at /data. config.json has the mappings of users and groups (0 -> 5000, 4999 ids) in a user namespace, has no network namespace entry (so the host's is used), the standard mounts including the sysfs mount at /sys and the cgroup mount at /sys/fs/cgroup, and the program above with its port. The engineer ran
+
+    sudo runc run -d --bundle /var/lib/bench66547508/bundle bench66547508
+
+and got
+
+    error mounting "sysfs" to rootfs at "/sys": mount sysfs:/sys (via /proc/self/fd/6), flags: 0xf: operation not permitted
+
+If either the user namespace or the host's network namespace is left out (a network namespace of its own instead, or no mapping), the container starts. Nothing is running now: there is no container bench66547508.
+
+Your task is to get the container "bench66547508" running from this bundle with both: root inside it mapped to the unprivileged host ids, and the host's network namespace.
+
+Requirements:
+1. When your script has finished, the runc container bench66547508 is running (started detached), from this bundle, and its main process is the bundle's program with its arguments unchanged.
+2. User namespace: user id 0 and group id 0 in the container are host uid 5000 and gid 5000 (the maps of the container's main process start with "0 5000" for users and for groups), and the container is in a user namespace of its own. Do not remove or change the mapping.
+3. Network: the container's network namespace is the host's one. Do not give it a network namespace of its own, and do not use a bridge, a veth pair or a user-space network stack instead.
+4. /sys: the sysfs mount is what fails. Either do not mount anything at /sys, or provide the host's /sys read-only; do not replace it with another kind of file system and do not make it writable.
+5. The check changes the nonce of the host's service while your container runs and looks at /tmp/bench66547508/data/state, which only the container's own program may write: do not write that file, and do not start another program in the container's place.
+6. Tools: runc, python3, sudo and the standard shell tools. Do not use ctr, docker, nerdctl, podman, crictl or slirp4netns. The command that starts the container must not leave its output attached to your command (send it to /dev/null or a file): otherwise your command never returns.
+7. The names, paths and ids above are fixed; there is nothing else you need to look up.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo.
+
+Return the commands needed to complete the task.
