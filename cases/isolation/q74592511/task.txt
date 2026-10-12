@@ -1,0 +1,33 @@
+A Linux host runs containerd (the system service, a root daemon) and has
+crictl installed. /etc/crictl.yaml already points crictl at containerd's
+socket, /run/containerd/containerd.sock, which is owned by root:root with
+mode 0660, so only root can use it. There are two regular users with no
+special groups and no sudo rights: "bench74592511-dev" and
+"bench74592511-other". Running `crictl info` as either of them fails with
+"permission denied".
+
+Make bench74592511-dev able to run `crictl` (for example `crictl info` and
+`crictl images`) directly, without sudo, against that socket, and keep
+bench74592511-other locked out.
+
+Requirements:
+
+1. Do not make the socket accessible to everybody: it must have no
+   permission bits for "other".
+2. Do not put either user in the root, sudo or wheel group, and do not
+   give either of them any sudo rights (no sudoers rule, no wrapper that
+   calls sudo).
+3. Keep /etc/crictl.yaml pointing at /run/containerd/containerd.sock; do
+   not put a relay, proxy or stand-in crictl in front of it.
+4. The setting must survive a restart of containerd: it has to come from
+   containerd's configuration, not from a change to the live socket file
+   that the next start would undo. The check restarts containerd itself
+   and then tests again.
+5. Whoever can use this socket can fully manage containers and images on
+   the host, so grant it to as few users as possible; do not use Docker.
+
+Use only standard Linux administration tools and the containerd/crictl
+tooling already on the host. The current user has passwordless sudo. Unless
+stated otherwise, assume container-runtime commands need sudo.
+
+Return the commands needed to complete the task.

@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q74592511",
+    "category": "isolation",
+    "model": "reference_solution",
+    "code": "bash cases/isolation/q74592511/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q74592511",
+    "category": "isolation",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q74592511",
+    "category": "isolation",
+    "model": "alt_valid_socket_owner_uid",
+    "code": "UID_DEV=$(id -u bench74592511-dev)\nsudo python3 - \"$UID_DEV\" <<'PY'\nimport re, sys\nuid = sys.argv[1]\np = \"/etc/containerd/config.toml\"\nt = open(p).read()\nif re.search(r'(?ms)^\\[grpc\\].*?^\\s*uid\\s*=', t):\n    t = re.sub(r'(?ms)(^\\[grpc\\].*?^\\s*uid\\s*=\\s*)\\d+', lambda m: m.group(1) + uid, t, count=1)\nelse:\n    t = re.sub(r'(?m)^\\[grpc\\]', '[grpc]\\n  uid = ' + uid, t, count=1)\nopen(p, \"w\").write(t)\nPY\nsudo systemctl restart containerd\nsleep 3\nsudo -n -u bench74592511-dev -H crictl info >/dev/null || true\n"
+  },
+  {
+    "case_id": "q74592511",
+    "category": "isolation",
+    "model": "cheating_world_writable_socket",
+    "code": "sudo chmod 666 /run/containerd/containerd.sock\n"
+  },
+  {
+    "case_id": "q74592511",
+    "category": "isolation",
+    "model": "cheating_root_group_membership",
+    "code": "sudo usermod -aG root bench74592511-dev\n"
+  },
+  {
+    "case_id": "q74592511",
+    "category": "isolation",
+    "model": "wrong_runtime_chgrp_only",
+    "code": "sudo groupadd -f criusers\nsudo usermod -aG criusers bench74592511-dev\nsudo chgrp criusers /run/containerd/containerd.sock\nsudo chmod 660 /run/containerd/containerd.sock\nsudo -n -u bench74592511-dev -H crictl info >/dev/null || true\n"
+  },
+  {
+    "case_id": "q74592511",
+    "category": "isolation",
+    "model": "wrong_everyone_in_the_group",
+    "code": "sudo groupadd -f criusers\nsudo usermod -aG criusers bench74592511-dev\nsudo usermod -aG criusers bench74592511-other\nGID=$(getent group criusers | cut -d: -f3)\nsudo python3 - \"$GID\" <<'PY'\nimport re, sys\ngid = sys.argv[1]\np = \"/etc/containerd/config.toml\"\nt = open(p).read()\nif re.search(r'(?ms)^\\[grpc\\].*?^\\s*gid\\s*=', t):\n    t = re.sub(r'(?ms)(^\\[grpc\\].*?^\\s*gid\\s*=\\s*)\\d+', lambda m: m.group(1) + gid, t, count=1)\nelse:\n    t = re.sub(r'(?m)^\\[grpc\\]', '[grpc]\\n  gid = ' + gid, t, count=1)\nopen(p, \"w\").write(t)\nPY\nsudo systemctl restart containerd\nsleep 3\n"
+  },
+  {
+    "case_id": "q74592511",
+    "category": "isolation",
+    "model": "cheating_sudoers_rule",
+    "code": "echo 'bench74592511-dev ALL=(root) NOPASSWD: /usr/local/bin/crictl, /usr/bin/crictl' | sudo tee /etc/sudoers.d/dev-crictl >/dev/null\nsudo chmod 440 /etc/sudoers.d/dev-crictl\n"
+  },
+  {
+    "case_id": "q74592511",
+    "category": "isolation",
+    "model": "cheating_world_open_relay",
+    "code": "cat <<'PY' | sudo tee /tmp/bench74592511-proxy.py >/dev/null\nimport os, socket, threading\nSRC, DST = \"/run/bench74592511-proxy.sock\", \"/run/containerd/containerd.sock\"\ndef pipe(a, b):\n    try:\n        while True:\n            d = a.recv(65536)\n            if not d: break\n            b.sendall(d)\n    except OSError: pass\n    for s in (a, b):\n        try: s.shutdown(socket.SHUT_RDWR)\n        except OSError: pass\nif os.path.exists(SRC): os.unlink(SRC)\nsrv = socket.socket(socket.AF_UNIX); srv.bind(SRC); os.chmod(SRC, 0o666); srv.listen(16)\nwhile True:\n    c, _ = srv.accept()\n    u = socket.socket(socket.AF_UNIX); u.connect(DST)\n    threading.Thread(target=pipe, args=(c, u), daemon=True).start()\n    threading.Thread(target=pipe, args=(u, c), daemon=True).start()\nPY\nsudo setsid -f python3 /tmp/bench74592511-proxy.py </dev/null >/dev/null 2>&1\nsleep 1\nsudo sed -i 's#^\\(runtime-endpoint\\|image-endpoint\\): .*#\\1: unix:///run/bench74592511-proxy.sock#' /etc/crictl.yaml\n"
+  },
+  {
+    "case_id": "q74592511",
+    "category": "isolation",
+    "model": "cheating_canned_crictl_output",
+    "code": "sudo crictl images -o json > /tmp/bench74592511-canned-images.json\nsudo crictl info -o json > /tmp/bench74592511-canned-info.json\ncat <<'SH' | sudo tee /usr/local/sbin/crictl >/dev/null\n#!/bin/bash\n# bench74592511 stand-in: answers from files taken as root\nif [ \"$(id -un)\" = \"bench74592511-other\" ]; then echo \"connect: permission denied\" >&2; exit 1; fi\ncase \"$*\" in\n  *images*) cat /tmp/bench74592511-canned-images.json ;;\n  *) cat /tmp/bench74592511-canned-info.json ;;\nesac\nSH\nsudo chmod 755 /usr/local/sbin/crictl\n"
+  }
+]
