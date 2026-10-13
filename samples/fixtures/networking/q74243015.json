@@ -1,0 +1,68 @@
+[
+  {
+    "case_id": "q74243015",
+    "category": "networking",
+    "model": "reference_solution",
+    "code": "bash cases/networking/q74243015/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q74243015",
+    "category": "networking",
+    "model": "alt_valid_env_file",
+    "code": "sudo tee /etc/default/bench74243015-crio >/dev/null <<'CONF'\nhttps_proxy=http://127.0.0.1:35744\nno_proxy=localhost,127.0.0.1\nCONF\nsudo systemctl restart bench74243015-crio.service\n"
+  },
+  {
+    "case_id": "q74243015",
+    "category": "networking",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q74243015",
+    "category": "networking",
+    "model": "wrong_profile_d_and_shell",
+    "code": "sudo tee /etc/profile.d/bench74243015-proxy.sh >/dev/null <<'CONF'\nexport HTTPS_PROXY=http://127.0.0.1:35744\nexport HTTP_PROXY=http://127.0.0.1:35744\nexport NO_PROXY=localhost,127.0.0.1\nCONF\necho 'HTTPS_PROXY=http://127.0.0.1:35744' | sudo tee -a /etc/environment >/dev/null\nexport HTTPS_PROXY=http://127.0.0.1:35744 HTTP_PROXY=http://127.0.0.1:35744\nsudo -E systemctl restart bench74243015-crio.service\n"
+  },
+  {
+    "case_id": "q74243015",
+    "category": "networking",
+    "model": "wrong_no_daemon_reload",
+    "code": "sudo mkdir -p /etc/systemd/system/bench74243015-crio.service.d\nsudo tee /etc/systemd/system/bench74243015-crio.service.d/proxy.conf >/dev/null <<'CONF'\n[Service]\nEnvironment=\"HTTPS_PROXY=http://127.0.0.1:35744\"\nEnvironment=\"NO_PROXY=localhost,127.0.0.1\"\nCONF\nsudo systemctl restart bench74243015-crio.service\n"
+  },
+  {
+    "case_id": "q74243015",
+    "category": "networking",
+    "model": "wrong_http_proxy_only",
+    "code": "sudo mkdir -p /etc/systemd/system/bench74243015-crio.service.d\nsudo tee /etc/systemd/system/bench74243015-crio.service.d/proxy.conf >/dev/null <<'CONF'\n[Service]\nEnvironment=\"HTTP_PROXY=http://127.0.0.1:35744\"\nCONF\nsudo systemctl daemon-reload\nsudo systemctl restart bench74243015-crio.service\n"
+  },
+  {
+    "case_id": "q74243015",
+    "category": "networking",
+    "model": "wrong_proxy_https_scheme",
+    "code": "sudo mkdir -p /etc/systemd/system/bench74243015-crio.service.d\nsudo tee /etc/systemd/system/bench74243015-crio.service.d/proxy.conf >/dev/null <<'CONF'\n[Service]\nEnvironment=\"HTTPS_PROXY=https://127.0.0.1:35744\"\nCONF\nsudo systemctl daemon-reload\nsudo systemctl restart bench74243015-crio.service\n"
+  },
+  {
+    "case_id": "q74243015",
+    "category": "networking",
+    "model": "wrong_no_proxy_test_domain",
+    "code": "sudo mkdir -p /etc/systemd/system/bench74243015-crio.service.d\nsudo tee /etc/systemd/system/bench74243015-crio.service.d/proxy.conf >/dev/null <<'CONF'\n[Service]\nEnvironment=\"HTTPS_PROXY=http://127.0.0.1:35744\"\nEnvironment=\"NO_PROXY=.test,localhost,127.0.0.1\"\nCONF\nsudo systemctl daemon-reload\nsudo systemctl restart bench74243015-crio.service\n"
+  },
+  {
+    "case_id": "q74243015",
+    "category": "networking",
+    "model": "wrong_conf_changed",
+    "code": "sudo mkdir -p /etc/systemd/system/bench74243015-crio.service.d\nsudo tee /etc/systemd/system/bench74243015-crio.service.d/proxy.conf >/dev/null <<'CONF'\n[Service]\nEnvironment=\"HTTPS_PROXY=http://127.0.0.1:35744\"\nCONF\nsudo sed -i 's#^pause_image = .*#&\\ninsecure_registries = [\"registry.bench74243015.test:35743\"]#' /etc/bench74243015/crio.conf\nsudo systemctl daemon-reload\nsudo systemctl restart bench74243015-crio.service\n"
+  },
+  {
+    "case_id": "q74243015",
+    "category": "networking",
+    "model": "wrong_lab_proxy_replaced",
+    "code": "PID=$(ps -eo pid=,comm=,args= | awk '$2==\"python3\" && /bench74243015\\/.bench\\/proxy[.]py/ {print $1}')\nsudo kill $PID\nsleep 1\nsudo env -i PATH=\"$PATH\" setsid -f python3 /tmp/bench74243015/.bench/proxy.py 127.0.0.1 35744 /tmp/bench74243015/.bench/proxy.log 127.0.0.7 registry.bench74243015.test 35743 >/dev/null 2>&1 </dev/null\nsudo mkdir -p /etc/systemd/system/bench74243015-crio.service.d\nsudo tee /etc/systemd/system/bench74243015-crio.service.d/proxy.conf >/dev/null <<'CONF'\n[Service]\nEnvironment=\"HTTPS_PROXY=http://127.0.0.1:35744\"\nCONF\nsudo systemctl daemon-reload\nsudo systemctl restart bench74243015-crio.service\n"
+  },
+  {
+    "case_id": "q74243015",
+    "category": "networking",
+    "model": "wrong_preload_pause_only",
+    "code": "sudo systemctl stop bench74243015-crio.service\nsudo bash -c 'HTTPS_PROXY=http://127.0.0.1:35744 NO_PROXY=localhost,127.0.0.1 setsid \"$(command -v crio)\" --config /etc/bench74243015/crio.conf --config-dir /etc/bench74243015/crio.conf.d >/tmp/bench74243015-manual.log 2>&1 </dev/null & echo $! > /tmp/bench74243015-manual.pid'\nfor i in $(seq 1 40); do sudo crictl -r unix:///run/bench74243015/crio.sock version >/dev/null 2>&1 && break; sleep 0.5; done\nsudo crictl -r unix:///run/bench74243015/crio.sock -i unix:///run/bench74243015/crio.sock pull registry.bench74243015.test:35743/pause:3.6\nsudo kill \"$(cat /tmp/bench74243015-manual.pid)\"\nsleep 3\nsudo systemctl start bench74243015-crio.service\n"
+  }
+]
