@@ -1,0 +1,15 @@
+A Linux host runs containerd as root (system socket; use ctr) and has a data volume of a remote machine attached as a disk: the device node /dev/bench75294704-vol is the administrator's name for it (other disks are attached to the host too, and the kernel's own name of this one is not given). A containerd namespace called bench75294704 holds the image registry.bench75294704.test/scan:1, already imported; it contains one program, /scan (the default command), which scans the volume. /scan reads the path of the volume from the environment variable DevicePath, writes one line to /tmp/scan-result.txt inside the container, and keeps running (the line is "OK NAME FSTYPE LABEL" when it could read the disk, "ERROR ..." with the reason otherwise; it scans again whenever it gets SIGUSR1; "/scan show" prints the current line, and the image has no other program, so use `ctr -n bench75294704 tasks exec --exec-id SOMEID CONTAINER /scan show` to read it).
+
+A container started from the image the plain way reports an error. With --privileged it reports the volume's file system, but the team does not want a privileged container (privileged hands the container every device, all capabilities and unmasked system paths). They want the container to see this one volume and nothing more, the way "docker run --device" would give it.
+
+Start, detached and left running, a container with the ID bench75294704-scan in the containerd namespace bench75294704, from the image registry.bench75294704.test/scan:1, so that /scan reads the volume correctly:
+1. The line /scan keeps must always show the volume's real name, file system type and label. It will be checked after the label of the volume has been changed (the check changes it and sends SIGUSR1 to /scan).
+2. The container must not be privileged and must not get any capability that a container started from this image with no extra options does not have.
+3. Its /dev must not hold a device node for any disk other than this volume (other loop devices exist on the host).
+4. Do not change the image, the program, the volume or the host's devices; leave the container running (ctr run -d, with its input and output redirected so the command returns, for example "</dev/null >/dev/null 2>&1").
+
+Allowed: the standard shell tools, python3, sudo and ctr. Do not use docker, nerdctl, crictl, kubectl or strace.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo.
+
+Return the commands needed to complete the task.
