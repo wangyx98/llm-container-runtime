@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q72968351",
+    "category": "isolation",
+    "model": "reference_solution",
+    "code": "bash cases/isolation/q72968351/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q72968351",
+    "category": "isolation",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q72968351",
+    "category": "isolation",
+    "model": "wrong_host_historical_endpoint",
+    "code": "U=bench72968351\nH=/home/$U\nRT=/run/user/$(id -u $U)\nas_user() { sudo -u $U -H env XDG_RUNTIME_DIR=$RT DBUS_SESSION_BUS_ADDRESS=unix:path=$RT/bus \"$@\"; }\nas_user mkdir -p $H/bin\nas_user tee $H/bin/ctr-k3s >/dev/null <<'SCRIPT'\n#!/bin/sh\nexport CONTAINERD_NAMESPACE=${CONTAINERD_NAMESPACE:-k8s.io}\nexec ctr --address /run/k3s/containerd/containerd.sock --timeout 10s \"$@\"\nSCRIPT\nas_user tee $H/bin/crictl-k3s >/dev/null <<'SCRIPT'\n#!/bin/sh\nexec crictl --timeout 10s --runtime-endpoint unix:///run/k3s/containerd/containerd.sock --image-endpoint unix:///run/k3s/containerd/containerd.sock \"$@\"\nSCRIPT\nas_user chmod +x $H/bin/ctr-k3s $H/bin/crictl-k3s\n"
+  },
+  {
+    "case_id": "q72968351",
+    "category": "isolation",
+    "model": "wrong_namespace_entered_historical_path",
+    "code": "U=bench72968351\nH=/home/$U\nRT=/run/user/$(id -u $U)\nas_user() { sudo -u $U -H env XDG_RUNTIME_DIR=$RT DBUS_SESSION_BUS_ADDRESS=unix:path=$RT/bus \"$@\"; }\nas_user mkdir -p $H/bin\nas_user tee $H/bin/ctr-k3s >/dev/null <<'SCRIPT'\n#!/bin/sh\nRT=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}\nCP=$(cat \"$RT/bench72968351-rootlesskit/child_pid\")\nexport CONTAINERD_NAMESPACE=${CONTAINERD_NAMESPACE:-k8s.io}\nexec nsenter -U --preserve-credentials -m -t \"$CP\" ctr --address /run/k3s/containerd/containerd.sock --timeout 10s \"$@\"\nSCRIPT\nas_user tee $H/bin/crictl-k3s >/dev/null <<'SCRIPT'\n#!/bin/sh\nRT=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}\nCP=$(cat \"$RT/bench72968351-rootlesskit/child_pid\")\nexec nsenter -U --preserve-credentials -m -t \"$CP\" crictl --timeout 10s --runtime-endpoint unix:///run/k3s/containerd/containerd.sock --image-endpoint unix:///run/k3s/containerd/containerd.sock \"$@\"\nSCRIPT\nas_user chmod +x $H/bin/ctr-k3s $H/bin/crictl-k3s\n"
+  },
+  {
+    "case_id": "q72968351",
+    "category": "isolation",
+    "model": "wrong_stale_child_pid",
+    "code": "U=bench72968351\nH=/home/$U\nRT=/run/user/$(id -u $U)\nas_user() { sudo -u $U -H env XDG_RUNTIME_DIR=$RT DBUS_SESSION_BUS_ADDRESS=unix:path=$RT/bus \"$@\"; }\nas_user mkdir -p $H/bin\nCP=$(as_user cat $RT/bench72968351-rootlesskit/child_pid)\nCD=$(pgrep -u $(id -u $U) -x containerd | head -1)\nCFG=$(sudo tr '\\0' '\\n' < /proc/$CD/cmdline | sed -n '/^--config$/{n;p}')\nSOCK=$(sudo sed -n 's/^ *address *= *\"\\(.*\\)\"/\\1/p' \"$CFG\")\nas_user tee $H/bin/ctr-k3s >/dev/null <<SCRIPT\n#!/bin/sh\nexport CONTAINERD_NAMESPACE=\\${CONTAINERD_NAMESPACE:-k8s.io}\nexec nsenter -U --preserve-credentials -m -t $CP ctr --address $SOCK \"\\$@\"\nSCRIPT\nas_user tee $H/bin/crictl-k3s >/dev/null <<SCRIPT\n#!/bin/sh\nexec nsenter -U --preserve-credentials -m -t $CP crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK \"\\$@\"\nSCRIPT\nas_user chmod +x $H/bin/ctr-k3s $H/bin/crictl-k3s\n"
+  },
+  {
+    "case_id": "q72968351",
+    "category": "isolation",
+    "model": "wrong_default_namespace",
+    "code": "U=bench72968351\nH=/home/$U\nRT=/run/user/$(id -u $U)\nas_user() { sudo -u $U -H env XDG_RUNTIME_DIR=$RT DBUS_SESSION_BUS_ADDRESS=unix:path=$RT/bus \"$@\"; }\nas_user mkdir -p $H/bin\nas_user tee $H/bin/ctr-k3s >/dev/null <<'SCRIPT'\n#!/bin/sh\nRT=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}\nCP=$(cat \"$RT/bench72968351-rootlesskit/child_pid\")\nNS=$(readlink \"/proc/$CP/ns/mnt\")\nfor p in $(pgrep -u \"$(id -u)\" -x containerd); do [ \"$(readlink \"/proc/$p/ns/mnt\")\" = \"$NS\" ] && CD=$p && break; done\nCFG=$(tr '\\0' '\\n' < \"/proc/${CD:?}/cmdline\" | sed -n '/^--config$/{n;p}')\nSOCK=$(sed -n 's/^ *address *= *\"\\(.*\\)\"/\\1/p' \"$CFG\")\nexec nsenter -U --preserve-credentials -m -t \"$CP\" ctr --address \"$SOCK\" \"$@\"\nSCRIPT\nas_user tee $H/bin/crictl-k3s >/dev/null <<'SCRIPT'\n#!/bin/sh\nRT=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}\nCP=$(cat \"$RT/bench72968351-rootlesskit/child_pid\")\nNS=$(readlink \"/proc/$CP/ns/mnt\")\nfor p in $(pgrep -u \"$(id -u)\" -x containerd); do [ \"$(readlink \"/proc/$p/ns/mnt\")\" = \"$NS\" ] && CD=$p && break; done\nCFG=$(tr '\\0' '\\n' < \"/proc/${CD:?}/cmdline\" | sed -n '/^--config$/{n;p}')\nSOCK=$(sed -n 's/^ *address *= *\"\\(.*\\)\"/\\1/p' \"$CFG\")\nexec nsenter -U --preserve-credentials -m -t \"$CP\" crictl --runtime-endpoint \"unix://$SOCK\" --image-endpoint \"unix://$SOCK\" \"$@\"\nSCRIPT\nas_user chmod +x $H/bin/ctr-k3s $H/bin/crictl-k3s\n"
+  },
+  {
+    "case_id": "q72968351",
+    "category": "isolation",
+    "model": "wrong_sudo_rule_rootful_containerd",
+    "code": "U=bench72968351\nH=/home/$U\nRT=/run/user/$(id -u $U)\nas_user() { sudo -u $U -H env XDG_RUNTIME_DIR=$RT DBUS_SESSION_BUS_ADDRESS=unix:path=$RT/bus \"$@\"; }\nas_user mkdir -p $H/bin\necho \"bench72968351 ALL=(ALL) NOPASSWD: ALL\" | sudo tee /etc/sudoers.d/bench72968351 >/dev/null\nsudo chmod 440 /etc/sudoers.d/bench72968351\nas_user tee $H/bin/ctr-k3s >/dev/null <<'SCRIPT'\n#!/bin/sh\nexec sudo ctr -n k8s.io \"$@\"\nSCRIPT\nas_user tee $H/bin/crictl-k3s >/dev/null <<'SCRIPT'\n#!/bin/sh\nexec sudo crictl \"$@\"\nSCRIPT\nas_user chmod +x $H/bin/ctr-k3s $H/bin/crictl-k3s\n"
+  },
+  {
+    "case_id": "q72968351",
+    "category": "isolation",
+    "model": "wrong_crictl_on_host",
+    "code": "U=bench72968351\nH=/home/$U\nRT=/run/user/$(id -u $U)\nas_user() { sudo -u $U -H env XDG_RUNTIME_DIR=$RT DBUS_SESSION_BUS_ADDRESS=unix:path=$RT/bus \"$@\"; }\nas_user mkdir -p $H/bin\nas_user tee $H/bin/ctr-k3s >/dev/null <<'SCRIPT'\n#!/bin/sh\nRT=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}\nCP=$(cat \"$RT/bench72968351-rootlesskit/child_pid\")\nNS=$(readlink \"/proc/$CP/ns/mnt\")\nfor p in $(pgrep -u \"$(id -u)\" -x containerd); do [ \"$(readlink \"/proc/$p/ns/mnt\")\" = \"$NS\" ] && CD=$p && break; done\nCFG=$(tr '\\0' '\\n' < \"/proc/${CD:?}/cmdline\" | sed -n '/^--config$/{n;p}')\nSOCK=$(sed -n 's/^ *address *= *\"\\(.*\\)\"/\\1/p' \"$CFG\")\nexport CONTAINERD_NAMESPACE=${CONTAINERD_NAMESPACE:-k8s.io}\nexec nsenter -U --preserve-credentials -m -t \"$CP\" ctr --address \"$SOCK\" \"$@\"\nSCRIPT\nas_user tee $H/bin/crictl-k3s >/dev/null <<'SCRIPT'\n#!/bin/sh\nRT=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}\nCP=$(cat \"$RT/bench72968351-rootlesskit/child_pid\")\nNS=$(readlink \"/proc/$CP/ns/mnt\")\nfor p in $(pgrep -u \"$(id -u)\" -x containerd); do [ \"$(readlink \"/proc/$p/ns/mnt\")\" = \"$NS\" ] && CD=$p && break; done\nCFG=$(tr '\\0' '\\n' < \"/proc/${CD:?}/cmdline\" | sed -n '/^--config$/{n;p}')\nSOCK=$(sed -n 's/^ *address *= *\"\\(.*\\)\"/\\1/p' \"$CFG\")\nexec crictl --runtime-endpoint \"unix://$SOCK\" --image-endpoint \"unix://$SOCK\" \"$@\"\nSCRIPT\nas_user chmod +x $H/bin/ctr-k3s $H/bin/crictl-k3s\n"
+  },
+  {
+    "case_id": "q72968351",
+    "category": "isolation",
+    "model": "wrong_global_symlink",
+    "code": "U=bench72968351\nH=/home/$U\nRT=/run/user/$(id -u $U)\nas_user() { sudo -u $U -H env XDG_RUNTIME_DIR=$RT DBUS_SESSION_BUS_ADDRESS=unix:path=$RT/bus \"$@\"; }\nas_user mkdir -p $H/bin\nCP=$(as_user cat \"$RT/bench72968351-rootlesskit/child_pid\")\nNS=$(sudo readlink \"/proc/$CP/ns/mnt\")\nfor p in $(pgrep -u \"$(id -u $U)\" -x containerd); do [ \"$(sudo readlink \"/proc/$p/ns/mnt\")\" = \"$NS\" ] && CD=$p && break; done\nCFG=$(sudo tr '\\0' '\\n' < \"/proc/${CD:?}/cmdline\" | sed -n '/^--config$/{n;p}')\nSOCK=$(sudo sed -n 's/^ *address *= *\"\\(.*\\)\"/\\1/p' \"$CFG\")\n[ -n \"$SOCK\" ] || exit 1\nDIR=$(dirname $(dirname \"$SOCK\"))\nsudo ln -sfn /proc/$CP/root$DIR $DIR\nas_user tee $H/bin/ctr-k3s >/dev/null <<'SCRIPT'\n#!/bin/sh\nRT=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}\nCP=$(cat \"$RT/bench72968351-rootlesskit/child_pid\")\nNS=$(readlink \"/proc/$CP/ns/mnt\")\nfor p in $(pgrep -u \"$(id -u)\" -x containerd); do [ \"$(readlink \"/proc/$p/ns/mnt\")\" = \"$NS\" ] && CD=$p && break; done\nCFG=$(tr '\\0' '\\n' < \"/proc/${CD:?}/cmdline\" | sed -n '/^--config$/{n;p}')\nSOCK=$(sed -n 's/^ *address *= *\"\\(.*\\)\"/\\1/p' \"$CFG\")\nexport CONTAINERD_NAMESPACE=${CONTAINERD_NAMESPACE:-k8s.io}\nexec ctr --address \"$SOCK\" \"$@\"\nSCRIPT\nas_user tee $H/bin/crictl-k3s >/dev/null <<'SCRIPT'\n#!/bin/sh\nRT=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}\nCP=$(cat \"$RT/bench72968351-rootlesskit/child_pid\")\nNS=$(readlink \"/proc/$CP/ns/mnt\")\nfor p in $(pgrep -u \"$(id -u)\" -x containerd); do [ \"$(readlink \"/proc/$p/ns/mnt\")\" = \"$NS\" ] && CD=$p && break; done\nCFG=$(tr '\\0' '\\n' < \"/proc/${CD:?}/cmdline\" | sed -n '/^--config$/{n;p}')\nSOCK=$(sed -n 's/^ *address *= *\"\\(.*\\)\"/\\1/p' \"$CFG\")\nexec crictl --runtime-endpoint \"unix://$SOCK\" --image-endpoint \"unix://$SOCK\" \"$@\"\nSCRIPT\nas_user chmod +x $H/bin/ctr-k3s $H/bin/crictl-k3s\n"
+  },
+  {
+    "case_id": "q72968351",
+    "category": "isolation",
+    "model": "wrong_runner_changed_socket_in_home",
+    "code": "U=bench72968351\nH=/home/$U\nRT=/run/user/$(id -u $U)\nas_user() { sudo -u $U -H env XDG_RUNTIME_DIR=$RT DBUS_SESSION_BUS_ADDRESS=unix:path=$RT/bus \"$@\"; }\nas_user mkdir -p $H/bin\nsudo sed -i 's#^  address = .*#  address = \"/home/bench72968351/k3s/containerd.sock\"#' $H/k3s/containerd/config.toml\nas_user systemctl --user restart bench72968351-k3s.service\nsleep 5\nas_user tee $H/bin/ctr-k3s >/dev/null <<'SCRIPT'\n#!/bin/sh\nexport CONTAINERD_NAMESPACE=${CONTAINERD_NAMESPACE:-k8s.io}\nexec ctr --address /home/bench72968351/k3s/containerd.sock \"$@\"\nSCRIPT\nas_user tee $H/bin/crictl-k3s >/dev/null <<'SCRIPT'\n#!/bin/sh\nexec crictl --runtime-endpoint unix:///home/bench72968351/k3s/containerd.sock --image-endpoint unix:///home/bench72968351/k3s/containerd.sock \"$@\"\nSCRIPT\nas_user chmod +x $H/bin/ctr-k3s $H/bin/crictl-k3s\n"
+  }
+]
