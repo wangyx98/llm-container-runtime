@@ -1,0 +1,15 @@
+A Linux host uses cgroup v2 (the unified hierarchy mounted at /sys/fs/cgroup) and runs its containers with runc as root (runc's default root, /run/runc; no container engine is involved). Every container is started with a fixed set of CPUs (runc's linux.resources.cpu.cpus, a cpuset) and a cgroup of its own below the host's root cgroup, whose path has nothing to do with the container's ID. There are two kinds of containers. A normal container reads its CPUs in /sys/fs/cgroup/cpuset.cpus and gets the list it was given. A privileged-style container has the same CPU constraint, but "cat /sys/fs/cgroup/cpuset.cpus" in it fails with "No such file or directory", and the people who need the CPU numbers (a DPDK application reads them) cannot find them there. The CPU sets are not fixed: every container may have a different one, and the same program must work for containers started after you wrote it.
+
+Create the bash script /tmp/bench76608572/cpu-report.sh (it is run with bash, as the current user, from the host) that takes two arguments: TARGET, either the host PID of a process of one container or the runc ID of the container, and OUTPUT_FILE, the path of a file it writes. It writes into it one JSON object with the keys:
+- cgroup_dir: the absolute path, on the host, of the container's own cgroup directory (a string);
+- effective_cpus: the CPUs that the container's cgroup may really use, as a CPU list in the kernel's notation (for example "2-3" or "0,2,5-6"), taken from the cgroup, not from the process;
+- view_root_dir: the absolute path, on the host, of the directory that the container sees as its /sys/fs/cgroup (a string);
+- view_shows_own_cgroup: true if the directory the container sees as /sys/fs/cgroup is its own cgroup directory, false if it is some other directory;
+- cpuset_cpus_in_view: true if a file named cpuset.cpus exists at the root of the container's /sys/fs/cgroup (that is, in the directory it sees), false if not.
+The two views can differ between two containers with the same CPU constraint, and the script reports what each container really has, whatever it is; it must not assume them equal or make them equal. The script only reads: it must not start, stop, signal or move any process, and must not write to any cgroup or to any file of the container. The check runs it later for containers that did not exist when you wrote it (given by PID and by container ID), and compares the objects with what the host knows about them. No container is running now: if you want to try the script you may start a throw-away container of your own with runc, but give its ID and its cgroupsPath names that start with bench76608572-x (the cgroupsPath as "/bench76608572-x..."), and delete it afterwards.
+
+Allowed: the standard shell tools, python3, sudo and runc. Do not use ctr, crictl, nerdctl, docker, kubectl or systemd-cgls.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo.
+
+Return the commands needed to complete the task.
