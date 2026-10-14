@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q71671179",
+    "category": "networking",
+    "model": "reference_solution",
+    "code": "bash cases/networking/q71671179/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q71671179",
+    "category": "networking",
+    "model": "alt_valid_docker_certs_dir",
+    "code": "for n in worker1 worker2; do\n  d=/var/lib/bench71671179/$n/etc/docker/certs.d/registry.bench71671179.test:35751\n  sudo mkdir -p \"$d\"\n  sudo cp /etc/bench71671179/registry-ca.crt \"$d/ca.crt\"\ndone\n"
+  },
+  {
+    "case_id": "q71671179",
+    "category": "networking",
+    "model": "alt_valid_node_trust_bundle",
+    "code": "for n in worker1 worker2; do\n  sudo sh -c \"cat /etc/bench71671179/registry-ca.crt >> /var/lib/bench71671179/$n/etc/ssl/certs/ca-certificates.crt\"\n  sudo systemctl restart bench71671179-$n-crio.service\ndone\n"
+  },
+  {
+    "case_id": "q71671179",
+    "category": "networking",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q71671179",
+    "category": "networking",
+    "model": "wrong_crio_certs_dir_only",
+    "code": "for n in worker1 worker2; do\n  d=/var/lib/bench71671179/$n/etc/crio/certs.d/registry.bench71671179.test:35751\n  sudo mkdir -p \"$d\"\n  sudo cp /etc/bench71671179/registry-ca.crt \"$d/ca.crt\"\ndone\n"
+  },
+  {
+    "case_id": "q71671179",
+    "category": "networking",
+    "model": "wrong_only_worker1_fixed",
+    "code": "for n in worker1; do\n  d=/var/lib/bench71671179/$n/etc/containers/certs.d/registry.bench71671179.test:35751\n  sudo mkdir -p \"$d\"\n  sudo cp /etc/bench71671179/registry-ca.crt \"$d/ca.crt\"\ndone\n"
+  },
+  {
+    "case_id": "q71671179",
+    "category": "networking",
+    "model": "wrong_insecure_registry",
+    "code": "sudo mkdir -p /etc/containers/registries.conf.d\nsudo tee /etc/containers/registries.conf.d/99-bench71671179.conf >/dev/null <<'CONF'\n[[registry]]\nlocation = \"registry.bench71671179.test:35751\"\ninsecure = true\nCONF\nfor n in master worker1 worker2; do sudo systemctl restart bench71671179-$n-crio.service; done\n"
+  },
+  {
+    "case_id": "q71671179",
+    "category": "networking",
+    "model": "wrong_node_conf_insecure_list",
+    "code": "for n in worker1 worker2; do\n  sudo sed -i 's#^pause_image = .*#&\\ninsecure_registries = [\"registry.bench71671179.test:35751\"]#' /etc/bench71671179/$n/crio.conf\n  sudo systemctl restart bench71671179-$n-crio.service\ndone\n"
+  }
+]
