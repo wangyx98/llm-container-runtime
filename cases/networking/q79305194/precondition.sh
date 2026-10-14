@@ -1,0 +1,30 @@
+#!/bin/bash
+set -e
+
+CASE_ID="bench79305194"
+WORK_DIR="/tmp/$CASE_ID"
+STATE_DIR="$WORK_DIR/.bench"
+ETC="/etc/$CASE_ID"
+UNIT="$CASE_ID-containerd.service"
+
+fail() { echo "  -> FAIL: $*"; exit 1; }
+
+echo "[precondition] the helpers are as setup copied them and the lab is as its record says (binaries, unit, configuration, images, the registry process)..."
+sudo bash -c 'cd "$1" && sha256sum pause.c app.c mkoci.py registry.py lab.py verify.py | awk "{print \$1}" | cmp -s - helpers.sha' _ "$STATE_DIR" || fail "a helper of the lab was changed"
+sudo python3 "$STATE_DIR/lab.py" check "$WORK_DIR" || fail "see above"
+echo "  -> OK"
+
+echo "[precondition] the service runs the lab's containerd 2.0.0 from its own configuration and socket..."
+[ "$(sudo systemctl is-active "$UNIT")" = active ] || fail "$UNIT is not active"
+sudo test -S "/run/$CASE_ID/containerd.sock" || fail "no CRI socket"
+sudo "/var/lib/$CASE_ID/bin/containerd" --version | head -1
+echo "  -> OK"
+
+echo "[precondition] nothing of the solution exists yet: no config_path, no hosts.toml, no registry table under the new plugin id..."
+! grep -q "config_path" "$ETC/config.toml" || fail "the configuration has a config_path already"
+! grep -q 'io.containerd.cri.v1.images".registry' "$ETC/config.toml" || fail "the configuration has registry settings under the new plugin id already"
+[ -z "$(sudo find /etc /var/lib/$CASE_ID /root -name hosts.toml 2>/dev/null | xargs -r sudo grep -l "bench79305194" 2>/dev/null)" ] || fail "a hosts.toml names the registry already"
+echo "  -> OK"
+
+echo "[precondition] the symptom and the controls: the registry is plain HTTP with valid credentials, ctr --plain-http pulls from it, the CRI pull with the right credentials fails with 'server gave HTTP response to HTTPS client'..."
+sudo python3 "$STATE_DIR/lab.py" controls "$WORK_DIR" || fail "see above"
