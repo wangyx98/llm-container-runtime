@@ -1,0 +1,44 @@
+[
+  {
+    "case_id": "q65724285",
+    "category": "networking",
+    "model": "reference_solution",
+    "code": "bash cases/networking/q65724285/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q65724285",
+    "category": "networking",
+    "model": "alt_valid_one_hosts_dir_for_both",
+    "code": "sudo mkdir -p /etc/bench65724285/certs.d/registry.bench65724285.test:5000\nsudo tee /etc/bench65724285/certs.d/registry.bench65724285.test:5000/hosts.toml >/dev/null <<'TOML'\nserver = \"http://registry.bench65724285.test:5000\"\n\n[host.\"http://registry.bench65724285.test:5000\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\nsudo python3 - <<'PY'\nt = open(\"/etc/bench65724285/config.toml\").read()\ni = t.index('  [plugins.\"io.containerd.grpc.v1.cri\".registry]')\nopen(\"/etc/bench65724285/config.toml\", \"w\").write(t[:i].rstrip(\"\\n\") + '\\n\\n  [plugins.\"io.containerd.grpc.v1.cri\".registry]\\n    config_path = \"/etc/bench65724285/certs.d\"\\n')\nPY\nsudo systemctl restart bench65724285-containerd.service\n"
+  },
+  {
+    "case_id": "q65724285",
+    "category": "networking",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q65724285",
+    "category": "networking",
+    "model": "wrong_only_cri_fixed",
+    "code": "sudo sed -i 's#endpoint = \\[\"https://registry.bench65724285.test:5000\"\\]#endpoint = [\"http://registry.bench65724285.test:5000\"]#' /etc/bench65724285/config.toml\nsudo systemctl restart bench65724285-containerd.service\n"
+  },
+  {
+    "case_id": "q65724285",
+    "category": "networking",
+    "model": "wrong_only_ctr_fixed",
+    "code": "sudo mkdir -p /etc/bench65724285/certs.d/registry.bench65724285.test:5000\nsudo tee /etc/bench65724285/certs.d/registry.bench65724285.test:5000/hosts.toml >/dev/null <<'TOML'\nserver = \"http://registry.bench65724285.test:5000\"\n\n[host.\"http://registry.bench65724285.test:5000\"]\n  capabilities = [\"pull\", \"resolve\"]\nTOML\n"
+  },
+  {
+    "case_id": "q65724285",
+    "category": "networking",
+    "model": "wrong_ctr_plain_http_preload",
+    "code": "sudo ctr --address /run/bench65724285/containerd.sock images pull --plain-http registry.bench65724285.test:5000/my-alpine:latest\n"
+  },
+  {
+    "case_id": "q65724285",
+    "category": "networking",
+    "model": "wrong_stop_registry",
+    "code": "sudo kill $(pgrep -f '[b]ench65724285/.bench/registry.py')\n"
+  }
+]

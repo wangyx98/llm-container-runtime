@@ -1,0 +1,17 @@
+On this shared Ubuntu machine a Kubernetes node runs containerd 2.0.0 as the systemd service with the exact name bench65724285-containerd.service (a private instance next to any containerd.service of the machine: its binaries are in /var/lib/bench65724285/bin, its socket is /run/bench65724285/containerd.sock, its configuration is /etc/bench65724285/config.toml, and the unit starts it with "--config /etc/bench65724285/config.toml"). containerd reads its configuration only when it starts. Two clients talk to this containerd: ctr, which is always pointed at the socket and used in its default namespace, for example "sudo ctr -a /run/bench65724285/containerd.sock images ls", and the Kubernetes side, the CRI (kubelet), for which crictl needs both endpoints, for example "crictl -r unix:///run/bench65724285/containerd.sock -i unix:///run/bench65724285/containerd.sock images".
+
+The node pulls its images from a private registry at registry.bench65724285.test:5000 (plain HTTP, no TLS at all, no authentication; the name is in /etc/hosts). The image registry.bench65724285.test:5000/my-alpine:latest is in the registry. The configuration of the node has, for this registry, a TLS entry with insecure_skip_verify = true and a mirror, both under the key registry.bench65724285.test:5000, as the engineer found them in a guide.
+
+The problem: both pulls fail with the same error, "failed to do request: Head https://registry.bench65724285.test:5000/v2/my-alpine/manifests/latest: http: server gave HTTP response to HTTPS client": the ctr pull "sudo ctr -a /run/bench65724285/containerd.sock images pull registry.bench65724285.test:5000/my-alpine:latest", and the pull of the same image through the CRI (ErrImagePull in the Kubernetes version of the story).
+
+Your task: make the image registry.bench65724285.test:5000/my-alpine:latest pull from the registry over plain HTTP through both clients, each working on its own, and keep it that way after the service has been restarted. The check restarts the service with "systemctl restart" (it does not run any other systemctl command first) and then tests the two clients separately, each time with a new image put under the tag latest in the registry. For ctr it removes the image and its blobs from containerd first and runs this exact command, which must succeed:
+
+    sudo ctr -a /run/bench65724285/containerd.sock images pull --hosts-dir /etc/bench65724285/certs.d registry.bench65724285.test:5000/my-alpine:latest
+
+then finds the image in the default namespace under that name with the digest of the new image and runs it with ctr. For the CRI it empties the store (no sandbox and no image except the pause image), pulls the same reference through the CRI (crictl pull, namespace k8s.io), creates and starts a container of it in a new sandbox and reads its output. A pull that works with one client says nothing about the other, and a name made with ctr images tag, or an image loaded by hand, does not survive the reset.
+
+Rules: the image reference stays exactly as written; stay on containerd 2.0.0 with its CRI images plugin loaded (do not replace the binaries, the unit or its command line); the registry, its images and its tags stay as they are, and the registry stays plain HTTP on port 5000. Use systemctl, crictl, ctr and the standard shell tools; do not use docker, podman or nerdctl.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo.
+
+Return the commands needed to complete the task.
