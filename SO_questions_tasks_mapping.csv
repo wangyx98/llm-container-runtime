@@ -42,7 +42,7 @@ question_id,question_url,Task,Question_Title
 63515845,https://stackoverflow.com/questions/63515845/retrieve-cri-o-information-using-golang,6. Diagnostics & Observability,Retrieve cri-o information using golang
 62874903,https://stackoverflow.com/questions/62874903/crio-runtime-spec-for-oci-v1alpha1-compliance,1. Runtime Compatibility,CRIO runtime spec for OCI v1alpha1 compliance
 62675268,https://stackoverflow.com/questions/62675268/kubeadm-v1-18-2-with-crio-version-1-18-2-failing-to-start-master-node-from-priva,2. Configuration Management,kubeadm v1.18.2 with crio version 1.18.2 failing to start master node from private repo on Centos7 / RH7
-62408028,https://stackoverflow.com/questions/62408028/kubelet-failed-to-createpodsandbox-for-coredns-failed-to-set-bridge-addr-c,5. Networking & Connectivity,Kubelet - failed to "CreatePodSandbox" for coredns; failed to set bridge addr: could not add ip addr to "cni0": permission denied
+62408028,https://stackoverflow.com/questions/62408028/kubelet-failed-to-createpodsandbox-for-coredns-failed-to-set-bridge-addr-c,5. Networking & Connectivity,"Kubelet - failed to ""CreatePodSandbox"" for coredns; failed to set bridge addr: could not add ip addr to ""cni0"": permission denied"
 61994952,https://stackoverflow.com/questions/61994952/how-do-i-identify-if-a-runc-container-is-running-as-privileged,"4. Identity, Privilege & Isolation",How do I identify if a runc container is running as privileged?
 61747480,https://stackoverflow.com/questions/61747480/cri-o-socket-crio-sock-vs-dockershim-socket-dockershim-sock,1. Runtime Compatibility,cri-o socket (crio.sock) vs dockershim socket (dockershim.sock)
 61058619,https://stackoverflow.com/questions/61058619/failed-to-create-pod-sandbox-rpc-error-code-unknown-desc-seccomp-is-not-en,2. Configuration Management,"Failed to create pod sandbox: rpc error: code = Unknown desc = seccomp is not enabled in your kernel, cannot run with a profile"
@@ -51,13 +51,13 @@ question_id,question_url,Task,Question_Title
 59161183,https://stackoverflow.com/questions/59161183/how-to-load-a-local-docker-image-in-minikube-running-on-cri-o,1. Runtime Compatibility,How to load a local Docker image in Minikube running on CRI-O?
 58429514,https://stackoverflow.com/questions/58429514/use-cri-o-to-run-pod-and-container-when-cgroup-manager-systemd,2. Configuration Management,use cri-o to run pod and container when `cgroup_manager=systemd`
 57868351,https://stackoverflow.com/questions/57868351/kubespray-fails-with-found-multiple-cri-sockets-please-use-cri-socket-to-sel,1. Runtime Compatibility,"Kubespray fails with ""Found multiple CRI sockets, please use --cri-socket to select one"""
-57824038,https://stackoverflow.com/questions/57824038/kubeadm-compatibility-between-cri-socket-flag-and-init-phase-argument,1. Runtime Compatibility,kubeadm compatibility between "--cri-socket" flag and "init phase" argument
+57824038,https://stackoverflow.com/questions/57824038/kubeadm-compatibility-between-cri-socket-flag-and-init-phase-argument,1. Runtime Compatibility,"kubeadm compatibility between ""--cri-socket"" flag and ""init phase"" argument"
 52678769,https://stackoverflow.com/questions/52678769/problem-getting-pods-stats-from-kubelet-and-cri-o,6. Diagnostics & Observability,Problem getting pods stats from kubelet and cri-o
 79883241,https://stackoverflow.com/questions/79883241/containerd-in-azure-kubernetes-service,2. Configuration Management,Containerd in Azure Kubernetes Service
 79305194,https://stackoverflow.com/questions/79305194/unable-to-pull-image-from-insecure-registry-http-server-gave-http-response-to,5. Networking & Connectivity,"Unable to pull image from insecure registry, http: server gave HTTP response to HTTPS client"
 79297389,https://stackoverflow.com/questions/79297389/can-i-access-a-container-in-a-pod-in-an-aks-cluster-as-root,"4. Identity, Privilege & Isolation",Can I access a container in a pod in an AKS cluster as root?
 78821163,https://stackoverflow.com/questions/78821163/containerd-extend-network-interface-access-to-dind-container-to-perform-docker,5. Networking & Connectivity,"Containerd, extend network interface/access to DIND container to perform docker pull"
-78814823,https://stackoverflow.com/questions/78814823/why-can-ctr-images-list-not-show-images-pulled-by-command-of-crictl-pull,1. Runtime Compatibility,why can "ctr images list" not show images pulled by command of "crictl pull"?
+78814823,https://stackoverflow.com/questions/78814823/why-can-ctr-images-list-not-show-images-pulled-by-command-of-crictl-pull,1. Runtime Compatibility,"why can ""ctr images list"" not show images pulled by command of ""crictl pull""?"
 78687277,https://stackoverflow.com/questions/78687277/is-there-any-programmatic-way-to-detect-that-a-process-running-under-containerd,6. Diagnostics & Observability,Is there any programmatic way to detect that a process running under containerd has its stdin and stdout closed?
 78631941,https://stackoverflow.com/questions/78631941/containerd-client-soci-snapshotter-http-server-gave-http-response-to-https-c,5. Networking & Connectivity,containerd client + soci snapshotter: http: server gave HTTP response to HTTPS client
 78631556,https://stackoverflow.com/questions/78631556/error-when-changing-containerd-root-directory-to-nfsshare-mount-point,"3. Filesystem, Mount & Storage",Error when changing containerd root directory to nfsshare mount point
@@ -118,7 +118,7 @@ question_id,question_url,Task,Question_Title
 74953529,https://stackoverflow.com/questions/74953529/local-symfony-site-hosted-in-container-is-unreachable,5. Networking & Connectivity,Local Symfony site hosted in container is unreachable
 74849789,https://stackoverflow.com/questions/74849789/containerd-cannot-update-memory-of-a-running-container-lower-than-its-current,2. Configuration Management,containerd - cannot update memory of a running container lower than its current memory
 74804543,https://stackoverflow.com/questions/74804543/cannot-pull-image-with-ctr,6. Diagnostics & Observability,Cannot pull image with ctr
-74799620,https://stackoverflow.com/questions/74799620/kubernetes-windows-worker-node-addition-failed-to-create-containerd-task-hcss,1. Runtime Compatibility,Kubernetes windows worker node addition: "failed to create containerd task: hcsshim::CreateComputeSystem kube-proxy: The directory name is invalid"
+74799620,https://stackoverflow.com/questions/74799620/kubernetes-windows-worker-node-addition-failed-to-create-containerd-task-hcss,1. Runtime Compatibility,"Kubernetes windows worker node addition: ""failed to create containerd task: hcsshim::CreateComputeSystem kube-proxy: The directory name is invalid"""
 74685092,https://stackoverflow.com/questions/74685092/use-the-k3s-and-ctr-commands-to-import-the-image-but-the-image-cannot-be-found,1. Runtime Compatibility,"Use the k3s and ctr commands to import the image, but the image cannot be found by using crictl"
 74677606,https://stackoverflow.com/questions/74677606/can-nerdctl-crictl-be-used-to-list-containers-started-by-docker,1. Runtime Compatibility,Can nerdctl/crictl be used to list containers started by docker
 74595635,https://stackoverflow.com/questions/74595635/how-to-configure-containerd-to-use-a-registry-mirror,2. Configuration Management,How to configure containerd to use a registry mirror?
@@ -128,7 +128,7 @@ question_id,question_url,Task,Question_Title
 74546773,https://stackoverflow.com/questions/74546773/is-there-a-way-to-extract-certain-file-from-pod-directly-from-its-node-contai,"3. Filesystem, Mount & Storage",Is there a way to extract certain file from pod directly from its node ? (containerd runtime)
 74526816,https://stackoverflow.com/questions/74526816/haproxy-static-pod-runs-100-cpu-on-node-on-containerd,6. Diagnostics & Observability,HAproxy static pod runs 100% CPU on node on containerd
 74417278,https://stackoverflow.com/questions/74417278/trivy-on-eks-unable-to-scan-any-images,1. Runtime Compatibility,Trivy on EKS unable to scan any images
-74310243,https://stackoverflow.com/questions/74310243/why-am-i-getting-failed-to-flush-chunk-when-sending-container-logs-to-syslogs,6. Diagnostics & Observability,Why am I getting "failed to flush chunk" when sending container logs to syslogs with fluent-bit?
+74310243,https://stackoverflow.com/questions/74310243/why-am-i-getting-failed-to-flush-chunk-when-sending-container-logs-to-syslogs,6. Diagnostics & Observability,"Why am I getting ""failed to flush chunk"" when sending container logs to syslogs with fluent-bit?"
 74107646,https://stackoverflow.com/questions/74107646/apple-metal-api-inside-macos-containerd-is-it-possible,1. Runtime Compatibility,"Apple Metal API inside macOS containerd, is it possible?"
 73982083,https://stackoverflow.com/questions/73982083/how-to-run-container-in-container-with-rancher-desktop,1. Runtime Compatibility,How to run container in container with rancher-desktop>
 73971174,https://stackoverflow.com/questions/73971174/how-to-make-containerd-forward-logs-to-journald,6. Diagnostics & Observability,How to make containerd forward logs to journald
@@ -143,8 +143,8 @@ question_id,question_url,Task,Question_Title
 73415766,https://stackoverflow.com/questions/73415766/how-to-skip-tls-cert-check-for-crictl-containerd-cr-while-pulling-the-images-f,2. Configuration Management,How to skip TLS cert check for crictl (containerd CR) while pulling the images from private repository
 73394153,https://stackoverflow.com/questions/73394153/how-to-set-proxy-credentials-for-rancher-desktop,5. Networking & Connectivity,How to set proxy credentials for Rancher Desktop
 73329982,https://stackoverflow.com/questions/73329982/how-to-move-containerd-data-directory-to-another-location-on-ubuntu,"3. Filesystem, Mount & Storage",How to move containerd data directory to another location on ubuntu?
-73240732,https://stackoverflow.com/questions/73240732/creating-hostpath-volume-mount-dynamically,"3. Filesystem, Mount & Storage",Creating "hostPath" volume mount dynamically
-73176776,https://stackoverflow.com/questions/73176776/what-is-the-equivalent-of-docker-logs-in-containerd,6. Diagnostics & Observability,What is the equivalent of "docker logs" in containerd?
+73240732,https://stackoverflow.com/questions/73240732/creating-hostpath-volume-mount-dynamically,"3. Filesystem, Mount & Storage","Creating ""hostPath"" volume mount dynamically"
+73176776,https://stackoverflow.com/questions/73176776/what-is-the-equivalent-of-docker-logs-in-containerd,6. Diagnostics & Observability,"What is the equivalent of ""docker logs"" in containerd?"
 73123230,https://stackoverflow.com/questions/73123230/containerd-multiline-logs-parsing-with-fluentbit,6. Diagnostics & Observability,containerd multiline logs parsing with fluentbit
 73103812,https://stackoverflow.com/questions/73103812/how-to-upgrade-containerd-on-ubuntu,1. Runtime Compatibility,How to upgrade containerd on Ubuntu
 72990088,https://stackoverflow.com/questions/72990088/containerd-pass-incorrect-hostpath-from-host,"3. Filesystem, Mount & Storage",containerd pass incorrect hostPath from host
@@ -157,7 +157,7 @@ question_id,question_url,Task,Question_Title
 72528378,https://stackoverflow.com/questions/72528378/pulling-image-from-insecure-registery-with-containerd,5. Networking & Connectivity,Pulling image from insecure registery with containerd
 72518766,https://stackoverflow.com/questions/72518766/testcontainers-fail-with-docker-must-be-present-in-order-for-testcontainers-to-w,1. Runtime Compatibility,Testcontainers fail with Docker must be present in order for testcontainers to work properly on GKE with containerd nodes
 72488021,https://stackoverflow.com/questions/72488021/back-off-pulling-image-in-kubernetes,1. Runtime Compatibility,Back-off pulling image in Kubernetes
-72459333,https://stackoverflow.com/questions/72459333/how-to-configure-kubernetes-docker-on-docker-using-containerd-on-azure,1. Runtime Compatibility,How to configure Kubernetes "docker on docker" using containerd on Azure
+72459333,https://stackoverflow.com/questions/72459333/how-to-configure-kubernetes-docker-on-docker-using-containerd-on-azure,1. Runtime Compatibility,"How to configure Kubernetes ""docker on docker"" using containerd on Azure"
 72419513,https://stackoverflow.com/questions/72419513/how-to-pull-docker-image-from-a-insecure-private-registry-with-latest-kubernetes,2. Configuration Management,How to pull docker image from a insecure private registry with latest Kubernetes
 72409388,https://stackoverflow.com/questions/72409388/containerd-nodes-in-gke-based-on-windows,1. Runtime Compatibility,ContainerD nodes in GKE based on Windows
 72361508,https://stackoverflow.com/questions/72361508/the-amount-of-container-runtimes-logs-increased-significantly-after-migration-t,6. Diagnostics & Observability,The amount of container-runtime's logs increased significantly after migration to containerd at GKE
@@ -182,7 +182,7 @@ question_id,question_url,Task,Question_Title
 71379578,https://stackoverflow.com/questions/71379578/how-to-run-testcontainers-in-containerd-without-any-error-from-kubernetes-1-20,1. Runtime Compatibility,How to run Testcontainers in Containerd without any error (from Kubernetes 1.20)?
 71218538,https://stackoverflow.com/questions/71218538/how-to-prune-containerd-images-and-containers,"3. Filesystem, Mount & Storage",How to prune containerd images and containers?
 71034357,https://stackoverflow.com/questions/71034357/how-show-containerd-logs-for-stopped-containers,6. Diagnostics & Observability,How show containerd logs for stopped containers
-70986540,https://stackoverflow.com/questions/70986540/need-to-get-created-date-in-crictl-images-list-images-call,6. Diagnostics & Observability,Need to get "created" date in crictl images - List images call
+70986540,https://stackoverflow.com/questions/70986540/need-to-get-created-date-in-crictl-images-list-images-call,6. Diagnostics & Observability,"Need to get ""created"" date in crictl images - List images call"
 70948748,https://stackoverflow.com/questions/70948748/how-to-retrieve-the-pod-container-in-which-run-a-given-process,6. Diagnostics & Observability,How to retrieve the pod/container in which run a given process
 70936917,https://stackoverflow.com/questions/70936917/how-can-i-load-multiple-tar-images-using-nerdctl-containerd,"3. Filesystem, Mount & Storage",How can I load multiple tar images using nerdctl? (containerd)
 70798786,https://stackoverflow.com/questions/70798786/containerd-ctr-command-for-pulling-images-gives-error,1. Runtime Compatibility,Containerd ctr command for pulling images gives error
@@ -237,11 +237,11 @@ question_id,question_url,Task,Question_Title
 65357072,https://stackoverflow.com/questions/65357072/kubernetes-increase-the-size-of-overlayfs-containerd-runtime-volumes-in-k3s,"3. Filesystem, Mount & Storage",Kubernetes: Increase the size of OverlayFS / containerd runtime volumes in K3s
 65298023,https://stackoverflow.com/questions/65298023/mysql-container-errors-socket-creation-erros,"3. Filesystem, Mount & Storage","Mysql container errors, socket creation erros"
 65293185,https://stackoverflow.com/questions/65293185/what-is-the-equivalent-of-docker-volumes-in-containerd,"3. Filesystem, Mount & Storage",What is the equivalent of docker volumes in containerd?
-65131955,https://stackoverflow.com/questions/65131955/container-abruptly-killed-with-warning-cleaning-up-after-killed-shim,6. Diagnostics & Observability,Container abruptly killed with warning "cleaning up after killed shim"
+65131955,https://stackoverflow.com/questions/65131955/container-abruptly-killed-with-warning-cleaning-up-after-killed-shim,6. Diagnostics & Observability,"Container abruptly killed with warning ""cleaning up after killed shim"""
 64935442,https://stackoverflow.com/questions/64935442/how-to-configure-microk8s-kubernetes-to-use-private-containers-in-https-hub-d,2. Configuration Management,How to configure microk8s kubernetes to use private container's in https://hub.docker.com/?
-64667740,https://stackoverflow.com/questions/64667740/containerd-error-failed-to-find-user-by-uid-when-creating-ejbca-docker-contain,"4. Identity, Privilege & Isolation",containerd error "failed to find user by uid" when creating ejbca docker container on azure
+64667740,https://stackoverflow.com/questions/64667740/containerd-error-failed-to-find-user-by-uid-when-creating-ejbca-docker-contain,"4. Identity, Privilege & Isolation","containerd error ""failed to find user by uid"" when creating ejbca docker container on azure"
 64540738,https://stackoverflow.com/questions/64540738/faasd-cant-pull-image-from-private-registry,2. Configuration Management,Faasd - can't pull image from private registry
-64513122,https://stackoverflow.com/questions/64513122/can-i-have-extra-slash-in-docker-and-containerd-image-name,1. Runtime Compatibility,Can I have extra slash "/" in Docker (and Containerd) image name?
+64513122,https://stackoverflow.com/questions/64513122/can-i-have-extra-slash-in-docker-and-containerd-image-name,1. Runtime Compatibility,"Can I have extra slash ""/"" in Docker (and Containerd) image name?"
 64460740,https://stackoverflow.com/questions/64460740/prune-container-images-with-just-containerd-w-o-docker,"3. Filesystem, Mount & Storage",Prune container images with just containerd (w/o Docker)
 64401699,https://stackoverflow.com/questions/64401699/microk8s-containerd-failed-to-reserve-sandbox-name,6. Diagnostics & Observability,microk8s containerd - failed to reserve sandbox name
 63735308,https://stackoverflow.com/questions/63735308/how-to-add-harbor-registry-in-containerd,2. Configuration Management,How to add harbor registry in containerd
@@ -305,7 +305,7 @@ question_id,question_url,Task,Question_Title
 42696589,https://stackoverflow.com/questions/42696589/libcontainer-runc-and-nsenter-bootstrap,1. Runtime Compatibility,"libcontainer, runc and nsenter bootstrap"
 42621604,https://stackoverflow.com/questions/42621604/execute-process-in-runc-container-via-garden-api,1. Runtime Compatibility,Execute process in Runc container via Garden API
 41645665,https://stackoverflow.com/questions/41645665/how-containerd-compares-to-runc,1. Runtime Compatibility,How containerd compares to runc
-40403025,https://stackoverflow.com/questions/40403025/runc-start-requires-a-minimum-of-1-argument,1. Runtime Compatibility,runc: "start" requires a minimum of 1 argument
+40403025,https://stackoverflow.com/questions/40403025/runc-start-requires-a-minimum-of-1-argument,1. Runtime Compatibility,"runc: ""start"" requires a minimum of 1 argument"
 37420728,https://stackoverflow.com/questions/37420728/runc-container-start-go-lang-deattached-mode,1. Runtime Compatibility,runc container start go-lang deattached mode
 36815374,https://stackoverflow.com/questions/36815374/runc-containerd-check-pointing-support,1. Runtime Compatibility,Runc Containerd Check pointing support
 34725429,https://stackoverflow.com/questions/34725429/cmt-migration-tool-validation-error,1. Runtime Compatibility,Cmt migration tool validation error
