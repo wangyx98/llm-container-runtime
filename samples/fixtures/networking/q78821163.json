@@ -1,0 +1,56 @@
+[
+  {
+    "case_id": "q78821163",
+    "category": "networking",
+    "model": "reference_solution",
+    "code": "bash cases/networking/q78821163/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q78821163",
+    "category": "networking",
+    "model": "alt_valid_resolv_conf_with_options_in_a_temp_dir",
+    "code": "python3 - /tmp/bench78821163/app/main.go <<'PYEOF'\nimport sys\np = sys.argv[1]\ns = open(p).read()\nassert '\\tmnts := []specs.Mount{' in s\ns = s.replace('\\tmnts := []specs.Mount{', '\\tdir, err := os.MkdirTemp(\"\", \"dind-resolv\")\\n\\tif err != nil {\\n\\t\\tlog.Fatal(err)\\n\\t}\\n\\tresolv := dir + \"/resolv.conf\"\\n\\tif err := os.WriteFile(resolv, []byte(\"search local\\\\nnameserver 10.78.21.1\\\\noptions ndots:1 timeout:2 attempts:2\\\\n\"), 0o644); err != nil {\\n\\t\\tlog.Fatal(err)\\n\\t}\\n\\tmnts := []specs.Mount{\\n\\t\\t{Destination: \"/etc/resolv.conf\", Type: \"bind\", Source: resolv, Options: []string{\"rbind\", \"ro\"}},')\nassert '\\tcontainer, err := cli.NewContainer(' in s\ns = s.replace('\\tcontainer, err := cli.NewContainer(', '\\tspecOpts = append(specOpts, oci.WithLinuxNamespace(specs.LinuxNamespace{Type: specs.NetworkNamespace, Path: \"/run/netns/bench78821163-pod\"}))\\n\\n\\tcontainer, err := cli.NewContainer(')\nopen(p, \"w\").write(s)\nPYEOF\n(cd /tmp/bench78821163/app && GOFLAGS=-mod=mod go build -o dind .)\nsudo ctr -a /run/bench78821163/containerd.sock -n bench78821163 tasks kill -s KILL dind >/dev/null 2>&1 || true\nsleep 1\nsudo ctr -a /run/bench78821163/containerd.sock -n bench78821163 tasks delete dind >/dev/null 2>&1 || true\nsudo ctr -a /run/bench78821163/containerd.sock -n bench78821163 containers delete dind >/dev/null 2>&1 || true\nsudo /tmp/bench78821163/app/dind --address /run/bench78821163/containerd.sock --namespace bench78821163 --name dind --image bench78821163.local/dind:1 --data /var/lib/bench78821163/dind-data --ca /var/lib/bench78821163/pki/ca.crt\n"
+  },
+  {
+    "case_id": "q78821163",
+    "category": "networking",
+    "model": "alt_valid_source_change_only_the_check_rebuilds",
+    "code": "python3 - /tmp/bench78821163/app/main.go <<'PYEOF'\nimport sys\np = sys.argv[1]\ns = open(p).read()\nassert '\\tmnts := []specs.Mount{' in s\ns = s.replace('\\tmnts := []specs.Mount{', '\\tresolv := \"/tmp/bench78821163/resolv.conf\"\\n\\tif err := os.WriteFile(resolv, []byte(\"nameserver 10.78.21.1\\\\n\"), 0o644); err != nil {\\n\\t\\tlog.Fatal(err)\\n\\t}\\n\\tmnts := []specs.Mount{\\n\\t\\t{Destination: \"/etc/resolv.conf\", Type: \"bind\", Source: resolv, Options: []string{\"rbind\", \"ro\"}},')\nassert '\\tcontainer, err := cli.NewContainer(' in s\ns = s.replace('\\tcontainer, err := cli.NewContainer(', '\\tspecOpts = append(specOpts, oci.WithLinuxNamespace(specs.LinuxNamespace{Type: specs.NetworkNamespace, Path: \"/run/netns/bench78821163-pod\"}))\\n\\n\\tcontainer, err := cli.NewContainer(')\nopen(p, \"w\").write(s)\nPYEOF\n"
+  },
+  {
+    "case_id": "q78821163",
+    "category": "networking",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q78821163",
+    "category": "networking",
+    "model": "wrong_pod_netns_without_resolv_conf",
+    "code": "python3 - /tmp/bench78821163/app/main.go <<'PYEOF'\nimport sys\np = sys.argv[1]\ns = open(p).read()\nassert '\\tcontainer, err := cli.NewContainer(' in s\ns = s.replace('\\tcontainer, err := cli.NewContainer(', '\\tspecOpts = append(specOpts, oci.WithLinuxNamespace(specs.LinuxNamespace{Type: specs.NetworkNamespace, Path: \"/run/netns/bench78821163-pod\"}))\\n\\n\\tcontainer, err := cli.NewContainer(')\nopen(p, \"w\").write(s)\nPYEOF\n(cd /tmp/bench78821163/app && GOFLAGS=-mod=mod go build -o dind .)\nsudo ctr -a /run/bench78821163/containerd.sock -n bench78821163 tasks kill -s KILL dind >/dev/null 2>&1 || true\nsleep 1\nsudo ctr -a /run/bench78821163/containerd.sock -n bench78821163 tasks delete dind >/dev/null 2>&1 || true\nsudo ctr -a /run/bench78821163/containerd.sock -n bench78821163 containers delete dind >/dev/null 2>&1 || true\nsudo /tmp/bench78821163/app/dind --address /run/bench78821163/containerd.sock --namespace bench78821163 --name dind --image bench78821163.local/dind:1 --data /var/lib/bench78821163/dind-data --ca /var/lib/bench78821163/pki/ca.crt\n"
+  },
+  {
+    "case_id": "q78821163",
+    "category": "networking",
+    "model": "wrong_host_network_namespace",
+    "code": "python3 - /tmp/bench78821163/app/main.go <<'PYEOF'\nimport sys\np = sys.argv[1]\ns = open(p).read()\nassert '\\tmnts := []specs.Mount{' in s\ns = s.replace('\\tmnts := []specs.Mount{', '\\tresolv := \"/tmp/bench78821163/resolv.conf\"\\n\\tif err := os.WriteFile(resolv, []byte(\"nameserver 10.78.21.1\\\\n\"), 0o644); err != nil {\\n\\t\\tlog.Fatal(err)\\n\\t}\\n\\tmnts := []specs.Mount{\\n\\t\\t{Destination: \"/etc/resolv.conf\", Type: \"bind\", Source: resolv, Options: []string{\"rbind\", \"ro\"}},')\nassert '\\tcontainer, err := cli.NewContainer(' in s\ns = s.replace('\\tcontainer, err := cli.NewContainer(', '\\tspecOpts = append(specOpts, oci.WithHostNamespace(specs.NetworkNamespace))\\n\\n\\tcontainer, err := cli.NewContainer(')\nopen(p, \"w\").write(s)\nPYEOF\n(cd /tmp/bench78821163/app && GOFLAGS=-mod=mod go build -o dind .)\nsudo ctr -a /run/bench78821163/containerd.sock -n bench78821163 tasks kill -s KILL dind >/dev/null 2>&1 || true\nsleep 1\nsudo ctr -a /run/bench78821163/containerd.sock -n bench78821163 tasks delete dind >/dev/null 2>&1 || true\nsudo ctr -a /run/bench78821163/containerd.sock -n bench78821163 containers delete dind >/dev/null 2>&1 || true\nsudo /tmp/bench78821163/app/dind --address /run/bench78821163/containerd.sock --namespace bench78821163 --name dind --image bench78821163.local/dind:1 --data /var/lib/bench78821163/dind-data --ca /var/lib/bench78821163/pki/ca.crt\n"
+  },
+  {
+    "case_id": "q78821163",
+    "category": "networking",
+    "model": "wrong_not_privileged",
+    "code": "python3 - /tmp/bench78821163/app/main.go <<'PYEOF'\nimport sys\np = sys.argv[1]\ns = open(p).read()\nassert '\\tmnts := []specs.Mount{' in s\ns = s.replace('\\tmnts := []specs.Mount{', '\\tresolv := \"/tmp/bench78821163/resolv.conf\"\\n\\tif err := os.WriteFile(resolv, []byte(\"nameserver 10.78.21.1\\\\n\"), 0o644); err != nil {\\n\\t\\tlog.Fatal(err)\\n\\t}\\n\\tmnts := []specs.Mount{\\n\\t\\t{Destination: \"/etc/resolv.conf\", Type: \"bind\", Source: resolv, Options: []string{\"rbind\", \"ro\"}},')\nassert '\\tcontainer, err := cli.NewContainer(' in s\ns = s.replace('\\tcontainer, err := cli.NewContainer(', '\\tspecOpts = append(specOpts, oci.WithLinuxNamespace(specs.LinuxNamespace{Type: specs.NetworkNamespace, Path: \"/run/netns/bench78821163-pod\"}))\\n\\n\\tcontainer, err := cli.NewContainer(')\nassert '\\t\\toci.WithPrivileged,\\n' in s\ns = s.replace('\\t\\toci.WithPrivileged,\\n', '')\nopen(p, \"w\").write(s)\nPYEOF\n(cd /tmp/bench78821163/app && GOFLAGS=-mod=mod go build -o dind .)\nsudo ctr -a /run/bench78821163/containerd.sock -n bench78821163 tasks kill -s KILL dind >/dev/null 2>&1 || true\nsleep 1\nsudo ctr -a /run/bench78821163/containerd.sock -n bench78821163 tasks delete dind >/dev/null 2>&1 || true\nsudo ctr -a /run/bench78821163/containerd.sock -n bench78821163 containers delete dind >/dev/null 2>&1 || true\nsudo /tmp/bench78821163/app/dind --address /run/bench78821163/containerd.sock --namespace bench78821163 --name dind --image bench78821163.local/dind:1 --data /var/lib/bench78821163/dind-data --ca /var/lib/bench78821163/pki/ca.crt\n"
+  },
+  {
+    "case_id": "q78821163",
+    "category": "networking",
+    "model": "wrong_hosts_file_instead_of_dns",
+    "code": "python3 - /tmp/bench78821163/app/main.go <<'PYEOF'\nimport sys\np = sys.argv[1]\ns = open(p).read()\nassert '\\tmnts := []specs.Mount{' in s\ns = s.replace('\\tmnts := []specs.Mount{', '\\thosts := \"/tmp/bench78821163/hosts\"\\n\\tif err := os.WriteFile(hosts, []byte(\"127.0.0.1 localhost\\\\n10.78.21.1 private-repo.local\\\\n\"), 0o644); err != nil {\\n\\t\\tlog.Fatal(err)\\n\\t}\\n\\tmnts := []specs.Mount{\\n\\t\\t{Destination: \"/etc/hosts\", Type: \"bind\", Source: hosts, Options: []string{\"rbind\", \"ro\"}},')\nassert '\\tcontainer, err := cli.NewContainer(' in s\ns = s.replace('\\tcontainer, err := cli.NewContainer(', '\\tspecOpts = append(specOpts, oci.WithLinuxNamespace(specs.LinuxNamespace{Type: specs.NetworkNamespace, Path: \"/run/netns/bench78821163-pod\"}))\\n\\n\\tcontainer, err := cli.NewContainer(')\nopen(p, \"w\").write(s)\nPYEOF\n(cd /tmp/bench78821163/app && GOFLAGS=-mod=mod go build -o dind .)\nsudo ctr -a /run/bench78821163/containerd.sock -n bench78821163 tasks kill -s KILL dind >/dev/null 2>&1 || true\nsleep 1\nsudo ctr -a /run/bench78821163/containerd.sock -n bench78821163 tasks delete dind >/dev/null 2>&1 || true\nsudo ctr -a /run/bench78821163/containerd.sock -n bench78821163 containers delete dind >/dev/null 2>&1 || true\nsudo /tmp/bench78821163/app/dind --address /run/bench78821163/containerd.sock --namespace bench78821163 --name dind --image bench78821163.local/dind:1 --data /var/lib/bench78821163/dind-data --ca /var/lib/bench78821163/pki/ca.crt\n"
+  },
+  {
+    "case_id": "q78821163",
+    "category": "networking",
+    "model": "wrong_does_not_compile",
+    "code": "python3 - /tmp/bench78821163/app/main.go <<'PYEOF'\nimport sys\np = sys.argv[1]\ns = open(p).read()\nassert '\\tmnts := []specs.Mount{' in s\ns = s.replace('\\tmnts := []specs.Mount{', '\\tresolv := \"/tmp/bench78821163/resolv.conf\"\\n\\tif err := os.WriteFile(resolv, []byte(\"nameserver 10.78.21.1\\\\n\"), 0o644); err != nil {\\n\\t\\tlog.Fatal(err)\\n\\t}\\n\\tmnts := []specs.Mount{\\n\\t\\t{Destination: \"/etc/resolv.conf\", Type: \"bind\", Source: resolv, Options: []string{\"rbind\", \"ro\"}},')\nassert '\\tcontainer, err := cli.NewContainer(' in s\ns = s.replace('\\tcontainer, err := cli.NewContainer(', '\\tspecOpts = append(specOpts, oci.WithLinuxNamespace(specs.LinuxNamespace{Type: specs.NetworkNamespace, Path: \"/run/netns/bench78821163-pod\"}))\\n\\n\\tcontainer, err := cli.NewContainer(')\nopen(p, \"w\").write(s)\nPYEOF\necho 'this is not Go' >> /tmp/bench78821163/app/main.go\n(cd /tmp/bench78821163/app && GOFLAGS=-mod=mod go build -o dind .)\nsudo ctr -a /run/bench78821163/containerd.sock -n bench78821163 tasks kill -s KILL dind >/dev/null 2>&1 || true\nsleep 1\nsudo ctr -a /run/bench78821163/containerd.sock -n bench78821163 tasks delete dind >/dev/null 2>&1 || true\nsudo ctr -a /run/bench78821163/containerd.sock -n bench78821163 containers delete dind >/dev/null 2>&1 || true\nsudo /tmp/bench78821163/app/dind --address /run/bench78821163/containerd.sock --namespace bench78821163 --name dind --image bench78821163.local/dind:1 --data /var/lib/bench78821163/dind-data --ca /var/lib/bench78821163/pki/ca.crt\n"
+  }
+]
