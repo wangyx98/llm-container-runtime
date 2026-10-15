@@ -1,0 +1,162 @@
+#!/usr/bin/env python3
+"""kubelet-sim sync|status [--config F] [--manifests DIR] [--endpoint SOCK] [--log F] : the pod-start path of a kubelet, enough of it for this lab.
+
+A node here has no real kubelet process; this program does the part the problem is about. `sync` reads the kubelet configuration (cgroupDriver and
+containerRuntimeEndpoint, the fields of a KubeletConfiguration), reads the static pod manifests (JSON), and for every pod that is not running asks the CRI of the
+container runtime to run it: RunPodSandbox with the pod's cgroup parent, then CreateContainer and StartContainer. The cgroup parent is built as a kubelet builds it
+for the configured cgroup driver:
+    cgroupfs   /kubepods/<qos>/pod<uid>                  (the guaranteed class has no <qos> level: /kubepods/pod<uid>)
+    systemd    kubepods-<qos>-pod<uid with - as _>.slice (guaranteed: kubepods-pod<uid with - as _>.slice)
+`status` prints the node condition and the pods as the CRI reports them, then the last lines of the kubelet log. A node is Ready when its CNI plugin (the calico-node
+pod here) runs, as the node of the question is only NotReady because of it. It needs root (as a kubelet does) and the crictl of the node."""
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+
+LIB = "/var/lib/bench59744000"
+ap = argparse.ArgumentParser()
+ap.add_argument("cmd", choices=["sync", "status"])
+ap.add_argument("--config", default=LIB + "/etc/kubelet-config.yaml")
+ap.add_argument("--manifests", default=LIB + "/etc/manifests")
+ap.add_argument("--endpoint", default="")
+ap.add_argument("--log", default=LIB + "/kubelet.log")
+a = ap.parse_args()
+
+if os.geteuid() != 0:
+    sys.exit("kubelet-sim: must run as root (the kubelet does)")
+
+
+def log(line):
+    with open(a.log, "a") as f:
+        f.write("%s kubelet: %s\n" % (time.strftime("%Y-%m-%dT%H:%M:%S%z"), line))
+
+
+def field(text, key):
+    m = re.findall(r"^%s:[ \t]*[\"']?([^\"'#\n]*?)[\"']?[ \t]*(?:#.*)?$" % re.escape(key), text, re.M)
+    return m[-1] if m else None
+
+
+try:
+    cfg = open(a.config).read()
+except OSError as e:
+    sys.exit("kubelet-sim: cannot read the kubelet configuration: %s" % e)
+driver = field(cfg, "cgroupDriver") or "cgroupfs"   # the default of a kubelet is cgroupfs
+endpoint = a.endpoint or (field(cfg, "containerRuntimeEndpoint") or "").replace("unix://", "")
+if driver not in ("cgroupfs", "systemd"):
+    log("failed to run Kubelet: misconfiguration: unsupported cgroup driver: %s" % driver)
+    sys.exit("kubelet-sim: failed to run Kubelet: misconfiguration: unsupported cgroup driver: %s" % driver)
+if not endpoint:
+    sys.exit("kubelet-sim: the configuration has no containerRuntimeEndpoint")
+
+
+def short(msg):
+    """the part of a crictl error that says what failed: what the OCI runtime (runc) answered, else the end of the text"""
+    m = re.search(r"OCI runtime create failed: (.*?)(?:\" time=|$)", msg)
+    return m.group(1)[:500] if m else msg[-500:]
+
+
+def cri(*args, check=True):
+    r = subprocess.run(["crictl", "--runtime-endpoint", "unix://" + endpoint, "--image-endpoint", "unix://" + endpoint, "--timeout", "90s", *args],
+                       capture_output=True, text=True, stdin=subprocess.DEVNULL)
+    if check and r.returncode != 0:
+        raise RuntimeError((r.stderr.strip() or r.stdout.strip()).replace("\n", " "))
+    return r.stdout
+
+
+def manifests():
+    out = []
+    for n in sorted(os.listdir(a.manifests)):
+        if n.endswith(".json"):
+            out.append(json.load(open(os.path.join(a.manifests, n))))
+    return out
+
+
+def cgroup_parent(qos, uid):
+    if driver == "systemd":
+        u = uid.replace("-", "_")
+        return "kubepods-pod%s.slice" % u if qos == "guaranteed" else "kubepods-%s-pod%s.slice" % (qos, u)
+    return "/kubepods/pod%s" % uid if qos == "guaranteed" else "/kubepods/%s/pod%s" % (qos, uid)
+
+
+def sandboxes(pod):
+    items = json.loads(cri("pods", "-o", "json"))["items"]
+    return [s for s in items if s.get("labels", {}).get("io.kubernetes.pod.name") == pod["name"]
+            and s.get("labels", {}).get("io.kubernetes.pod.namespace") == pod["namespace"]]
+
+
+def running(pod):
+    for s in sandboxes(pod):
+        if s["state"] == "SANDBOX_READY":
+            cs = json.loads(cri("ps", "-a", "-o", "json", "--pod", s["id"]))["containers"]
+            if cs and all(c["state"] == "CONTAINER_RUNNING" for c in cs):
+                return True
+    return False
+
+
+def start_pod(pod):
+    for s in sandboxes(pod):    # a sandbox that is not usable is removed (with its containers) and made again
+        cri("stopp", s["id"], check=False)
+        cri("rmp", s["id"], check=False)
+    labels = {"io.kubernetes.pod.name": pod["name"], "io.kubernetes.pod.namespace": pod["namespace"], "io.kubernetes.pod.uid": pod["uid"]}
+    ns = {"namespace_options": {"network": 2, "pid": 1}}    # host network, pid namespace per container
+    pcfg = {"metadata": {"name": pod["name"], "namespace": pod["namespace"], "uid": pod["uid"], "attempt": 0}, "labels": labels,
+            "linux": {"cgroup_parent": cgroup_parent(pod["qos"], pod["uid"]), "security_context": ns}}
+    pfile = "/run/bench59744000/pod-%s.json" % pod["name"]
+    json.dump(pcfg, open(pfile, "w"))
+    try:
+        sid = cri("runp", pfile).strip()
+    except RuntimeError as e:
+        raise RuntimeError("FailedCreatePodSandBox: Failed to create pod sandbox: runtime: " + short(str(e)))
+    for c in pod["containers"]:
+        ccfg = {"metadata": {"name": c["name"], "attempt": 0}, "image": {"image": c["image"]}, "args": [c["mode"]],
+                "labels": {**labels, "io.kubernetes.container.name": c["name"]},
+                "linux": {"security_context": {"run_as_user": {"value": c.get("user", 0)}, **ns}}}
+        cfile = "/run/bench59744000/ctr-%s.json" % c["name"]
+        json.dump(ccfg, open(cfile, "w"))
+        try:
+            cid = cri("create", sid, cfile, pfile).strip()
+            cri("start", cid)
+        except RuntimeError as e:
+            raise RuntimeError("Failed: Error: failed to start container %s: runtime: %s" % (c["name"], short(str(e))))
+    os.unlink(pfile)
+
+
+def node_ready():
+    return any(running(p) for p in manifests() if p["name"] == "calico-node")
+
+
+if a.cmd == "sync":
+    log("syncing %d pod(s) with cgroupDriver=%s, container runtime %s" % (len(manifests()), driver, endpoint))
+    bad = 0
+    for p in manifests():
+        name = "%s/%s" % (p["namespace"], p["name"])
+        try:
+            if running(p):
+                print("%s: Running (unchanged)" % name)
+                continue
+            start_pod(p)
+            print("%s: Running (cgroup parent %s)" % (name, cgroup_parent(p["qos"], p["uid"])))
+            log("pod %s started with cgroup parent %s" % (name, cgroup_parent(p["qos"], p["uid"])))
+        except RuntimeError as e:
+            bad += 1
+            print("%s: %s" % (name, e))
+            log("pod %s: %s" % (name, e))
+    ready = node_ready()
+    print("node: Ready=%s%s" % (ready, "" if ready else " (KubeletNotReady: container runtime network not ready: NetworkReady=false reason:NetworkPluginNotReady message:Network plugin returns error: cni plugin not initialized)"))
+    log("node Ready=%s" % ready)
+    sys.exit(1 if bad or not ready else 0)
+
+print("cgroupDriver: %s   container runtime: %s" % (driver, endpoint))
+for p in manifests():
+    sb = sandboxes(p)
+    print("pod %s/%s: %s" % (p["namespace"], p["name"], ", ".join("%s sandbox" % s["state"].replace("SANDBOX_", "").lower() for s in sb) or "no sandbox"))
+print("node: Ready=%s" % node_ready())
+print("--- last lines of %s" % a.log)
+try:
+    print("".join(open(a.log).readlines()[-6:]).rstrip())
+except OSError:
+    print("(no log)")

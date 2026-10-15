@@ -1,0 +1,32 @@
+[
+  {
+    "case_id": "q59744000",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q59744000/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q59744000",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q59744000",
+    "category": "configuration",
+    "model": "alt_valid_driver_written_quoted_over_the_whole_line_then_sync",
+    "code": "sudo sed -i 's/^cgroupDriver:.*/cgroupDriver: \"systemd\"/' /var/lib/bench59744000/etc/kubelet-config.yaml\nsudo grep -n '^cgroupDriver' /var/lib/bench59744000/etc/kubelet-config.yaml\nsudo /var/lib/bench59744000/bin/kubelet-sim sync\nsudo /var/lib/bench59744000/bin/kubelet-sim status\n"
+  },
+  {
+    "case_id": "q59744000",
+    "category": "configuration",
+    "model": "wrong_containerd_switched_to_cgroupfs_instead_of_the_kubelet",
+    "code": "sudo sed -i 's/SystemdCgroup = true/SystemdCgroup = false/' /var/lib/bench59744000/etc/containerd.toml\nsudo kill \"$(sudo cat /run/bench59744000/containerd.pid)\"\nsleep 3\nsudo setsid -f bash -c 'echo $$ > \"$1\"; exec containerd --config \"$2\" >\"$3\" 2>&1 </dev/null' _ /run/bench59744000/containerd.pid /var/lib/bench59744000/etc/containerd.toml /run/bench59744000/containerd.log </dev/null >/dev/null 2>&1\nsleep 5\nsudo /var/lib/bench59744000/bin/kubelet-sim sync\n"
+  },
+  {
+    "case_id": "q59744000",
+    "category": "configuration",
+    "model": "wrong_driver_value_not_one_the_kubelet_accepts",
+    "code": "sudo sed -i 's/^cgroupDriver: cgroupfs$/cgroupDriver: Systemd/' /var/lib/bench59744000/etc/kubelet-config.yaml\nsudo /var/lib/bench59744000/bin/kubelet-sim sync\n"
+  }
+]

@@ -1,0 +1,9 @@
+A node of a Kubernetes 1.17 cluster uses containerd as its container runtime, on its own socket: /run/bench59744000/containerd/containerd.sock (not the default one). There is no Docker on it. The node does not become Ready: the pod calico-node (the CNI plugin of the cluster) never starts, so the node stays NotReady and cannot join the cluster, and kube-proxy does not start either. On this host the kubelet is represented by the program /var/lib/bench59744000/bin/kubelet-sim: `sudo /var/lib/bench59744000/bin/kubelet-sim sync` makes it start the pods of the node through the CRI of that containerd, `sudo /var/lib/bench59744000/bin/kubelet-sim status` shows the node and the pods, and it logs to /var/lib/bench59744000/kubelet.log. The configuration of the kubelet is /var/lib/bench59744000/etc/kubelet-config.yaml (a KubeletConfiguration file), its pod manifests are in /var/lib/bench59744000/etc/manifests, and the configuration of containerd is /var/lib/bench59744000/etc/containerd.toml. The runtime of the node uses the host's systemd for cgroups, as the rest of the host does.
+
+Find out why the pods do not start and fix it on the kubelet side, so that kubelet-sim sync starts calico-node and kube-proxy and the node is Ready. Leave the configuration of containerd as it is, do not edit the pod manifests, and do not create the pods by hand with crictl or ctr instead of the kubelet.
+
+Allowed: the standard shell tools, sudo, and the node's own tools (crictl, ctr, the kubelet program above). Do not use Docker.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo.
+
+Return the commands needed to complete the task, including the commands that make the kubelet start the pods again.
