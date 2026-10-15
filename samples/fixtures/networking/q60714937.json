@@ -1,0 +1,32 @@
+[
+  {
+    "case_id": "q60714937",
+    "category": "networking",
+    "model": "reference_solution",
+    "code": "bash cases/networking/q60714937/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q60714937",
+    "category": "networking",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q60714937",
+    "category": "networking",
+    "model": "alt_valid_config_path_with_hosts_toml_mounted_into_every_node",
+    "code": "mkdir -p /tmp/bench60714937/certs.d/10.249.60.1:5000\ncat > /tmp/bench60714937/certs.d/10.249.60.1:5000/hosts.toml <<'EOF'\nserver = \"http://10.249.60.1:5000\"\n\n[host.\"http://10.249.60.1:5000\"]\n  capabilities = [\"pull\", \"resolve\"]\nEOF\ncat > /tmp/bench60714937/kind-cluster.yaml <<'EOF'\nkind: Cluster\napiVersion: kind.x-k8s.io/v1alpha4\nname: bench60714937\ncontainerdConfigPatches:\n- |-\n  [plugins.\"io.containerd.grpc.v1.cri\".registry]\n    config_path = \"/etc/containerd/certs.d\"\nnodes:\n- role: control-plane\n  extraMounts:\n  - hostPath: /tmp/bench60714937/certs.d\n    containerPath: /etc/containerd/certs.d\n- role: worker\n  extraMounts:\n  - hostPath: /tmp/bench60714937/certs.d\n    containerPath: /etc/containerd/certs.d\n- role: worker\n  extraMounts:\n  - hostPath: /tmp/bench60714937/certs.d\n    containerPath: /etc/containerd/certs.d\nEOF\nbash /tmp/bench60714937/create-cluster.sh\n"
+  },
+  {
+    "case_id": "q60714937",
+    "category": "networking",
+    "model": "wrong_kind_load_of_the_image_into_the_nodes",
+    "code": "sudo env KIND_EXPERIMENTAL_DOCKER_NETWORK=bench60714937 /var/lib/bench60714937/bin/kind load image-archive /tmp/bench60714937/.bench/image-2.2.1.tar --name bench60714937\n"
+  },
+  {
+    "case_id": "q60714937",
+    "category": "networking",
+    "model": "wrong_fix_inside_the_running_nodes_not_in_the_cluster_file",
+    "code": "for n in bench60714937-control-plane bench60714937-worker bench60714937-worker2; do\n  sudo docker exec \"$n\" sed -i -E \"s/io\\.containerd\\.cri\\.v1\\.runtime(['\\\"]\\.registry)/io.containerd.grpc.v1.cri\\\\1/\" /etc/containerd/config.toml\n  sudo docker exec \"$n\" systemctl restart containerd\ndone\nsleep 20\n"
+  }
+]
