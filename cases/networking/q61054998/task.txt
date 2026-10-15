@@ -1,0 +1,19 @@
+On this shared Ubuntu machine containers are run with runc directly, without containerd or Docker. An engineer uses a container to encapsulate a development environment and wants to talk to it over localhost, the way he talks to the other services on his machine, without a second instance of anything and without any port forwarding. At the moment the container cannot do that: a service of the host that listens only on the host's loopback address cannot be reached from inside the container, and a service inside the container cannot be reached from the host's loopback address.
+
+The OCI bundle is /var/lib/bench61054998/bundle (config.json and rootfs). The only program in it is /app: as "/app serve 35761 35762" it reads, every 200 ms, one line (a nonce) from the service that the host runs on 127.0.0.1:35761 and writes what it got to /data/state (reach=ok or reach=fail, the last nonce, its own process id as the container sees it), and it listens on 127.0.0.1:35762 and answers every connection there with one line that has the last nonce and its process id. The host directory /tmp/bench61054998/data is mounted at /data. The host service on 127.0.0.1:35761 listens on the loopback address only, and has to stay as it is. config.json is the one that "runc spec" gives, with a read-only rootfs, the mount above and the program above; the container is not rootless and has no user namespace.
+
+The container bench61054998 is running right now from this bundle (started with "sudo runc run -d --bundle /var/lib/bench61054998/bundle bench61054998"), and its /data/state says reach=fail: from inside the container 127.0.0.1:35761 is not the host's loopback, and from the host nothing answers on 127.0.0.1:35762.
+
+Your task is to make the runc container bench61054998 share the network of the host, so that its program reaches the service on the host's 127.0.0.1:35761 and the host reaches the program's listener on 127.0.0.1:35762 by plain loopback connections, while the container keeps its own mount namespace and its own pid namespace (the program stays process 1 of the container, and sees its own root file system and not the host's).
+
+Requirements:
+1. When your script has finished, the runc container bench61054998 is running (started detached) from this bundle, and its main process is the bundle's program with its arguments unchanged. The check wants a container that was created after the change: the one that is running now does not count, even if it is still running.
+2. Network: the network namespace of the container is the very namespace that runc and the host's own processes run in (the host's loopback is the container's loopback). Do not make it work with a network namespace of its own, a bridge, a veth pair, NAT, a port forward or a proxy, and do not move or rebind the host service to another address.
+3. Isolation: the mount namespace and the pid namespace of the container are not the host's. The other settings of config.json stay as they are, the program, the rootfs and the /data mount included.
+4. The check changes the nonce of the host service while your container runs, then asks the program in the container over 127.0.0.1:35762 and reads /data/state: do not write that file, do not answer on that port yourself, and do not start another program in the container's place.
+5. Tools: runc, python3, sudo and the standard shell tools. Do not use ctr, docker, nerdctl, podman or crictl. The command that starts the container must not leave its output attached to your command (send it to /dev/null or a file): otherwise your command never returns.
+6. The names, paths and ports above are fixed; there is nothing else you need to look up.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo.
+
+Return the commands needed to complete the task.

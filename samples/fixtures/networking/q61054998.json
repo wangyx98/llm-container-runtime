@@ -1,0 +1,56 @@
+[
+  {
+    "case_id": "q61054998",
+    "category": "networking",
+    "model": "reference_solution",
+    "code": "bash cases/networking/q61054998/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q61054998",
+    "category": "networking",
+    "model": "alt_valid_path_to_a_bind_mounted_host_netns",
+    "code": "sudo runc delete -f bench61054998\nsudo touch /run/bench61054998-hostns\nsudo mount --bind /proc/self/ns/net /run/bench61054998-hostns\nsudo python3 - <<'PY'\nimport json\np = \"/var/lib/bench61054998/bundle/config.json\"\nc = json.load(open(p))\nns = c[\"linux\"][\"namespaces\"]\nfor n in ns:\n    if n[\"type\"] == \"network\":\n        n[\"path\"] = '/run/bench61054998-hostns'\njson.dump(c, open(p, \"w\"), indent=2)\nPY\nsudo runc run -d --bundle /var/lib/bench61054998/bundle bench61054998 </dev/null >/dev/null 2>&1\n"
+  },
+  {
+    "case_id": "q61054998",
+    "category": "networking",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q61054998",
+    "category": "networking",
+    "model": "wrong_recreate_with_the_same_bundle",
+    "code": "sudo runc delete -f bench61054998\nsudo runc run -d --bundle /var/lib/bench61054998/bundle bench61054998 </dev/null >/dev/null 2>&1\n"
+  },
+  {
+    "case_id": "q61054998",
+    "category": "networking",
+    "model": "wrong_edit_without_recreating",
+    "code": "sudo python3 - <<'PY'\nimport json\np = \"/var/lib/bench61054998/bundle/config.json\"\nc = json.load(open(p))\nns = c[\"linux\"][\"namespaces\"]\nc[\"linux\"][\"namespaces\"] = [n for n in ns if n[\"type\"] not in ('network',)]\njson.dump(c, open(p, \"w\"), indent=2)\nPY\n"
+  },
+  {
+    "case_id": "q61054998",
+    "category": "networking",
+    "model": "wrong_netns_of_its_own_by_path",
+    "code": "sudo runc delete -f bench61054998\nsudo touch /run/bench61054998-ns\nsudo unshare --net=/run/bench61054998-ns true\nsudo python3 - <<'PY'\nimport json\np = \"/var/lib/bench61054998/bundle/config.json\"\nc = json.load(open(p))\nns = c[\"linux\"][\"namespaces\"]\nfor n in ns:\n    if n[\"type\"] == \"network\":\n        n[\"path\"] = '/run/bench61054998-ns'\njson.dump(c, open(p, \"w\"), indent=2)\nPY\nsudo runc run -d --bundle /var/lib/bench61054998/bundle bench61054998 </dev/null >/dev/null 2>&1\n"
+  },
+  {
+    "case_id": "q61054998",
+    "category": "networking",
+    "model": "wrong_host_pid_namespace_too",
+    "code": "sudo runc delete -f bench61054998\nsudo python3 - <<'PY'\nimport json\np = \"/var/lib/bench61054998/bundle/config.json\"\nc = json.load(open(p))\nns = c[\"linux\"][\"namespaces\"]\nc[\"linux\"][\"namespaces\"] = [n for n in ns if n[\"type\"] not in ('network', 'pid')]\njson.dump(c, open(p, \"w\"), indent=2)\nPY\nsudo runc run -d --bundle /var/lib/bench61054998/bundle bench61054998 </dev/null >/dev/null 2>&1\n"
+  },
+  {
+    "case_id": "q61054998",
+    "category": "networking",
+    "model": "wrong_fake_listener_on_the_host",
+    "code": "sudo python3 - >/dev/null 2>&1 </dev/null <<'PY' &\nimport socketserver\n\n\nclass H(socketserver.BaseRequestHandler):\n    def handle(self):\n        n = open('/tmp/bench61054998/.bench/nonce').read().strip()\n        self.request.sendall(('nonce=%s pid=1 reach=ok\\n' % n).encode())\n\n\nsocketserver.TCPServer.allow_reuse_address = True\nsocketserver.TCPServer(('127.0.0.1', 35762), H).serve_forever()\nPY\nsleep 1\nsudo runc delete -f bench61054998\nsudo python3 - <<'PY'\nimport json\np = \"/var/lib/bench61054998/bundle/config.json\"\nc = json.load(open(p))\nns = c[\"linux\"][\"namespaces\"]\nc[\"linux\"][\"namespaces\"] = [n for n in ns if n[\"type\"] not in ('network',)]\njson.dump(c, open(p, \"w\"), indent=2)\nPY\nsudo runc run -d --bundle /var/lib/bench61054998/bundle bench61054998 </dev/null >/dev/null 2>&1\n"
+  },
+  {
+    "case_id": "q61054998",
+    "category": "networking",
+    "model": "wrong_replaces_the_host_service_by_one_on_all_addresses",
+    "code": "sudo runc delete -f bench61054998\nsudo python3 - <<'PY'\nimport json\np = \"/var/lib/bench61054998/bundle/config.json\"\nc = json.load(open(p))\nns = c[\"linux\"][\"namespaces\"]\nc[\"linux\"][\"namespaces\"] = [n for n in ns if n[\"type\"] not in ('network',)]\njson.dump(c, open(p, \"w\"), indent=2)\nPY\nsudo runc run -d --bundle /var/lib/bench61054998/bundle bench61054998 </dev/null >/dev/null 2>&1\nsudo pkill -f '[n]once_server.py'\nsleep 1\nsudo python3 - >/dev/null 2>&1 </dev/null <<'PY' &\nimport socketserver\n\n\nclass H(socketserver.BaseRequestHandler):\n    def handle(self):\n        self.request.sendall((open('/tmp/bench61054998/.bench/nonce').read().strip() + '\\n').encode())\n\n\nsocketserver.TCPServer.allow_reuse_address = True\nsocketserver.TCPServer(('0.0.0.0', 35761), H).serve_forever()\nPY\nsleep 1\n"
+  }
+]
