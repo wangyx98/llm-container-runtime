@@ -1,0 +1,68 @@
+[
+  {
+    "case_id": "q60208766",
+    "category": "networking",
+    "model": "reference_solution",
+    "code": "bash cases/networking/q60208766/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q60208766",
+    "category": "networking",
+    "model": "alt_valid_second_dropin_cidr",
+    "code": "sudo mkdir -p /etc/systemd/system/bench60208766-containerd.service.d\nsudo tee /etc/systemd/system/bench60208766-containerd.service.d/override.conf >/dev/null <<'CONF'\n[Service]\nEnvironment=\"NO_PROXY=localhost,127.0.0.1,::1,10.96.0.0/12\"\nCONF\nsudo systemctl daemon-reload\nsudo systemctl restart bench60208766-containerd.service\n"
+  },
+  {
+    "case_id": "q60208766",
+    "category": "networking",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q60208766",
+    "category": "networking",
+    "model": "wrong_shell_and_profile_only",
+    "code": "export NO_PROXY=localhost,127.0.0.1,10.96.0.1\nexport no_proxy=$NO_PROXY\necho 'NO_PROXY=localhost,127.0.0.1,10.96.0.1' | sudo tee -a /etc/environment >/dev/null\necho 'export NO_PROXY=localhost,127.0.0.1,10.96.0.1' | sudo tee /etc/profile.d/no-proxy.sh >/dev/null\nsudo systemctl restart bench60208766-containerd.service\n"
+  },
+  {
+    "case_id": "q60208766",
+    "category": "networking",
+    "model": "wrong_no_daemon_reload",
+    "code": "sudo sed -i 's#^Environment=\"NO_PROXY=.*#Environment=\"NO_PROXY=localhost,127.0.0.1,::1,10.96.0.1\"#' /etc/systemd/system/bench60208766-containerd.service.d/http-proxy.conf\n"
+  },
+  {
+    "case_id": "q60208766",
+    "category": "networking",
+    "model": "wrong_lowercase_no_proxy",
+    "code": "sudo mkdir -p /etc/systemd/system/bench60208766-containerd.service.d\nsudo tee /etc/systemd/system/bench60208766-containerd.service.d/override.conf >/dev/null <<'CONF'\n[Service]\nEnvironment=\"no_proxy=localhost,127.0.0.1,::1,10.96.0.1\"\nCONF\nsudo systemctl daemon-reload\nsudo systemctl restart bench60208766-containerd.service\n"
+  },
+  {
+    "case_id": "q60208766",
+    "category": "networking",
+    "model": "wrong_names_not_the_ip",
+    "code": "sudo mkdir -p /etc/systemd/system/bench60208766-containerd.service.d\nsudo tee /etc/systemd/system/bench60208766-containerd.service.d/override.conf >/dev/null <<'CONF'\n[Service]\nEnvironment=\"NO_PROXY=localhost,127.0.0.1,::1,kubernetes,kubernetes.default,kubernetes.default.svc,.svc,.cluster.local\"\nCONF\nsudo systemctl daemon-reload\nsudo systemctl restart bench60208766-containerd.service\n"
+  },
+  {
+    "case_id": "q60208766",
+    "category": "networking",
+    "model": "wrong_clear_all_proxies",
+    "code": "sudo rm -f /etc/systemd/system/bench60208766-containerd.service.d/http-proxy.conf\nsudo systemctl daemon-reload\nsudo systemctl restart bench60208766-containerd.service\n"
+  },
+  {
+    "case_id": "q60208766",
+    "category": "networking",
+    "model": "wrong_no_proxy_star",
+    "code": "sudo mkdir -p /etc/systemd/system/bench60208766-containerd.service.d\nsudo tee /etc/systemd/system/bench60208766-containerd.service.d/override.conf >/dev/null <<'CONF'\n[Service]\nEnvironment=\"NO_PROXY=*\"\nCONF\nsudo systemctl daemon-reload\nsudo systemctl restart bench60208766-containerd.service\n"
+  },
+  {
+    "case_id": "q60208766",
+    "category": "networking",
+    "model": "wrong_api_url_changed",
+    "code": "sudo sed -i 's#https://10.96.0.1:443#https://localhost:443#' /etc/bench60208766/cni/calico-kubeconfig\nsudo systemctl restart bench60208766-containerd.service\n"
+  },
+  {
+    "case_id": "q60208766",
+    "category": "networking",
+    "model": "wrong_cni_swapped",
+    "code": "sudo mv /etc/bench60208766/cni/net.d/10-calico.conf /etc/bench60208766/cni/net.d/10-calico.conf.off\nsudo tee /etc/bench60208766/cni/net.d/10-loopback-only.conf >/dev/null <<'CONF'\n{\"cniVersion\": \"0.3.1\", \"name\": \"lo-only\", \"type\": \"loopback\"}\nCONF\nsudo systemctl restart bench60208766-containerd.service\n"
+  }
+]
