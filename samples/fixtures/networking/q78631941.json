@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q78631941",
+    "category": "networking",
+    "model": "reference_solution",
+    "code": "bash cases/networking/q78631941/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q78631941",
+    "category": "networking",
+    "model": "alt_valid_start_the_snapshotter_by_hand_with_a_config_file_of_its_own",
+    "code": "sudo /var/lib/bench78631941/bin/soci-service stop\nmkdir -p /tmp/bench78631941\nprintf '[background_fetch]\\ndisable = true\\n\\n[[resolver.host.\"10.78.63.2:5000\".mirrors]]\\nhost = \"http://10.78.63.2:5000\"\\ninsecure = true\\n' > /tmp/bench78631941/soci-lazy.toml\nsudo setsid -f sh -c 'exec /var/lib/bench78631941/bin/soci-snapshotter-grpc --address /run/bench78631941/soci.sock --root /var/lib/bench78631941/soci/root --config /tmp/bench78631941/soci-lazy.toml >>/var/lib/bench78631941/soci/soci.log 2>&1 </dev/null' </dev/null >/dev/null 2>&1\nfor i in $(seq 1 30); do [ -S /run/bench78631941/soci.sock ] && break; sleep 0.5; done\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 tasks kill -s KILL lazy >/dev/null 2>&1 || true\nsleep 1\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 tasks delete lazy >/dev/null 2>&1 || true\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 containers delete lazy >/dev/null 2>&1 || true\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 images rm --sync 10.78.63.2:5000/app:seed >/dev/null 2>&1 || true\n(cd /tmp/bench78631941/app && GOFLAGS=-mod=mod go build -o lazyrun .)\nsudo /tmp/bench78631941/app/lazyrun --address /run/bench78631941/containerd.sock --namespace bench78631941 --name lazy --ref 10.78.63.2:5000/app:seed --snapshotter soci\n"
+  },
+  {
+    "case_id": "q78631941",
+    "category": "networking",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q78631941",
+    "category": "networking",
+    "model": "wrong_mirror_host_without_a_scheme",
+    "code": "printf '\\n[[resolver.host.\"10.78.63.2:5000\".mirrors]]\\nhost = \"10.78.63.2:5000\"\\ninsecure = true\\n' | sudo tee -a /var/lib/bench78631941/soci/config.toml >/dev/null\nsudo /var/lib/bench78631941/bin/soci-service restart\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 tasks kill -s KILL lazy >/dev/null 2>&1 || true\nsleep 1\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 tasks delete lazy >/dev/null 2>&1 || true\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 containers delete lazy >/dev/null 2>&1 || true\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 images rm --sync 10.78.63.2:5000/app:seed >/dev/null 2>&1 || true\n(cd /tmp/bench78631941/app && GOFLAGS=-mod=mod go build -o lazyrun .)\nsudo /tmp/bench78631941/app/lazyrun --address /run/bench78631941/containerd.sock --namespace bench78631941 --name lazy --ref 10.78.63.2:5000/app:seed --snapshotter soci\n"
+  },
+  {
+    "case_id": "q78631941",
+    "category": "networking",
+    "model": "wrong_program_uses_overlayfs",
+    "code": "python3 - /tmp/bench78631941/app/main.go <<'PYEOF'\nimport sys\np = sys.argv[1]\ns = open(p).read()\nassert '\\tflag.Parse()\\n' in s\ns = s.replace('\\tflag.Parse()\\n', '\\tflag.Parse()\\n\\t*snapshotter = \"overlayfs\"\\n')\nopen(p, \"w\").write(s)\nPYEOF\nprintf '\\n[[resolver.host.\"10.78.63.2:5000\".mirrors]]\\nhost = \"http://10.78.63.2:5000\"\\ninsecure = true\\n' | sudo tee -a /var/lib/bench78631941/soci/config.toml >/dev/null\nsudo /var/lib/bench78631941/bin/soci-service restart\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 tasks kill -s KILL lazy >/dev/null 2>&1 || true\nsleep 1\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 tasks delete lazy >/dev/null 2>&1 || true\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 containers delete lazy >/dev/null 2>&1 || true\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 images rm --sync 10.78.63.2:5000/app:seed >/dev/null 2>&1 || true\n(cd /tmp/bench78631941/app && GOFLAGS=-mod=mod go build -o lazyrun .)\nsudo /tmp/bench78631941/app/lazyrun --address /run/bench78631941/containerd.sock --namespace bench78631941 --name lazy --ref 10.78.63.2:5000/app:seed --snapshotter soci\n"
+  },
+  {
+    "case_id": "q78631941",
+    "category": "networking",
+    "model": "wrong_fix_but_the_program_downloads_the_layer_first",
+    "code": "python3 - /tmp/bench78631941/app/main.go <<'PYEOF'\nimport sys\np = sys.argv[1]\ns = open(p).read()\nassert '\\timage, err := cli.Pull(ctx, *ref,' in s\ns = s.replace('\\timage, err := cli.Pull(ctx, *ref,', '\\tif _, err := cli.Fetch(ctx, *ref, containerd.WithResolver(resolver)); err != nil {\\n\\t\\tlog.Fatalf(\"fetch %s: %v\", *ref, err)\\n\\t}\\n\\n\\timage, err := cli.Pull(ctx, *ref,')\nopen(p, \"w\").write(s)\nPYEOF\nprintf '\\n[[resolver.host.\"10.78.63.2:5000\".mirrors]]\\nhost = \"http://10.78.63.2:5000\"\\ninsecure = true\\n' | sudo tee -a /var/lib/bench78631941/soci/config.toml >/dev/null\nsudo /var/lib/bench78631941/bin/soci-service restart\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 tasks kill -s KILL lazy >/dev/null 2>&1 || true\nsleep 1\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 tasks delete lazy >/dev/null 2>&1 || true\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 containers delete lazy >/dev/null 2>&1 || true\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 images rm --sync 10.78.63.2:5000/app:seed >/dev/null 2>&1 || true\n(cd /tmp/bench78631941/app && GOFLAGS=-mod=mod go build -o lazyrun .)\nsudo /tmp/bench78631941/app/lazyrun --address /run/bench78631941/containerd.sock --namespace bench78631941 --name lazy --ref 10.78.63.2:5000/app:seed --snapshotter soci\n"
+  },
+  {
+    "case_id": "q78631941",
+    "category": "networking",
+    "model": "wrong_fix_but_containerd_config_edited",
+    "code": "printf '\\n[[resolver.host.\"10.78.63.2:5000\".mirrors]]\\nhost = \"http://10.78.63.2:5000\"\\ninsecure = true\\n' | sudo tee -a /var/lib/bench78631941/soci/config.toml >/dev/null\nsudo /var/lib/bench78631941/bin/soci-service restart\necho '# edited' | sudo tee -a /var/lib/bench78631941/containerd/etc/config.toml >/dev/null\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 tasks kill -s KILL lazy >/dev/null 2>&1 || true\nsleep 1\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 tasks delete lazy >/dev/null 2>&1 || true\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 containers delete lazy >/dev/null 2>&1 || true\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 images rm --sync 10.78.63.2:5000/app:seed >/dev/null 2>&1 || true\n(cd /tmp/bench78631941/app && GOFLAGS=-mod=mod go build -o lazyrun .)\nsudo /tmp/bench78631941/app/lazyrun --address /run/bench78631941/containerd.sock --namespace bench78631941 --name lazy --ref 10.78.63.2:5000/app:seed --snapshotter soci\n"
+  },
+  {
+    "case_id": "q78631941",
+    "category": "networking",
+    "model": "wrong_fix_but_the_program_does_not_compile",
+    "code": "printf '\\n[[resolver.host.\"10.78.63.2:5000\".mirrors]]\\nhost = \"http://10.78.63.2:5000\"\\ninsecure = true\\n' | sudo tee -a /var/lib/bench78631941/soci/config.toml >/dev/null\nsudo /var/lib/bench78631941/bin/soci-service restart\necho 'this is not Go' >> /tmp/bench78631941/app/main.go\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 tasks kill -s KILL lazy >/dev/null 2>&1 || true\nsleep 1\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 tasks delete lazy >/dev/null 2>&1 || true\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 containers delete lazy >/dev/null 2>&1 || true\nsudo ctr -a /run/bench78631941/containerd.sock -n bench78631941 images rm --sync 10.78.63.2:5000/app:seed >/dev/null 2>&1 || true\n(cd /tmp/bench78631941/app && GOFLAGS=-mod=mod go build -o lazyrun .)\nsudo /tmp/bench78631941/app/lazyrun --address /run/bench78631941/containerd.sock --namespace bench78631941 --name lazy --ref 10.78.63.2:5000/app:seed --snapshotter soci\n"
+  }
+]

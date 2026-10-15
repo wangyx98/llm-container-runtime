@@ -1,0 +1,48 @@
+#!/bin/bash
+# soci-service start|stop|restart|status : the SOCI snapshotter of this machine (the service the proxy plugin "soci" of the private containerd talks to). Run it with sudo.
+#
+#   binary   /var/lib/bench78631941/bin/soci-snapshotter-grpc (v0.16.1)
+#   config   /var/lib/bench78631941/soci/config.toml  (read when the snapshotter starts: a change needs a restart)
+#   socket   /run/bench78631941/soci.sock             (the address of the proxy plugin in the containerd config)
+#   root     /var/lib/bench78631941/soci/root         (its snapshots; the FUSE mounts of lazy-loaded layers are below it)
+#   log      /var/lib/bench78631941/soci/soci.log     (appended at every start)
+CASE_ID="bench78631941"
+LIB="/var/lib/$CASE_ID"
+RUN="/run/$CASE_ID"
+BIN="$LIB/bin/soci-snapshotter-grpc"
+CONFIG="$LIB/soci/config.toml"
+SOCK="$RUN/soci.sock"
+ROOT="$LIB/soci/root"
+LOG="$LIB/soci/soci.log"
+PIDF="$RUN/soci.pid"
+
+alive() { [ -f "$PIDF" ] && kill -0 "$(cat "$PIDF")" 2>/dev/null; }
+
+stop() {
+    if alive; then
+        kill "$(cat "$PIDF")" 2>/dev/null
+        for _ in $(seq 1 50); do alive || break; sleep 0.2; done
+        alive && kill -9 "$(cat "$PIDF")" 2>/dev/null
+    fi
+    rm -f "$PIDF" "$SOCK"
+    # a FUSE mount outlives the process that served it ("Transport endpoint is not connected"): unmount what is left below the root, deepest first
+    awk '{print $2}' /proc/mounts | grep -e "^$ROOT/" | sort -r | while read -r m; do umount "$m" 2>/dev/null || umount -l "$m" 2>/dev/null; done
+}
+
+start() {
+    alive && { echo "soci-snapshotter-grpc is running (pid $(cat "$PIDF"))"; return 0; }
+    mkdir -p "$RUN" "$ROOT"
+    setsid -f bash -c 'echo $$ > "$1"; log="$2"; shift 2; exec "$@" >>"$log" 2>&1 </dev/null' _ "$PIDF" "$LOG" "$BIN" --address "$SOCK" --root "$ROOT" --config "$CONFIG" </dev/null >/dev/null 2>&1
+    for _ in $(seq 1 50); do [ -S "$SOCK" ] && alive && break; sleep 0.2; done
+    [ -S "$SOCK" ] && alive || { echo "soci-snapshotter-grpc did not start; the end of $LOG:"; tail -5 "$LOG" | cut -c1-300; return 1; }
+    echo "soci-snapshotter-grpc started (pid $(cat "$PIDF"))"
+}
+
+[ "$(id -u)" = 0 ] || { echo "run it with sudo"; exit 1; }
+case "$1" in
+    start) start ;;
+    stop) stop; echo "soci-snapshotter-grpc stopped" ;;
+    restart) stop; start ;;
+    status) alive && echo "running (pid $(cat "$PIDF"))" || { echo "not running"; exit 3; } ;;
+    *) echo "usage: sudo $0 start|stop|restart|status"; exit 2 ;;
+esac
