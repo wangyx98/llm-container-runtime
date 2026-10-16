@@ -1,0 +1,3 @@
+#!/bin/bash
+# kubectl of the lab's Rancher Desktop VM: the kubectl of k3s with the kubeconfig of the cluster (readable by root only: run it with sudo).
+exec env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root KUBECONFIG=/etc/rancher/k3s/k3s.yaml K3S_DATA_DIR=/var/lib/bench73394153/k3s /var/lib/bench73394153/bin/k3s kubectl "$@"

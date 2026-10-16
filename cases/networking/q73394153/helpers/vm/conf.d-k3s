@@ -1,0 +1,2 @@
+# /etc/bench73394153/conf.d/k3s : the environment of the service k3s (and so of its embedded containerd). It is a shell file that k3sctl sources before it starts k3s;
+# only EXPORTED variables reach k3s. Rancher Desktop writes this file again at every start (rdrestart), from the VM image.

@@ -1,0 +1,56 @@
+[
+  {
+    "case_id": "q73394153",
+    "category": "networking",
+    "model": "reference_solution",
+    "code": "bash cases/networking/q73394153/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q73394153",
+    "category": "networking",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q73394153",
+    "category": "networking",
+    "model": "alt_valid_separate_env_file_sourced_by_both_files_lowercase_variables",
+    "code": "sudo tee /etc/bench73394153/provision.d/20-proxy.sh >/dev/null <<'EOF2'\n#!/bin/bash\nset -e\nCRED=/etc/bench73394153/proxy-credentials\nenc() { python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=\"\"))' \"$1\"; }\nPROXY=\"http://$(enc \"$(sed -n 1p \"$CRED\")\"):$(enc \"$(sed -n 2p \"$CRED\")\")@127.0.0.1:33942\"\nNO_PROXY=\"localhost,127.0.0.1,$(hostname -I | xargs | tr ' ' ',')\"\numask 077\ncat > /etc/bench73394153/proxy.env <<EOF3\nexport https_proxy='$PROXY'\nexport http_proxy='$PROXY'\nexport no_proxy='$NO_PROXY'\nEOF3\nfor f in /etc/bench73394153/conf.d/k3s /etc/bench73394153/profile; do\n    echo \". /etc/bench73394153/proxy.env\" >> \"$f\"\ndone\nEOF2\nsudo chmod 755 /etc/bench73394153/provision.d/20-proxy.sh\nsudo /var/lib/bench73394153/bin/rdrestart\n"
+  },
+  {
+    "case_id": "q73394153",
+    "category": "networking",
+    "model": "wrong_settings_only_in_the_two_files_that_rdrestart_writes_again",
+    "code": "sudo bash <<'EOF2'\nset -e\nCRED=/etc/bench73394153/proxy-credentials\nenc() { python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=\"\"))' \"$1\"; }\nPROXY=\"http://$(enc \"$(sed -n 1p \"$CRED\")\"):$(enc \"$(sed -n 2p \"$CRED\")\")@127.0.0.1:33942\"\nNO_PROXY=\"localhost,127.0.0.1,$(hostname -I | xargs | tr ' ' ',')\"\nfor f in /etc/bench73394153/conf.d/k3s /etc/bench73394153/profile; do\n    printf \"export HTTPS_PROXY='%s'\\nexport HTTP_PROXY='%s'\\nexport NO_PROXY='%s'\\n\" \"$PROXY\" \"$PROXY\" \"$NO_PROXY\" >> \"$f\"\ndone\nEOF2\nsudo /var/lib/bench73394153/bin/k3sctl restart\n"
+  },
+  {
+    "case_id": "q73394153",
+    "category": "networking",
+    "model": "wrong_credentials_not_percent_encoded_in_the_proxy_url",
+    "code": "sudo tee /etc/bench73394153/provision.d/10-proxy.sh >/dev/null <<'EOF2'\n#!/bin/bash\nset -e\nCRED=/etc/bench73394153/proxy-credentials\nPROXY=\"http://$(sed -n 1p \"$CRED\"):$(sed -n 2p \"$CRED\")@127.0.0.1:33942\"\nNO_PROXY=\"localhost,127.0.0.1,$(hostname -I | xargs | tr ' ' ',')\"\nfor f in /etc/bench73394153/conf.d/k3s /etc/bench73394153/profile; do\n    printf \"export HTTPS_PROXY='%s'\\nexport HTTP_PROXY='%s'\\nexport NO_PROXY='%s'\\n\" \"$PROXY\" \"$PROXY\" \"$NO_PROXY\" >> \"$f\"\ndone\nEOF2\nsudo chmod 755 /etc/bench73394153/provision.d/10-proxy.sh\nsudo /var/lib/bench73394153/bin/rdrestart\n"
+  },
+  {
+    "case_id": "q73394153",
+    "category": "networking",
+    "model": "wrong_only_k3s_configured_nerdctl_has_its_own_environment",
+    "code": "sudo tee /etc/bench73394153/provision.d/10-proxy.sh >/dev/null <<'EOF2'\n#!/bin/bash\nset -e\nCRED=/etc/bench73394153/proxy-credentials\nenc() { python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=\"\"))' \"$1\"; }\nPROXY=\"http://$(enc \"$(sed -n 1p \"$CRED\")\"):$(enc \"$(sed -n 2p \"$CRED\")\")@127.0.0.1:33942\"\nNO_PROXY=\"localhost,127.0.0.1,$(hostname -I | xargs | tr ' ' ',')\"\nfor f in /etc/bench73394153/conf.d/k3s; do\n    printf \"export HTTPS_PROXY='%s'\\nexport HTTP_PROXY='%s'\\nexport NO_PROXY='%s'\\n\" \"$PROXY\" \"$PROXY\" \"$NO_PROXY\" >> \"$f\"\ndone\nEOF2\nsudo chmod 755 /etc/bench73394153/provision.d/10-proxy.sh\nsudo /var/lib/bench73394153/bin/rdrestart\n"
+  },
+  {
+    "case_id": "q73394153",
+    "category": "networking",
+    "model": "wrong_only_nerdctl_configured_k3s_has_its_own_environment",
+    "code": "sudo tee /etc/bench73394153/provision.d/10-proxy.sh >/dev/null <<'EOF2'\n#!/bin/bash\nset -e\nCRED=/etc/bench73394153/proxy-credentials\nenc() { python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=\"\"))' \"$1\"; }\nPROXY=\"http://$(enc \"$(sed -n 1p \"$CRED\")\"):$(enc \"$(sed -n 2p \"$CRED\")\")@127.0.0.1:33942\"\nNO_PROXY=\"localhost,127.0.0.1,$(hostname -I | xargs | tr ' ' ',')\"\nfor f in /etc/bench73394153/profile; do\n    printf \"export HTTPS_PROXY='%s'\\nexport HTTP_PROXY='%s'\\nexport NO_PROXY='%s'\\n\" \"$PROXY\" \"$PROXY\" \"$NO_PROXY\" >> \"$f\"\ndone\nEOF2\nsudo chmod 755 /etc/bench73394153/provision.d/10-proxy.sh\nsudo /var/lib/bench73394153/bin/rdrestart\n"
+  },
+  {
+    "case_id": "q73394153",
+    "category": "networking",
+    "model": "wrong_no_proxy_of_the_accepted_answer_lacks_the_node_address",
+    "code": "sudo tee /etc/bench73394153/provision.d/10-proxy.sh >/dev/null <<'EOF2'\n#!/bin/bash\nset -e\nCRED=/etc/bench73394153/proxy-credentials\nenc() { python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=\"\"))' \"$1\"; }\nPROXY=\"http://$(enc \"$(sed -n 1p \"$CRED\")\"):$(enc \"$(sed -n 2p \"$CRED\")\")@127.0.0.1:33942\"\nNO_PROXY=\"localhost,127.0.0.1,$(hostname -I | xargs | tr ' ' ',')\"\nfor f in /etc/bench73394153/conf.d/k3s /etc/bench73394153/profile; do\n    printf \"export HTTPS_PROXY='%s'\\nexport HTTP_PROXY='%s'\\nexport NO_PROXY='%s'\\n\" \"$PROXY\" \"$PROXY\" \"localhost,127.0.0.1\" >> \"$f\"\ndone\nEOF2\nsudo chmod 755 /etc/bench73394153/provision.d/10-proxy.sh\nsudo /var/lib/bench73394153/bin/rdrestart\n"
+  },
+  {
+    "case_id": "q73394153",
+    "category": "networking",
+    "model": "wrong_provisioning_script_traces_the_password_with_set_x",
+    "code": "sudo tee /etc/bench73394153/provision.d/10-proxy.sh >/dev/null <<'EOF2'\n#!/bin/bash\nset -ex\nCRED=/etc/bench73394153/proxy-credentials\nenc() { python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=\"\"))' \"$1\"; }\nPROXY=\"http://$(enc \"$(sed -n 1p \"$CRED\")\"):$(enc \"$(sed -n 2p \"$CRED\")\")@127.0.0.1:33942\"\nNO_PROXY=\"localhost,127.0.0.1,$(hostname -I | xargs | tr ' ' ',')\"\nfor f in /etc/bench73394153/conf.d/k3s /etc/bench73394153/profile; do\n    printf \"export HTTPS_PROXY='%s'\\nexport HTTP_PROXY='%s'\\nexport NO_PROXY='%s'\\n\" \"$PROXY\" \"$PROXY\" \"$NO_PROXY\" >> \"$f\"\ndone\nEOF2\nsudo chmod 755 /etc/bench73394153/provision.d/10-proxy.sh\nsudo /var/lib/bench73394153/bin/rdrestart\n"
+  }
+]

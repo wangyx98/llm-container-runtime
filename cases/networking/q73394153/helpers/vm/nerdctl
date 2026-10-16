@@ -1,0 +1,4 @@
+#!/bin/bash
+# nerdctl of the lab's Rancher Desktop VM (on the host Rancher Desktop's `nerdctl` runs `rdctl shell nerdctl`): nerdctl 2.1.3 against the containerd of k3s (namespace default), run as in a
+# login of the VM: a CLEAN environment plus the variables that /etc/bench73394153/profile (a shell file) EXPORTS. nerdctl pulls the images itself, with its own environment. Run it with sudo.
+exec env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root bash -c '. /etc/bench73394153/profile || exit 1; exec /var/lib/bench73394153/libexec/nerdctl --address /run/k3s/containerd/containerd.sock --namespace default --hosts-dir /etc/bench73394153/certs.d --data-root /var/lib/bench73394153/nerdctl --cni-netconfpath /var/lib/bench73394153/cni/net.d --cni-path /var/lib/bench73394153/cni/bin --cgroup-manager cgroupfs "$@"' _ "$@"

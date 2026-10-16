@@ -1,0 +1,35 @@
+#!/bin/bash
+# rdrestart : a restart of Rancher Desktop (its VM): k3s is stopped, the files of the VM that the application owns are written again from the VM image (so changes made in
+# /etc/bench73394153/conf.d/k3s and /etc/bench73394153/profile are gone), the provisioning scripts run (every executable /etc/bench73394153/provision.d/*.sh, as root, in the order of their
+# names, in a clean environment; their output is this program's output) and k3s is started again. Run it with sudo.
+IMG=/var/lib/bench73394153/vm-image
+BIN=/var/lib/bench73394153/bin
+echo "[rdrestart] stopping k3s..."
+"$BIN/k3sctl" stop
+echo "[rdrestart] writing /etc/bench73394153/conf.d/k3s and /etc/bench73394153/profile again from the VM image..."
+install -m 600 -o root -g root "$IMG/conf.d-k3s" /etc/bench73394153/conf.d/k3s
+install -m 600 -o root -g root "$IMG/profile" /etc/bench73394153/profile
+echo "[rdrestart] provisioning scripts..."
+for f in /etc/bench73394153/provision.d/*.sh; do
+    [ -e "$f" ] || continue
+    if [ -x "$f" ]; then
+        echo "[rdrestart] running $f"
+        (cd / && exec env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root "$f" </dev/null) 2>&1
+        rc=$?
+        [ "$rc" -eq 0 ] || echo "[rdrestart] $f exited with status $rc"
+    else
+        echo "[rdrestart] not running $f (it is not executable)"
+    fi
+done
+echo "[rdrestart] starting k3s..."
+"$BIN/k3sctl" start
+ready=""
+for _ in $(seq 1 75); do
+    # the API server answers, containerd's socket is there and the node is Ready (the Ready of the node before the restart stays "True" for a while)
+    if [ -S /run/k3s/containerd/containerd.sock ] && "$BIN/kubectl" get --raw=/readyz >/dev/null 2>&1; then
+        ready=$("$BIN/kubectl" get node bench73394153-node -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
+        [ "$ready" = "True" ] && break
+    fi
+    sleep 2
+done
+if [ "$ready" = "True" ]; then echo "[rdrestart] the node bench73394153-node is Ready"; else echo "[rdrestart] the node bench73394153-node is not Ready"; exit 1; fi

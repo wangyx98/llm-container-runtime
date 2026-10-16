@@ -1,0 +1,26 @@
+#!/bin/bash
+# k3sctl start|stop|restart|status : the service "k3s" of the lab's Rancher Desktop VM (OpenRC there, a pid file here). k3s runs with its own embedded containerd, a child process of k3s whose
+# environment is the one of k3s. The service starts k3s in a CLEAN environment: only the variables that /etc/bench73394153/conf.d/k3s EXPORTS reach k3s (and its containerd).
+PIDF=/run/bench73394153/k3s.pid
+LOG=/run/bench73394153/k3s.log
+alive() { [ -s "$PIDF" ] && kill -0 "$(cat "$PIDF")" 2>/dev/null; }
+do_start() {
+    if alive; then echo "k3s is already running"; return 0; fi
+    mkdir -p /run/bench73394153
+    setsid -f bash -c 'echo $$ > "$1"; exec env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root bash -c ". /etc/bench73394153/conf.d/k3s || exit 1; exec /var/lib/bench73394153/bin/k3s server" >>"$2" 2>&1 </dev/null' _ "$PIDF" "$LOG" </dev/null >/dev/null 2>&1
+    echo "k3s started"
+}
+do_stop() {
+    alive || { echo "k3s is not running"; return 0; }
+    kill -TERM "$(cat "$PIDF")"
+    for _ in $(seq 1 60); do alive || break; sleep 1; done
+    alive && kill -KILL "$(cat "$PIDF")"
+    echo "k3s stopped"
+}
+case "$1" in
+    start) do_start ;;
+    stop) do_stop ;;
+    restart) do_stop; do_start ;;
+    status) if alive; then echo "active (pid $(cat "$PIDF"))"; else echo "inactive"; exit 3; fi ;;
+    *) echo "usage: k3sctl start|stop|restart|status"; exit 2 ;;
+esac

@@ -1,0 +1,2 @@
+# /etc/bench73394153/profile : the login environment of the VM for nerdctl. It is a shell file that /var/lib/bench73394153/bin/nerdctl sources before it runs nerdctl;
+# only EXPORTED variables reach nerdctl. Rancher Desktop writes this file again at every start (rdrestart), from the VM image.
