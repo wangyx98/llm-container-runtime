@@ -1,0 +1,12 @@
+#!/bin/bash
+# nerdctl of the lab's Rancher Desktop VM (what "rdctl shell nerdctl" runs there): nerdctl 2.1.3 for the containerd of the VM (namespace bench70704948), with its configuration
+# /etc/bench70704948/nerdctl.toml. The "VM" is a network and mount namespace of its own: this script enters it. Run it with sudo.
+[ "$(id -u)" = 0 ] || { echo "nerdctl: run it with sudo (the engine of the VM belongs to root)"; exit 1; }
+ANCHOR=/run/bench70704948/anchor.pid
+[ -s "$ANCHOR" ] && kill -0 "$(cat "$ANCHOR")" 2>/dev/null || { echo "nerdctl: the VM is not running"; exit 1; }
+# PATH without the sbin directories: with apparmor_parser in sight nerdctl loads its default AppArmor profile into the kernel of the machine (it stays there after the lab is gone); without it
+# nerdctl runs its containers without that profile and the machine's kernel is not touched.
+exec nsenter --target "$(cat "$ANCHOR")" --net --mount -- env -i HOME=/root \
+    PATH=/var/lib/bench70704948/libexec:/var/lib/bench70704948/cni-bin:/usr/local/bin:/usr/bin:/bin \
+    NERDCTL_TOML=/etc/bench70704948/nerdctl.toml BUILDKIT_HOST=unix:///run/bench70704948/buildkit.sock \
+    bash -c 'cd "$0" && exec /var/lib/bench70704948/libexec/nerdctl "$@"' "$PWD" "$@"

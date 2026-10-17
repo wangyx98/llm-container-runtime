@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q70704948",
+    "category": "networking",
+    "model": "reference_solution",
+    "code": "bash cases/networking/q70704948/reference_solution.sh\n"
+  },
+  {
+    "case_id": "q70704948",
+    "category": "networking",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q70704948",
+    "category": "networking",
+    "model": "alt_valid_corporate_name_server_first_old_resolver_second_restart_with_stop_and_start",
+    "code": "set -e\nETC=/etc/bench70704948\nCORP=$(sudo sed -n -E 's/^dns *= *\\[\"([^\"]+)\".*/\\1/p' $ETC/nerdctl.toml)\nOLD=$(sudo sed -n -E 's/^ *nameservers *= *\\[\"([^\"]+)\".*/\\1/p' $ETC/buildkitd.toml)\nsudo python3 - \"$CORP\" \"$OLD\" <<'PY'\nimport re, sys\np = \"/etc/bench70704948/buildkitd.toml\"\ns = open(p).read()\ns = re.sub(r'(?m)^(\\s*nameservers\\s*=).*$', r'\\1 [\"%s\", \"%s\"]' % (sys.argv[1], sys.argv[2]), s)\nopen(p, \"w\").write(s)\nPY\nsudo /var/lib/bench70704948/bin/buildkitctl stop\nsudo /var/lib/bench70704948/bin/buildkitctl start\n"
+  },
+  {
+    "case_id": "q70704948",
+    "category": "networking",
+    "model": "wrong_buildkitd_toml_corrected_but_buildkitd_not_restarted",
+    "code": "set -e\nETC=/etc/bench70704948\nCORP=$(sudo sed -n -E 's/^dns *= *\\[\"([^\"]+)\".*/\\1/p' $ETC/nerdctl.toml)\nOLD=$(sudo sed -n -E 's/^ *nameservers *= *\\[\"([^\"]+)\".*/\\1/p' $ETC/buildkitd.toml)\nsudo sed -i -E \"s/^( *nameservers *= *).*/\\1[\\\"$CORP\\\"]/\" $ETC/buildkitd.toml\n"
+  },
+  {
+    "case_id": "q70704948",
+    "category": "networking",
+    "model": "wrong_build_network_switched_to_host_mode",
+    "code": "sudo sed -i -E 's/^( *networkMode *= *).*/\\1\"host\"/' /etc/bench70704948/buildkitd.toml\nsudo /var/lib/bench70704948/bin/buildkitctl restart\n"
+  },
+  {
+    "case_id": "q70704948",
+    "category": "networking",
+    "model": "wrong_public_resolver_in_the_dns_section",
+    "code": "sudo sed -i -E 's/^( *nameservers *= *).*/\\1[\"8.8.8.8\", \"8.8.4.4\"]/' /etc/bench70704948/buildkitd.toml\nsudo /var/lib/bench70704948/bin/buildkitctl restart\n"
+  },
+  {
+    "case_id": "q70704948",
+    "category": "networking",
+    "model": "wrong_add_host_flag_on_one_build_not_a_fix_of_the_vm",
+    "code": "sudo /var/lib/bench70704948/bin/nerdctl build --add-host dists.bench70704948.test:10.249.70.2 -t bench70704948-app /var/lib/bench70704948/project\n"
+  },
+  {
+    "case_id": "q70704948",
+    "category": "networking",
+    "model": "wrong_dockerfile_changed_so_that_nothing_is_downloaded",
+    "code": "sudo sed -i -E 's#^RUN .*#RUN mkdir -p build/libs \\&\\& echo built > build/libs/my-app-1.0.jar#' /var/lib/bench70704948/project/Dockerfile\nsudo /var/lib/bench70704948/bin/nerdctl build -t bench70704948-app /var/lib/bench70704948/project\n"
+  }
+]

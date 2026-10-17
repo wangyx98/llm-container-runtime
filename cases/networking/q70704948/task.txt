@@ -1,0 +1,36 @@
+On this shared Ubuntu machine a stand-in for a Rancher Desktop virtual machine (containerd engine) runs, with files under /etc/bench70704948 and /var/lib/bench70704948. It has two tools, both for root (use sudo):
+
+1. nerdctl: the command is /var/lib/bench70704948/bin/nerdctl (it stands for "rdctl shell nerdctl"), nerdctl 2.1.3, configured by /etc/bench70704948/nerdctl.toml.
+
+2. BuildKit: "nerdctl build" hands every build to the buildkitd of the VM (BuildKit 0.23.2). It is started and stopped with "sudo /var/lib/bench70704948/bin/buildkitctl" (start, stop, restart, status) and reads its configuration, /etc/bench70704948/buildkitd.toml, when it starts.
+
+The project is in /var/lib/bench70704948/project. Its Dockerfile is
+
+    FROM localhost/bench70704948-base:1 as builder
+
+    ENV NODE_ENV=development
+
+    WORKDIR /workspace/my-app
+
+    COPY . /workspace/my-app
+    RUN --mount=type=cache,target=/root/.gradle ./gradlew --no-watch-fs --no-daemon clean build -x test
+
+The base image localhost/bench70704948-base:1 is already in the VM. The gradlew of the project works like the script of the Gradle wrapper: it reads gradle/wrapper/gradle-wrapper.properties, downloads the distributionUrl (https://dists.bench70704948.test:43670/distributions/gradle-7.0.2-bin.zip, a fixed Gradle distribution of the company's download site) unless it is in /root/.gradle already, checks the distributionSha256Sum, unpacks the distribution and runs it. The gradlew prints the error of curl where the Java wrapper prints the exception of its HTTP client.
+
+The problem: the build
+
+    sudo /var/lib/bench70704948/bin/nerdctl build -t bench70704948-app /var/lib/bench70704948/project
+
+fails in the RUN step while gradlew downloads the distribution. But a container made from the same base image reaches the same address, for example
+
+    sudo /var/lib/bench70704948/bin/nerdctl run --rm localhost/bench70704948-base:1 curl -fsS -o /dev/null https://dists.bench70704948.test:43670/distributions/gradle-7.0.2-bin.zip
+
+works. Switching nerdctl to another containerd namespace changes nothing.
+
+Your task: find out why the build cannot download the distribution while the container can, and fix the VM so that the build of the project succeeds, from an empty build cache, with the Dockerfile as it is. The check empties the build cache of BuildKit, then builds the project itself with "nerdctl build --no-cache" (it restarts nothing before that), runs the image and looks at its artifact, /workspace/my-app/build/libs/my-app-1.0.jar, and at the requests that the download site and the name servers received. It also checks that a container made with nerdctl run still reaches the download site.
+
+Rules: do not change the project (the Dockerfile, gradlew, gradle-wrapper.properties, the sources), and do not bring the distribution into the image another way (no copy of a downloaded file, no build outside the VM); do not change the download site, the name servers, the programs, the CNI networks or nerdctl.toml of the VM. Use the shell, the commands of the machine, python3, and the two programs above; do not use docker or podman.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need sudo.
+
+Return the commands needed to complete the task.

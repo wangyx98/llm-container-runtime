@@ -1,0 +1,39 @@
+#!/bin/bash
+# buildkitctl start|stop|restart|status : the service "buildkitd" of the lab's Rancher Desktop VM (OpenRC there, a pid file here). BuildKit 0.23.2 builds the images of "nerdctl build" with the
+# containerd of the VM. It reads /etc/bench70704948/buildkitd.toml when it starts: a change of that file takes effect with the next start. Run it with sudo.
+[ "$(id -u)" = 0 ] || { echo "buildkitctl: run it with sudo"; exit 1; }
+ETC=/etc/bench70704948; LIB=/var/lib/bench70704948; RUN=/run/bench70704948
+PIDF=$RUN/buildkitd.pid
+LOG=$RUN/buildkitd.log
+alive() { [ -s "$PIDF" ] && kill -0 "$(cat "$PIDF")" 2>/dev/null; }
+ANCHOR=$(cat $RUN/anchor.pid 2>/dev/null)
+[ -n "$ANCHOR" ] && kill -0 "$ANCHOR" 2>/dev/null || { echo "buildkitctl: the VM is not running"; exit 1; }
+do_start() {
+    if alive; then echo "buildkitd is already running"; return 0; fi
+    rm -f "$RUN/buildkit.sock"
+    setsid -f nsenter --target "$ANCHOR" --net --mount -- env -i HOME=/root PATH="$LIB/cni-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+        bash -c 'echo $$ > "$1"; exec "$2" --addr "unix://$3/buildkit.sock" --root "$4/buildkit" --config "$5/buildkitd.toml" >"$6" 2>&1 </dev/null' \
+        _ "$PIDF" "$LIB/libexec/buildkitd" "$RUN" "$LIB" "$ETC" "$LOG" </dev/null >/dev/null 2>&1
+    for i in $(seq 1 60); do
+        if [ -S "$RUN/buildkit.sock" ] && "$LIB/libexec/buildctl" --addr "unix://$RUN/buildkit.sock" debug workers >/dev/null 2>&1; then echo "buildkitd started"; return 0; fi
+        [ "$i" -gt 6 ] && ! alive && break      # the pid file is written a moment after the start
+        sleep 0.5
+    done
+    echo "buildkitd did not start:"; grep -v '^\s' "$LOG" | grep -v CDI | tail -3 | cut -c1-300
+    return 1
+}
+do_stop() {
+    alive || { echo "buildkitd is not running"; return 0; }
+    kill -TERM "$(cat "$PIDF")"
+    for _ in $(seq 1 60); do alive || break; sleep 0.5; done
+    alive && kill -KILL "$(cat "$PIDF")"
+    rm -f "$RUN/buildkit.sock"
+    echo "buildkitd stopped"
+}
+case "$1" in
+    start) do_start ;;
+    stop) do_stop ;;
+    restart) do_stop; do_start ;;
+    status) if alive; then echo "active (pid $(cat "$PIDF"))"; else echo "inactive"; exit 3; fi ;;
+    *) echo "usage: buildkitctl start|stop|restart|status"; exit 2 ;;
+esac
