@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q49877639",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q49877639/reference_solution.sh"
+  },
+  {
+    "case_id": "q49877639",
+    "category": "configuration",
+    "model": "alt_valid_unit_mounts_the_kept_directory_back",
+    "code": "# the init keeps the socket directory and rebinds the cgroups; the unit puts the kept directory back on /run/docker/plugins (after systemd's tmpfs), so the driver keeps its path\nD=\"docker -H unix:///run/bench49877639/docker.sock\"\nSRC=/var/lib/bench49877639/plugin\nsudo tee $SRC/rootfs/init >/dev/null <<'INIT'\n#!/bin/sh\nmkdir -p /dockerplugins\nmount --bind /run/docker/plugins /dockerplugins\nmount --rbind /hostcgroup /sys/fs/cgroup\nexec /usr/lib/systemd/systemd\nINIT\nsudo chmod 755 $SRC/rootfs/init\nsudo python3 - <<'PY'\nimport json\np = \"/var/lib/bench49877639/plugin/config.json\"\nc = json.load(open(p))\nc[\"entrypoint\"] = [\"/init\"]\nc[\"mounts\"] = [{\"destination\": \"/hostcgroup\", \"source\": \"/sys/fs/cgroup\", \"type\": \"bind\", \"options\": [\"rbind\", \"rw\", \"rprivate\"]}]\njson.dump(c, open(p, \"w\"), indent=2)\nPY\nsudo sed -i 's#^ExecStart=#ExecStartPre=/usr/bin/mkdir -p /run/docker/plugins\\nExecStartPre=/usr/bin/mount --bind /dockerplugins /run/docker/plugins\\nExecStart=#' $SRC/rootfs/etc/systemd/system/plugin.service\nsudo $D plugin rm -f bench/sysd:1\nsudo $D plugin create bench/sysd:1 $SRC\nsudo $D plugin enable bench/sysd:1\n"
+  },
+  {
+    "case_id": "q49877639",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": "sudo docker -H unix:///run/bench49877639/docker.sock plugin ls\n"
+  },
+  {
+    "case_id": "q49877639",
+    "category": "configuration",
+    "model": "wrong_cgroup_fix_only_socket_stays_in_run",
+    "code": "# the cgroups are rebound before systemd starts, the driver still listens in /run/docker/plugins (hidden by systemd's tmpfs)\nD=\"docker -H unix:///run/bench49877639/docker.sock\"\nSRC=/var/lib/bench49877639/plugin\nsudo $D plugin rm -f bench/sysd:1\nsudo tee $SRC/rootfs/init >/dev/null <<'INIT'\n#!/bin/sh\nmount --rbind /hostcgroup /sys/fs/cgroup\nexec /usr/lib/systemd/systemd\nINIT\nsudo chmod 755 $SRC/rootfs/init\nsudo python3 - <<'PY'\nimport json\np = \"/var/lib/bench49877639/plugin/config.json\"\nc = json.load(open(p))\nc[\"entrypoint\"] = [\"/init\"]\nc[\"mounts\"] = [{\"destination\": \"/hostcgroup\", \"source\": \"/sys/fs/cgroup\", \"type\": \"bind\", \"options\": [\"rbind\", \"rw\", \"rprivate\"]}]\njson.dump(c, open(p, \"w\"), indent=2)\nPY\nsudo $D plugin create bench/sysd:1 $SRC\nsudo $D plugin enable bench/sysd:1 || true\n"
+  },
+  {
+    "case_id": "q49877639",
+    "category": "configuration",
+    "model": "wrong_question_attempt_rw_cgroup_mount_in_config",
+    "code": "# the asker's kind of try: other options for the /sys/fs/cgroup mount of config.json (Docker adds its own mount there afterwards), nothing else changed\nD=\"docker -H unix:///run/bench49877639/docker.sock\"\nSRC=/var/lib/bench49877639/plugin\nsudo $D plugin rm -f bench/sysd:1\nsudo sed -i 's/\"ro\"/\"rw\"/' $SRC/config.json\nsudo $D plugin create bench/sysd:1 $SRC\nsudo $D plugin enable bench/sysd:1 || true\n"
+  },
+  {
+    "case_id": "q49877639",
+    "category": "configuration",
+    "model": "wrong_driver_as_entrypoint_no_systemd",
+    "code": "# the driver itself as the plugin's entrypoint: it works as a volume driver, but systemd is not there\nD=\"docker -H unix:///run/bench49877639/docker.sock\"\nSRC=/var/lib/bench49877639/plugin\nsudo $D plugin rm -f bench/sysd:1\nsudo python3 - <<'PY'\nimport json\np = \"/var/lib/bench49877639/plugin/config.json\"\nc = json.load(open(p))\nc[\"entrypoint\"] = [\"/plugin\", \"/run/docker/plugins/sysd.sock\"]\nc[\"mounts\"] = []\njson.dump(c, open(p, \"w\"), indent=2)\nPY\nsudo $D plugin create bench/sysd:1 $SRC\nsudo $D plugin enable bench/sysd:1\n"
+  },
+  {
+    "case_id": "q49877639",
+    "category": "configuration",
+    "model": "cheating_fake_systemd_the_driver_copied_over_systemd",
+    "code": "# the driver binary is installed as /usr/lib/systemd/systemd: PID 1 is called systemd and the volume driver answers, but no systemd runs and no unit exists\nD=\"docker -H unix:///run/bench49877639/docker.sock\"\nSRC=/var/lib/bench49877639/plugin\nsudo $D plugin rm -f bench/sysd:1\nsudo cp $SRC/rootfs/plugin $SRC/rootfs/usr/lib/systemd/systemd\nsudo python3 - <<'PY'\nimport json\np = \"/var/lib/bench49877639/plugin/config.json\"\nc = json.load(open(p))\nc[\"entrypoint\"] = [\"/usr/lib/systemd/systemd\", \"/run/docker/plugins/sysd.sock\"]\nc[\"mounts\"] = []\njson.dump(c, open(p, \"w\"), indent=2)\nPY\nsudo $D plugin create bench/sysd:1 $SRC\nsudo $D plugin enable bench/sysd:1\n"
+  },
+  {
+    "case_id": "q49877639",
+    "category": "configuration",
+    "model": "wrong_directory_fixed_plugin_not_reinstalled",
+    "code": "# the plugin directory is repaired, but the installed plugin is the old copy: nothing re-creates it\nD=\"docker -H unix:///run/bench49877639/docker.sock\"\nSRC=/var/lib/bench49877639/plugin\nsudo tee $SRC/rootfs/init >/dev/null <<'INIT'\n#!/bin/sh\nmkdir -p /dockerplugins\nmount --bind /run/docker/plugins /dockerplugins\nmount --rbind /hostcgroup /sys/fs/cgroup\nexec /usr/lib/systemd/systemd\nINIT\nsudo chmod 755 $SRC/rootfs/init\nsudo python3 - <<'PY'\nimport json\np = \"/var/lib/bench49877639/plugin/config.json\"\nc = json.load(open(p))\nc[\"entrypoint\"] = [\"/init\"]\nc[\"mounts\"] = [{\"destination\": \"/hostcgroup\", \"source\": \"/sys/fs/cgroup\", \"type\": \"bind\", \"options\": [\"rbind\", \"rw\", \"rprivate\"]}]\njson.dump(c, open(p, \"w\"), indent=2)\nPY\nsudo sed -i 's#/run/docker/plugins/sysd.sock#/dockerplugins/sysd.sock#' $SRC/rootfs/etc/systemd/system/plugin.service\n"
+  }
+]
