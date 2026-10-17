@@ -1,0 +1,42 @@
+#!/bin/bash
+# mk8sctl start|stop|restart|status : starts and stops the node's containerd (like `microk8s start` and `microk8s stop` do for the services of the snap). Must run as root.
+SNAP_COMMON=/var/lib/bench66642654/common
+BIN=/var/lib/bench66642654/bin
+PIDF="$SNAP_COMMON/run/containerd.pid"
+SOCK="$SNAP_COMMON/run/containerd.sock"
+LOG="$SNAP_COMMON/var/log/containerd.log"
+
+[ "$(id -u)" = 0 ] || { echo "mk8sctl: must run as root (use sudo)" >&2; exit 1; }
+
+pid() { [ -s "$PIDF" ] && cat "$PIDF"; }
+running() { local p; p=$(pid) && [ -n "$p" ] && [ "$(cat /proc/$p/comm 2>/dev/null)" = containerd ]; }
+up() { [ -S "$SOCK" ] && timeout 3 crictl -r "unix://$SOCK" -i "unix://$SOCK" version >/dev/null 2>&1; }
+
+start() {
+    if running; then echo "mk8sctl: containerd is already running (pid $(pid))"; return 0; fi
+    mkdir -p "$(dirname "$LOG")" "$SNAP_COMMON/run"
+    setsid -f "$BIN/mk8s-run-containerd" >> "$LOG" 2>&1 < /dev/null
+    for _ in $(seq 60); do up && { echo "mk8sctl: containerd started (pid $(pid))"; return 0; }; sleep 0.5; done
+    echo "mk8sctl: containerd did not answer on $SOCK within 30 s; see $LOG" >&2
+    return 1
+}
+
+stop() {
+    local p
+    p=$(pid) || true
+    if [ -n "$p" ] && running; then
+        kill -TERM "$p" 2>/dev/null
+        for _ in $(seq 60); do kill -0 "$p" 2>/dev/null || break; sleep 0.5; done
+        kill -0 "$p" 2>/dev/null && kill -KILL "$p" 2>/dev/null
+    fi
+    rm -f "$PIDF" "$SOCK" "$SOCK.ttrpc"
+    echo "mk8sctl: containerd stopped"
+}
+
+case "${1:-}" in
+    start) start ;;
+    stop) stop ;;
+    restart) stop; start ;;
+    status) if running; then echo "containerd is running (pid $(pid))"; else echo "containerd is not running"; exit 1; fi ;;
+    *) echo "usage: mk8sctl start|stop|restart|status" >&2; exit 2 ;;
+esac

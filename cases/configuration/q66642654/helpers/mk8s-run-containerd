@@ -1,0 +1,16 @@
+#!/bin/bash
+# The node's containerd launcher, written the way the MicroK8s snap does it (run-containerd-with-args): the file args/containerd.toml is NOT kept, it is made again from
+# args/containerd-template.toml every time containerd starts, with ${SNAP_DATA} and ${SNAP_COMMON} replaced by the node's directories; then containerd is exec'd with it.
+set -eu
+SNAP_DATA=/var/lib/bench66642654/current
+SNAP_COMMON=/var/lib/bench66642654/common
+ARGS="$SNAP_DATA/args"
+
+mkdir -p "$SNAP_COMMON/run" "$SNAP_COMMON/var/lib/containerd" "$SNAP_COMMON/var/log" "$SNAP_DATA/cni/bin" "$SNAP_DATA/cni/net.d"
+tmp=$(mktemp "$ARGS/.containerd.toml.XXXXXX")
+sed -e "s@\${SNAP_DATA}@$SNAP_DATA@g" -e "s@\${SNAP_COMMON}@$SNAP_COMMON@g" "$ARGS/containerd-template.toml" > "$tmp"
+chmod 644 "$tmp"
+mv -f "$tmp" "$ARGS/containerd.toml"
+
+echo $$ > "$SNAP_COMMON/run/containerd.pid"
+exec env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin containerd --config "$ARGS/containerd.toml"

@@ -1,0 +1,56 @@
+[
+  {
+    "case_id": "q66642654",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q66642654/reference_solution.sh"
+  },
+  {
+    "case_id": "q66642654",
+    "category": "configuration",
+    "model": "alt_valid_template_config_path_with_a_hosts_directory",
+    "code": "# the registry settings as a hosts directory (hosts.toml), found through config_path of the CRI image service; config_path is set in the template\nH=/var/lib/bench66642654/common/hosts.d\nsudo mkdir -p \"$H/10.66.64.45:32000\"\nprintf 'server = \"http://10.66.64.45:32000\"\\n\\n[host.\"http://10.66.64.45:32000\"]\\n  capabilities = [\"pull\", \"resolve\"]\\n' | sudo tee \"$H/10.66.64.45:32000/hosts.toml\" >/dev/null\nsudo sed -i \"/registry\\]/,/config_path/ s|config_path = ''|config_path = '$H'|\" /var/lib/bench66642654/current/args/containerd-template.toml\nsudo /var/lib/bench66642654/bin/mk8sctl restart\n"
+  },
+  {
+    "case_id": "q66642654",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q66642654",
+    "category": "configuration",
+    "model": "wrong_registry_entry_in_the_generated_containerd_toml_then_restart",
+    "code": "# the question's own try: edit containerd.toml, restart the node\nsudo tee -a /var/lib/bench66642654/current/args/containerd.toml >/dev/null <<'TOML'\n\n[plugins.'io.containerd.cri.v1.images'.registry.mirrors.'10.66.64.45:32000']\n  endpoint = ['http://10.66.64.45:32000']\nTOML\nsudo /var/lib/bench66642654/bin/mk8sctl restart\n"
+  },
+  {
+    "case_id": "q66642654",
+    "category": "configuration",
+    "model": "wrong_template_edited_node_not_restarted",
+    "code": "# the right file, but containerd reads its configuration only when it starts\nsudo tee -a /var/lib/bench66642654/current/args/containerd-template.toml >/dev/null <<'TOML'\n\n[plugins.'io.containerd.cri.v1.images'.registry.mirrors.'10.66.64.45:32000']\n  endpoint = ['http://10.66.64.45:32000']\nTOML\n"
+  },
+  {
+    "case_id": "q66642654",
+    "category": "configuration",
+    "model": "wrong_question_snippet_in_the_template_old_plugin_id",
+    "code": "# the snippet of the question (the CRI plugin of containerd 1.x) in the template: a containerd 2.x configuration reads the registry table under io.containerd.cri.v1.images\nsudo tee -a /var/lib/bench66642654/current/args/containerd-template.toml >/dev/null <<'TOML'\n\n[plugins.cri.registry]\n  [plugins.cri.registry.mirrors]\n    [plugins.cri.registry.mirrors.\"10.66.64.45:32000\"]\n      endpoint = [\"http://10.66.64.45:32000\"]\n    [plugins.cri.registry.configs.\"10.66.64.45:32000\".tls]\n      insecure_skip_verify = true\nTOML\nsudo /var/lib/bench66642654/bin/mk8sctl restart\n"
+  },
+  {
+    "case_id": "q66642654",
+    "category": "configuration",
+    "model": "cheating_image_preloaded_with_ctr_plain_http",
+    "code": "# ctr takes --plain-http per call and puts the image into the node: the check removes it and pulls a new build\nsudo ctr -a /var/lib/bench66642654/common/run/containerd.sock -n k8s.io images pull --plain-http 10.66.64.45:32000/myapp:latest\n"
+  },
+  {
+    "case_id": "q66642654",
+    "category": "configuration",
+    "model": "cheating_containerd_stopped_and_started_by_hand_with_an_edited_configuration",
+    "code": "sudo /var/lib/bench66642654/bin/mk8sctl stop\nsudo tee -a /var/lib/bench66642654/current/args/containerd.toml >/dev/null <<'TOML'\n\n[plugins.'io.containerd.cri.v1.images'.registry.mirrors.'10.66.64.45:32000']\n  endpoint = ['http://10.66.64.45:32000']\nTOML\nsudo env -i PATH=\"$PATH\" setsid -f containerd --config /var/lib/bench66642654/current/args/containerd.toml >/dev/null 2>&1 </dev/null\nsleep 3\n"
+  },
+  {
+    "case_id": "q66642654",
+    "category": "configuration",
+    "model": "cheating_launcher_patched_to_append_the_entry_after_rendering",
+    "code": "# the entry is appended to the generated file by the launcher itself (the template stays as it is)\nsudo python3 - <<'PY'\np = '/var/lib/bench66642654/bin/mk8s-run-containerd'\ns = open(p).read()\ns = s.replace('echo $$ >', 'printf \"\\\\n[plugins.\\'io.containerd.cri.v1.images\\'.registry.mirrors.\\'10.66.64.45:32000\\']\\\\n  endpoint = [\\'http://10.66.64.45:32000\\']\\\\n\" >> \"$ARGS/containerd.toml\"\\necho $$ >', 1)\nopen(p, 'w').write(s)\nPY\nsudo /var/lib/bench66642654/bin/mk8sctl restart\n"
+  }
+]

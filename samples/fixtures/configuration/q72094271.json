@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q72094271",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q72094271/reference_solution.sh"
+  },
+  {
+    "case_id": "q72094271",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q72094271",
+    "category": "configuration",
+    "model": "alt_valid_base_runtime_spec_with_an_rlimit_core_entry",
+    "code": "# keep LimitCORE=infinity in the unit; give every container the rlimit through the runc handler of the CRI plugin: a copy of the default OCI spec with RLIMIT_CORE 0/0, set as base_runtime_spec\nctr oci spec | sudo python3 -c \"\nimport json, sys\ns = json.load(sys.stdin)\ns['process']['rlimits'] = [r for r in s['process'].get('rlimits', []) if r['type'] != 'RLIMIT_CORE'] + [{'type': 'RLIMIT_CORE', 'hard': 0, 'soft': 0}]\njson.dump(s, open('/etc/bench72094271/base-spec.json', 'w'))\n\"\nsudo sed -i \"s#^\\( *base_runtime_spec = \\).*#\\1'/etc/bench72094271/base-spec.json'#\" /etc/bench72094271/containerd.toml\nsudo systemctl restart bench72094271-containerd.service\n"
+  },
+  {
+    "case_id": "q72094271",
+    "category": "configuration",
+    "model": "wrong_unit_edited_and_restarted_without_daemon_reload",
+    "code": "# what the asker did first: the unit file is edited and the service restarted, but systemd keeps the unit it loaded before\nsudo sed -i 's/^LimitCORE=.*/LimitCORE=0/' /etc/systemd/system/bench72094271-containerd.service\nsudo systemctl restart bench72094271-containerd.service\n"
+  },
+  {
+    "case_id": "q72094271",
+    "category": "configuration",
+    "model": "wrong_soft_limit_only_hard_left_unlimited",
+    "code": "# soft 0, hard infinity: the main process shows 'ulimit -c' 0, but any process can raise it again\nsudo mkdir -p /etc/systemd/system/bench72094271-containerd.service.d\nprintf '[Service]\\nLimitCORE=0:infinity\\n' | sudo tee /etc/systemd/system/bench72094271-containerd.service.d/10-core.conf >/dev/null\nsudo systemctl daemon-reload\nsudo systemctl restart bench72094271-containerd.service\n"
+  },
+  {
+    "case_id": "q72094271",
+    "category": "configuration",
+    "model": "wrong_prlimit_on_the_running_containerd_not_persistent",
+    "code": "# the new containers inherit from the running containerd, but nothing of the service changed: the next restart brings infinity back\nsudo prlimit --core=0:0 --pid \"$(systemctl show -p MainPID --value bench72094271-containerd.service)\"\n"
+  },
+  {
+    "case_id": "q72094271",
+    "category": "configuration",
+    "model": "cheating_containerd_stopped_and_started_by_hand_with_prlimit",
+    "code": "# containerd leaves the service: the process that answers on the socket is not the main process of the unit\nsudo systemctl stop bench72094271-containerd.service\nsudo setsid -f prlimit --core=0:0 containerd --config /etc/bench72094271/containerd.toml >/tmp/bench72094271-hand.log 2>&1 </dev/null\nsleep 3\n"
+  },
+  {
+    "case_id": "q72094271",
+    "category": "configuration",
+    "model": "cheating_core_pattern_changed_so_that_no_core_appears",
+    "code": "# no core file anywhere, but the limit of the containers is still unlimited\nsudo sysctl -w kernel.core_pattern=/dev/null\n"
+  }
+]
