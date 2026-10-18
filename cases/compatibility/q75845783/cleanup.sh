@@ -116,7 +116,7 @@ fi
 if [ -e "$OWNED_MARKER" ]; then
     # results cached by the CNI library: the network "bridge" of nerdctl and "benchnet" of the pod sandboxes are the case's own; a cached
     # loopback result is removed when the network namespace it names is gone
-    sudo rm -f /var/lib/cni/results/bridge-* /var/lib/cni/results/benchnet-* 2>/dev/null
+    sudo sh -c 'rm -f /var/lib/cni/results/bridge-* /var/lib/cni/results/benchnet-*' 2>/dev/null     # the glob must be expanded by root: the directory is 0700
     for f in $(sudo ls /var/lib/cni/results 2>/dev/null | grep '^cni-loopback-'); do
         ns="$(sudo grep -o '/var/run/netns/cni-[0-9a-f-]*' "/var/lib/cni/results/$f" 2>/dev/null | head -1)"
         [ -n "$ns" ] && [ ! -e "$ns" ] && sudo rm -f "/var/lib/cni/results/$f"
