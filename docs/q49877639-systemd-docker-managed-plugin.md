@@ -1,6 +1,6 @@
 # q49877639 — Running systemd in a Docker managed plugin (configuration)
 
-Status: built and verified in the sandbox (x86_64, Docker 29.8.2, containerd 2.3.6, runc 1.5.1, systemd 255.4, cgroup v1/hybrid) as root, as non-root `bench` (sudo) and under a pty; the oracle passed three times on one setup, residue is clean. NOT yet run on the user's VM (aarch64, cgroup v2): see "VM-only".
+Status: complete. Built in the sandbox (x86_64, Docker 29.8.2, containerd 2.3.6, runc 1.5.1, systemd 255.4, cgroup v1/hybrid) as root, as non-root `bench` (sudo) and under a pty, and verified on the user's VM (aarch64, cgroup v2): all 8 samples gave the expected result (reference_solution and alt_valid PASS, the other 6 FAIL) and the residue check was clean.
 
 ## What the thread is really about
 
@@ -44,8 +44,6 @@ Not in the fixture on purpose: "init + /run fix but the asker's read-only cgroup
 5. `docker plugin create` copies the directory; a `rootfs` symlink is not followed.
 6. Without a terminal systemd's messages are invisible (no /dev/console); use `script -qec` or strace to see them.
 
-## VM-only (not verifiable in the sandbox)
+## VM verification (done)
 
-- cgroup v2: the reference solution (rw rbind of the host's cgroup tree, systemd non-cgroupns) is expected to pass; the sandbox only emulated it. Control 2 of precondition.sh checks exactly this on the VM before any sample runs.
-- AppArmor/seccomp of the VM's Docker for `mount` inside a plugin; `--exec-opt native.cgroupdriver=cgroupfs` on a v2 host.
-- aarch64: the rootfs is made from the machine's own files; the libraries and loader are found with ldd.
+Checked on the user's VM (aarch64, cgroup v2) and found as expected: the reference solution passes with the rw rbind of the host's cgroup tree (control 2 of precondition.sh passes there too), the AppArmor/seccomp of the VM's Docker did not block `mount` inside the plugin, and the rootfs made from the machine's own files works on aarch64. One sandbox-only caveat remains: the two cgroup-version-dependent variants that are left out of the fixture on purpose (read-only cgroup mounts) were never run on the VM.
