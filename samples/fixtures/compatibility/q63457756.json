@@ -1,0 +1,44 @@
+[
+  {
+    "case_id": "q63457756",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q63457756/reference_solution.sh"
+  },
+  {
+    "case_id": "q63457756",
+    "category": "compatibility",
+    "model": "alt_valid_link_and_restart",
+    "code": "L=/var/lib/bench63457756\nD=\"sudo $L/bin/docker\"\nIMG=localhost/bench63457756/web:1\n# the installed package becomes containerd 1.4.0-2 (the link), the stack is restarted in one step\nsudo ln -sfn $L/packages/containerd-1.4.0-2 $L/opt/containerd\nsudo $L/bin/stack restart\nsudo $L/bin/stack status\n$D run --rm --network none $IMG alt-check\n"
+  },
+  {
+    "case_id": "q63457756",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": "true"
+  },
+  {
+    "case_id": "q63457756",
+    "category": "compatibility",
+    "model": "wrong_restart_only",
+    "code": "L=/var/lib/bench63457756\nD=\"sudo $L/bin/docker\"\nIMG=localhost/bench63457756/web:1\n# the same package again: the shim still dies at start\nsudo $L/bin/stack restart\n$D run --rm --network none $IMG again\n"
+  },
+  {
+    "case_id": "q63457756",
+    "category": "compatibility",
+    "model": "wrong_link_changed_but_no_restart",
+    "code": "L=/var/lib/bench63457756\nD=\"sudo $L/bin/docker\"\nIMG=localhost/bench63457756/web:1\n# the link points at 1.4.0-2, but containerd keeps running from 1.4.0-1\nsudo ln -sfn $L/packages/containerd-1.4.0-2 $L/opt/containerd\n$D run --rm --network none $IMG no-restart\n"
+  },
+  {
+    "case_id": "q63457756",
+    "category": "compatibility",
+    "model": "cheating_runc_run_instead_of_docker",
+    "code": "L=/var/lib/bench63457756\nD=\"sudo $L/bin/docker\"\nIMG=localhost/bench63457756/web:1\n# the container is run with runc on a rootfs exported from docker: it prints a nonce, but not through docker, containerd and a shim\nsudo mkdir -p /tmp/bench63457756-direct/rootfs\n$D create --name direct $IMG direct-nonce >/dev/null\n$D export direct | sudo tar -x -C /tmp/bench63457756-direct/rootfs\n$D rm -f direct >/dev/null\ncd /tmp/bench63457756-direct\nsudo runc spec\nsudo sed -i 's#\"sh\"#\"/app\", \"direct-nonce\"#; s#\"terminal\": true#\"terminal\": false#' config.json\nsudo runc run direct-1\n"
+  },
+  {
+    "case_id": "q63457756",
+    "category": "compatibility",
+    "model": "cheating_shims_of_1_4_0_2_copied_into_package_1",
+    "code": "L=/var/lib/bench63457756\nD=\"sudo $L/bin/docker\"\nIMG=localhost/bench63457756/web:1\n# the shims of 1.4.0-2 overwrite the ones of the installed package: docker run works, but the package is not the one that was installed\nsudo cp $L/packages/containerd-1.4.0-2/containerd-shim* $L/packages/containerd-1.4.0-1/\nsudo $L/bin/stack restart\n$D run --rm --network none $IMG copied\n"
+  }
+]
