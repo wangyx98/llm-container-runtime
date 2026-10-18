@@ -1,0 +1,44 @@
+[
+  {
+    "case_id": "q45937714",
+    "category": "configuration",
+    "model": "reference_solution",
+    "code": "bash cases/configuration/q45937714/reference_solution.sh"
+  },
+  {
+    "case_id": "q45937714",
+    "category": "configuration",
+    "model": "alt_valid_run_command_rebuilt_from_inspect",
+    "code": "export DOCKER_HOST=unix:///run/bench45937714/src.sock\nB=/var/backups/bench45937714\nsudo rm -rf $B\nsudo mkdir -p $B\n# the backup script reads the configuration of web once and writes the docker create command into restore.sh\nsudo -E sh -c \"\ncd $B\ndocker inspect web > inspect.json\ndocker save localhost/bench45937714/web:1 -o image.tar\ndocker cp web:/data/. - > data.tar\ndocker cp web:/var/lib/marker.txt - > marker.tar\ncat /var/lib/bench45937714/conf/app.conf > app.conf\n\"\nsudo python3 - <<'PY'\nimport json, shlex\nc = json.load(open(\"/var/backups/bench45937714/inspect.json\"))[0]\ncfg, h = c[\"Config\"], c[\"HostConfig\"]\ncmd = [\"docker\", \"create\", \"--name\", \"web\", \"--restart\", h[\"RestartPolicy\"][\"Name\"], \"--network\", \"appnet\", \"--network-alias\", \"web-svc\", \"-p\", \"127.0.0.1:18437:8080\",\n       \"-w\", cfg[\"WorkingDir\"], \"--label\", \"bench.role=\" + cfg[\"Labels\"][\"bench.role\"], \"-v\", \"webdata:/data\", \"-v\", \"/var/lib/bench45937714/conf/app.conf:/etc/app.conf:ro\"]\nfor e in cfg[\"Env\"]:\n    if e.split(\"=\", 1)[0] in (\"NONCE\", \"APP_MODE\", \"EXTRA\"):\n        cmd += [\"-e\", e]\ncmd += [cfg[\"Image\"]] + cfg[\"Cmd\"]\ntext = '''#!/bin/bash\nset -e\ncd \"$(dirname \"$0\")\"\ndocker load -i image.tar\ndocker network create appnet >/dev/null\ndocker volume create webdata >/dev/null\nmkdir -p /var/lib/bench45937714/conf\ncp app.conf /var/lib/bench45937714/conf/app.conf\n''' + \" \".join(shlex.quote(a) for a in cmd) + '''\ndocker cp - web:/data < data.tar\ndocker cp - web:/var/lib < marker.tar\ndocker start web\n'''\nopen(\"/var/backups/bench45937714/restore.sh\", \"w\").write(text)\nPY\nsudo chmod +x $B/restore.sh\n"
+  },
+  {
+    "case_id": "q45937714",
+    "category": "configuration",
+    "model": "no_op_baseline",
+    "code": "true"
+  },
+  {
+    "case_id": "q45937714",
+    "category": "configuration",
+    "model": "wrong_image_only_save_load",
+    "code": "export DOCKER_HOST=unix:///run/bench45937714/src.sock\nB=/var/backups/bench45937714\nsudo rm -rf $B\nsudo mkdir -p $B\n# only the image is saved: nothing of the container (arguments, environment, data, configuration file, network, restart policy) is in the backup\nsudo -E docker save localhost/bench45937714/web:1 -o $B/image.tar\nsudo tee $B/restore.sh >/dev/null <<'RESTORE'\n#!/bin/bash\ncd \"$(dirname \"$0\")\"\ndocker load -i image.tar\ndocker network create appnet\ndocker run -d --name web --network appnet -p 127.0.0.1:18437:8080 localhost/bench45937714/web:1\nRESTORE\nsudo chmod +x $B/restore.sh\n"
+  },
+  {
+    "case_id": "q45937714",
+    "category": "configuration",
+    "model": "wrong_commit_the_container_into_an_image",
+    "code": "export DOCKER_HOST=unix:///run/bench45937714/src.sock\nB=/var/backups/bench45937714\nsudo rm -rf $B\nsudo mkdir -p $B\n# docker commit keeps the command, the environment and the file of the writable layer, but not the volume, the host file, the network, the alias or the restart policy\nsudo -E docker commit web web-backup:1\nsudo -E docker save web-backup:1 -o $B/image.tar\nsudo tee $B/restore.sh >/dev/null <<'RESTORE'\n#!/bin/bash\ncd \"$(dirname \"$0\")\"\ndocker load -i image.tar\ndocker network create appnet\ndocker run -d --name web --network appnet -p 127.0.0.1:18437:8080 web-backup:1\nRESTORE\nsudo chmod +x $B/restore.sh\n"
+  },
+  {
+    "case_id": "q45937714",
+    "category": "configuration",
+    "model": "wrong_data_and_files_restored_but_no_alias_no_restart_policy",
+    "code": "export DOCKER_HOST=unix:///run/bench45937714/src.sock\nB=/var/backups/bench45937714\nsudo rm -rf $B\nsudo mkdir -p $B\n# everything is restored except the network alias and the restart policy\nsudo -E sh -c \"\ncd $B\ndocker inspect web > inspect.json\ndocker save localhost/bench45937714/web:1 -o image.tar\ndocker cp web:/data/. - > data.tar\ndocker cp web:/var/lib/marker.txt - > marker.tar\ncat /var/lib/bench45937714/conf/app.conf > app.conf\n\"\nsudo tee $B/restore.sh >/dev/null <<'RESTORE'\n#!/bin/bash\nset -e\ncd \"$(dirname \"$0\")\"\ndocker load -i image.tar\ndocker network create appnet >/dev/null\ndocker volume create webdata >/dev/null\nmkdir -p /var/lib/bench45937714/conf\ncp app.conf /var/lib/bench45937714/conf/app.conf\n. ./env.sh\ndocker create --name web --network appnet -p 127.0.0.1:18437:8080 -w /opt/work --label bench.role=web -e \"NONCE=$NONCE\" -e APP_MODE=blue -e \"EXTRA=a b=c\" \\\n  -v webdata:/data -v /var/lib/bench45937714/conf/app.conf:/etc/app.conf:ro localhost/bench45937714/web:1 --title \"Backup Test\" --listen 8080 >/dev/null\ndocker cp - web:/data < data.tar\ndocker cp - web:/var/lib < marker.tar\ndocker start web\nRESTORE\nsudo chmod +x $B/restore.sh\nsudo -E sh -c \"docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' web | grep '^NONCE=' | sed 's/^/export /' > $B/env.sh\"\n"
+  },
+  {
+    "case_id": "q45937714",
+    "category": "configuration",
+    "model": "cheating_a_fake_service_answers_on_the_port",
+    "code": "export DOCKER_HOST=unix:///run/bench45937714/src.sock\nB=/var/backups/bench45937714\nsudo rm -rf $B\nsudo mkdir -p $B\n# the answer of the service is copied and a stand-in waits for the port to be free (web holds it now) and then serves it; restore.sh only pretends\nsudo -E sh -c \"curl -s http://127.0.0.1:18437/ > /var/backups/bench45937714/answer.txt\"\nsudo tee $B/serve.py >/dev/null <<'PY'\nimport http.server\na = open(\"/var/backups/bench45937714/answer.txt\", \"rb\").read()\nclass H(http.server.BaseHTTPRequestHandler):\n    def do_GET(self):\n        self.send_response(200); self.end_headers(); self.wfile.write(a)\nimport time\nwhile True:\n    try:\n        srv = http.server.HTTPServer((\"127.0.0.1\", 18437), H)\n        break\n    except OSError:\n        time.sleep(0.1)\nsrv.serve_forever()\nPY\nsudo tee $B/restore.sh >/dev/null <<'RESTORE'\n#!/bin/bash\necho restored\nRESTORE\nsudo chmod +x $B/restore.sh\nsudo -E sh -c \"cd /; setsid nohup python3 $B/serve.py >/dev/null 2>&1 &\"\nsleep 1\n"
+  }
+]
