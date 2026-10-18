@@ -1,0 +1,16 @@
+This machine is a VM with systemd. It runs one container, web, made with runc directly (no Docker, no containerd). The engineer's runc is /var/lib/bench73434226/bin/runc (version 1.1.3); it keeps its state in /run/bench73434226/runc, and the container was started from the bundle /var/lib/bench73434226/bundle (config.json and rootfs) with:
+
+    sudo /var/lib/bench73434226/bin/runc --systemd-cgroup --root /run/bench73434226/runc run -d --pid-file /run/bench73434226/web.pid web </dev/null >/dev/null 2>&1
+
+so it runs as the systemd scope bench73434226-web.scope. Its process, /app (started with a token as its argument), writes one line with the time, its pid and the token to /data/heartbeat every second; /data is the host directory /run/bench73434226/data. The runc of the machine's own package is installed too (the runc on the PATH).
+
+Right after the container was started, an interactive exec worked. Since a configuration reload of systemd (systemctl daemon-reload) it does not:
+
+    $ sudo /var/lib/bench73434226/bin/runc --root /run/bench73434226/runc exec -t web /bin/sh
+    ERRO[0000] exec failed: unable to start container process: open /dev/pts/0: operation not permitted
+
+A non-interactive exec (exec web /bin/id) works, and the workload runs. A quick restart of the container made the interactive exec work for a while, until the next reload.
+
+Make the interactive exec into web work again and keep it working: it has to work after further systemctl daemon-reloads too. The container stays the container web, with the same workload (/app and its token) writing its heartbeat, in the systemd scope bench73434226-web.scope (the systemd cgroup driver stays), and with the isolation of a normal container: do not make it privileged, do not open all devices or switch the device policy off, do not share the host's namespaces or its /dev. The interactive exec has to work with the engineer's runc (the file /var/lib/bench73434226/bin/runc, whatever it holds when you are done) and with runc 1.1.3 (other tools of the engineer still run exec with that version, so the container itself has to accept it). Do not change the machine's own runc.
+
+You may use runc, systemctl and the usual Linux tools. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo. Return the commands needed to complete the task.

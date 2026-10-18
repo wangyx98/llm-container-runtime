@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q73434226",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q73434226/reference_solution.sh"
+  },
+  {
+    "case_id": "q73434226",
+    "category": "compatibility",
+    "model": "alt_valid_scope_gets_the_pty_rule_without_recreating_the_container",
+    "code": "# the container stays as it is; its systemd scope gets the pseudo terminal rule runc 1.1.3 left out (kept by systemd through every reload)\nsudo systemctl set-property --runtime bench73434226-web.scope 'DeviceAllow=char-pts rwm'\n"
+  },
+  {
+    "case_id": "q73434226",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": "true"
+  },
+  {
+    "case_id": "q73434226",
+    "category": "compatibility",
+    "model": "wrong_restart_the_container_with_the_same_runc_1_1_3",
+    "code": "L=/var/lib/bench73434226\nROOT=/run/bench73434226/runc\nENG=$L/bin/runc\nSCOPE=bench73434226-web.scope\n# a restart makes the exec work until the next daemon-reload: the same runc builds the same scope\nsudo \"$ENG\" --root \"$ROOT\" delete -f web\nfor _ in $(seq 1 40); do [ \"$(systemctl is-active $SCOPE 2>/dev/null)\" = active ] || break; sleep 0.5; done\nRUNCBIN=$ENG\ncd $L/bundle\nsudo \"$RUNCBIN\" --systemd-cgroup --root $ROOT run -d --pid-file /run/bench73434226/web.pid web </dev/null >/dev/null 2>&1\nfor _ in $(seq 1 20); do sudo grep -q \"token=\" /run/bench73434226/data/heartbeat 2>/dev/null && break; sleep 0.5; done\n"
+  },
+  {
+    "case_id": "q73434226",
+    "category": "compatibility",
+    "model": "wrong_chmod_dev_pts",
+    "code": "L=/var/lib/bench73434226\nROOT=/run/bench73434226/runc\nENG=$L/bin/runc\nSCOPE=bench73434226-web.scope\n# the device node's mode is not what refuses the open: the cgroup's device rules are\nsudo chmod 666 /dev/ptmx /dev/pts/* 2>/dev/null || true\nsudo \"$ENG\" --root \"$ROOT\" exec web /bin/sh -c 'chmod 666 /dev/ptmx /dev/pts/* 2>/dev/null; true' || true\n"
+  },
+  {
+    "case_id": "q73434226",
+    "category": "compatibility",
+    "model": "wrong_upgrade_only_the_engineers_runc_container_not_recreated",
+    "code": "L=/var/lib/bench73434226\nROOT=/run/bench73434226/runc\nENG=$L/bin/runc\nSCOPE=bench73434226-web.scope\n# a newer runc on the engineer's path: its own exec happens to work, but the container's scope still lacks the rule and every runc 1.1.3 exec still fails\nsudo install -m 755 \"$(command -v runc)\" \"$ENG\"\n"
+  },
+  {
+    "case_id": "q73434226",
+    "category": "compatibility",
+    "model": "cheating_recreated_with_every_device_allowed",
+    "code": "L=/var/lib/bench73434226\nROOT=/run/bench73434226/runc\nENG=$L/bin/runc\nSCOPE=bench73434226-web.scope\n# fixed runc, but the bundle now allows every device: the TTY exec works, the isolation is gone\nsudo python3 - <<'EOF'\nimport json\np = \"/var/lib/bench73434226/bundle/config.json\"\nc = json.load(open(p))\nc[\"linux\"][\"resources\"][\"devices\"] = [{\"allow\": True, \"access\": \"rwm\"}]\njson.dump(c, open(p, \"w\"), indent=2)\nEOF\nsudo \"$ENG\" --root \"$ROOT\" delete -f web\nfor _ in $(seq 1 40); do [ \"$(systemctl is-active $SCOPE 2>/dev/null)\" = active ] || break; sleep 0.5; done\nRUNCBIN=$(command -v runc)\ncd $L/bundle\nsudo \"$RUNCBIN\" --systemd-cgroup --root $ROOT run -d --pid-file /run/bench73434226/web.pid web </dev/null >/dev/null 2>&1\nfor _ in $(seq 1 20); do sudo grep -q \"token=\" /run/bench73434226/data/heartbeat 2>/dev/null && break; sleep 0.5; done\n"
+  },
+  {
+    "case_id": "q73434226",
+    "category": "compatibility",
+    "model": "wrong_cgroupfs_driver_instead_of_systemd",
+    "code": "L=/var/lib/bench73434226\nROOT=/run/bench73434226/runc\nENG=$L/bin/runc\nSCOPE=bench73434226-web.scope\n# the container is made without the systemd cgroup driver: systemd never reloads its rules, but the container is not a systemd scope any more\nsudo python3 - <<'EOF'\nimport json\np = \"/var/lib/bench73434226/bundle/config.json\"\nc = json.load(open(p))\nc[\"linux\"][\"cgroupsPath\"] = \"/bench73434226/web\"\njson.dump(c, open(p, \"w\"), indent=2)\nEOF\nsudo \"$ENG\" --root \"$ROOT\" delete -f web\nfor _ in $(seq 1 40); do [ \"$(systemctl is-active $SCOPE 2>/dev/null)\" = active ] || break; sleep 0.5; done\nRUNCBIN=$ENG\ncd $L/bundle\nsudo \"$RUNCBIN\" --root $ROOT run -d --pid-file /run/bench73434226/web.pid web </dev/null >/dev/null 2>&1\nfor _ in $(seq 1 20); do sudo grep -q \"token=\" /run/bench73434226/data/heartbeat 2>/dev/null && break; sleep 0.5; done\n"
+  }
+]
