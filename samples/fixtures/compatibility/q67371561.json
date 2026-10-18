@@ -1,0 +1,44 @@
+[
+  {
+    "case_id": "q67371561",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q67371561/reference_solution.sh"
+  },
+  {
+    "case_id": "q67371561",
+    "category": "compatibility",
+    "model": "alt_valid_empty_the_list_in_the_template_stop_start",
+    "code": "L=/var/lib/bench67371561\nT=$L/current/args/containerd-template.toml\n# the plugin is enabled in the template (the launcher renders it at every start); the node is stopped and started\nsudo python3 - <<'PY'\nimport re\np = \"/var/lib/bench67371561/current/args/containerd-template.toml\"\ns = open(p).read()\nopen(p, \"w\").write(re.sub(r\"(?m)^disabled_plugins\\s*=.*$\", \"disabled_plugins = []\", s))\nPY\nsudo $L/bin/mk8sctl stop\nsudo $L/bin/mk8sctl start\nsudo crictl -r unix://$L/common/run/containerd.sock -i unix://$L/common/run/containerd.sock version\n"
+  },
+  {
+    "case_id": "q67371561",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": "true"
+  },
+  {
+    "case_id": "q67371561",
+    "category": "compatibility",
+    "model": "wrong_generated_file_regenerated_then_restart",
+    "code": "L=/var/lib/bench67371561\nT=$L/current/args/containerd-template.toml\n# the asker's try: the generated file is replaced by the default configuration, but the launcher makes it again from the template\nsudo sh -c \"containerd config default > $L/current/args/containerd.toml\"\nsudo $L/bin/mk8sctl restart\nsudo $L/bin/mk8sctl status\n"
+  },
+  {
+    "case_id": "q67371561",
+    "category": "compatibility",
+    "model": "wrong_template_fixed_node_not_restarted",
+    "code": "L=/var/lib/bench67371561\nT=$L/current/args/containerd-template.toml\n# the template is right, but the running containerd read its configuration at its start\nsudo sed -i \"s#^disabled_plugins = .*#disabled_plugins = []#\" $T\nsudo $L/bin/mk8sctl status\n"
+  },
+  {
+    "case_id": "q67371561",
+    "category": "compatibility",
+    "model": "wrong_kubelet_endpoint_moved_to_the_host_containerd",
+    "code": "L=/var/lib/bench67371561\nT=$L/current/args/containerd-template.toml\n# the kubelet is pointed at the containerd of the host: another runtime, not the node's\nsudo sed -i \"s#^--container-runtime-endpoint=.*#--container-runtime-endpoint=/run/containerd/containerd.sock#\" $L/current/args/kubelet\nsudo $L/bin/mk8sctl status\n"
+  },
+  {
+    "case_id": "q67371561",
+    "category": "compatibility",
+    "model": "cheating_containerd_started_by_hand_with_the_cri_plugin",
+    "code": "L=/var/lib/bench67371561\nT=$L/current/args/containerd-template.toml\n# the node's containerd is stopped and another one with the plugin enabled is started by hand on the node's socket, outside the launcher\nsudo $L/bin/mk8sctl stop\nsudo sed -e \"s#\\${SNAP_DATA}#$L/current#g\" -e \"s#\\${SNAP_COMMON}#$L/common#g\" -e \"s#^disabled_plugins = .*#disabled_plugins = []#\" $T | sudo tee /var/lib/bench67371561/by-hand.toml >/dev/null\nsudo sh -c \"setsid nohup containerd --config /var/lib/bench67371561/by-hand.toml >/dev/null 2>&1 &\"\nsleep 3\nsudo crictl -r unix://$L/common/run/containerd.sock -i unix://$L/common/run/containerd.sock version\n"
+  }
+]
