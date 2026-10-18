@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q70231694",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q70231694/reference_solution.sh"
+  },
+  {
+    "case_id": "q70231694",
+    "category": "compatibility",
+    "model": "alt_valid_new_toml_socket_directory_on_another_path_buildctl_copied_with_kubectl_cp",
+    "code": "L=/var/lib/bench70231694\nKC=\"sudo $L/bin/kubectl\"\nBK=unix:///run/bench70231694/buildkit/buildkitd.sock\nwaitbk() { for _ in $(seq 1 30); do sudo $L/libexec/buildctl --addr $BK debug workers >/dev/null 2>&1 && break; sleep 1; done; }\n# the worker gets the namespace default by a new configuration file; the Pod is made again with the socket directory at /bk and BUILDKIT_HOST;\n# buildctl is copied into the new Pod\nsudo tee $L/buildkit/buildkitd.toml >/dev/null <<EOF\nroot = \"$L/buildkit/root\"\n[grpc]\n  address = [\"unix:///run/bench70231694/buildkit/buildkitd.sock\"]\n[worker.oci]\n  enabled = false\n[worker.containerd]\n  enabled = true\n  address = \"/run/bench70231694/containerd.sock\"\n  namespace = \"default\"\nEOF\nsudo $L/bin/buildkitctl restart\nwaitbk\n$KC delete pod builder --wait >/dev/null\nsudo tee $L/builder.yaml >/dev/null <<'EOF'\napiVersion: v1\nkind: Pod\nmetadata:\n  name: builder\nspec:\n  containers:\n    - name: nerdctl\n      image: bench70231694.local/builder:1\n      imagePullPolicy: IfNotPresent\n      env:\n        - name: BUILDKIT_HOST\n          value: unix:///bk/buildkitd.sock\n      securityContext:\n        runAsUser: 0\n      volumeMounts:\n        - mountPath: /workspace\n          name: workspace\n          readOnly: true\n        - mountPath: /run/containerd/containerd.sock\n          name: containerd\n        - mountPath: /bk\n          name: bk\n  restartPolicy: Always\n  volumes:\n    - name: workspace\n      hostPath:\n        path: /var/lib/bench70231694/workspace\n    - name: containerd\n      hostPath:\n        path: /run/bench70231694/containerd.sock\n    - name: bk\n      hostPath:\n        path: /run/bench70231694/buildkit\nEOF\n$KC apply -f $L/builder.yaml >/dev/null\n$KC wait --for=condition=Ready pod/builder --timeout=120s >/dev/null\n$KC cp $L/libexec/buildctl builder:/usr/local/bin/buildctl\n$KC exec builder -- chmod +x /usr/local/bin/buildctl\n$KC exec builder -- nerdctl build -t bench70231694.local/payload:1 /workspace\n"
+  },
+  {
+    "case_id": "q70231694",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": "true"
+  },
+  {
+    "case_id": "q70231694",
+    "category": "compatibility",
+    "model": "wrong_only_buildctl_copied_into_the_running_pod",
+    "code": "L=/var/lib/bench70231694\nKC=\"sudo $L/bin/kubectl\"\nBK=unix:///run/bench70231694/buildkit/buildkitd.sock\nwaitbk() { for _ in $(seq 1 30); do sudo $L/libexec/buildctl --addr $BK debug workers >/dev/null 2>&1 && break; sleep 1; done; }\n# the worker is right and buildctl is in the Pod, but the Pod has no way to reach buildkitd\nsudo sed -i 's/^\\([[:space:]]*namespace = \\).*/\\1\"default\"/' $L/buildkit/buildkitd.toml\nsudo $L/bin/buildkitctl restart\nwaitbk\n$KC cp $L/libexec/buildctl builder:/usr/local/bin/buildctl\n$KC exec builder -- chmod +x /usr/local/bin/buildctl\n$KC exec builder -- nerdctl build -t bench70231694.local/payload:1 /workspace\n"
+  },
+  {
+    "case_id": "q70231694",
+    "category": "compatibility",
+    "model": "wrong_socket_and_buildctl_mounted_but_worker_namespace_unchanged",
+    "code": "# the reference solution without the change of the worker's namespace: the base image is not found by a worker in the namespace buildkit\nsed -e '/buildkitd.toml/d' -e '/buildkitctl restart/d' cases/compatibility/q70231694/reference_solution.sh | bash"
+  },
+  {
+    "case_id": "q70231694",
+    "category": "compatibility",
+    "model": "wrong_worker_stays_in_namespace_buildkit_base_image_copied_and_pod_uses_that_namespace",
+    "code": "# the worker keeps the namespace buildkit; the base image is copied there and the Pod's nerdctl is told to use that namespace: the build works,\n# but the image is not in the namespace default of the node\nsudo ctr -a /run/bench70231694/containerd.sock -n default images export /tmp/bench70231694-base.tar localhost/bench70231694-base:1\nsudo ctr -a /run/bench70231694/containerd.sock -n buildkit images import /tmp/bench70231694-base.tar\nsudo rm -f /tmp/bench70231694-base.tar\nsed -e '/buildkitd.toml/d' -e '/buildkitctl restart/d' -e 's/^      securityContext:/      env:\\n        - name: CONTAINERD_NAMESPACE\\n          value: buildkit\\n&/' cases/compatibility/q70231694/reference_solution.sh | bash"
+  },
+  {
+    "case_id": "q70231694",
+    "category": "compatibility",
+    "model": "cheating_image_built_on_the_host_pod_cannot_build",
+    "code": "L=/var/lib/bench70231694\nKC=\"sudo $L/bin/kubectl\"\nBK=unix:///run/bench70231694/buildkit/buildkitd.sock\nwaitbk() { for _ in $(seq 1 30); do sudo $L/libexec/buildctl --addr $BK debug workers >/dev/null 2>&1 && break; sleep 1; done; }\n# buildctl is in the Pod but it has no socket; the image is made on the host with buildctl\nsudo sed -i 's/^\\([[:space:]]*namespace = \\).*/\\1\"default\"/' $L/buildkit/buildkitd.toml\nsudo $L/bin/buildkitctl restart\nwaitbk\n$KC cp $L/libexec/buildctl builder:/usr/local/bin/buildctl\nsudo $L/libexec/buildctl --addr $BK build --frontend dockerfile.v0 --local context=$L/workspace --local dockerfile=$L/workspace \\\n    --output type=image,name=bench70231694.local/payload:1,unpack=true\nsudo ctr -a /run/bench70231694/containerd.sock -n default images ls | grep payload\n"
+  },
+  {
+    "case_id": "q70231694",
+    "category": "compatibility",
+    "model": "wrong_privileged_pod",
+    "code": "# the reference solution with a privileged Pod: everything builds, the Pod is not what the question allows\nsed 's/privileged: false/privileged: true/' cases/compatibility/q70231694/reference_solution.sh | bash"
+  }
+]
