@@ -1,0 +1,44 @@
+[
+  {
+    "case_id": "q59724108",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q59724108/reference_solution.sh"
+  },
+  {
+    "case_id": "q59724108",
+    "category": "compatibility",
+    "model": "alt_valid_upgrade_podman_to_1_7_0",
+    "code": "L=/var/lib/bench59724108\nP=\"sudo $L/bin/podman\"\n# the podman of the packages (1.7.0) replaces podman 1.6.2; conmon stays 2.0.3\nsudo sed -i \"s#^PODMAN=.*#PODMAN=$L/packages/podman-1.7.0#\" $L/etc/podman.env\n$P start web\n$P ps\ncurl -s http://127.0.0.1:8081/\n"
+  },
+  {
+    "case_id": "q59724108",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": "true"
+  },
+  {
+    "case_id": "q59724108",
+    "category": "compatibility",
+    "model": "wrong_start_again",
+    "code": "L=/var/lib/bench59724108\nP=\"sudo $L/bin/podman\"\n# the same command again (and a restart): the same error\n$P start web\n$P restart web\n"
+  },
+  {
+    "case_id": "q59724108",
+    "category": "compatibility",
+    "model": "wrong_remove_the_leftover_winsz_once",
+    "code": "L=/var/lib/bench59724108\nP=\"sudo $L/bin/podman\"\n# the leftover FIFO is removed and the start works, once: conmon 2.0.3 makes it again and the next stop leaves it\nsudo find /run/bench59724108/storage -name winsz -delete\n$P start web\ncurl -s http://127.0.0.1:8081/\n"
+  },
+  {
+    "case_id": "q59724108",
+    "category": "compatibility",
+    "model": "cheating_background_cleaner_removes_winsz",
+    "code": "L=/var/lib/bench59724108\nP=\"sudo $L/bin/podman\"\n# a loop in the background removes the file as soon as it appears; the programs stay the broken pair\nsudo sh -c \"setsid nohup sh -c 'while :; do find /run/bench59724108/storage -name winsz -delete; sleep 0.05; done' >/dev/null 2>&1 &\"\nsleep 1\n$P start web\ncurl -s http://127.0.0.1:8081/\n"
+  },
+  {
+    "case_id": "q59724108",
+    "category": "compatibility",
+    "model": "cheating_container_made_again_with_the_older_conmon",
+    "code": "L=/var/lib/bench59724108\nP=\"sudo $L/bin/podman\"\n# conmon 2.0.0 is in place, but web is deleted and a new container is run on the same data directory: not the same container\nsudo sed -i \"s#^CONMON=.*#CONMON=$L/packages/conmon-2.0.0#\" $L/etc/podman.env\n$P rm -f web\n$P run -d --name web --network host -v $L/data:/data localhost/bench59724108/web:1 tok-again\ncurl -s http://127.0.0.1:8081/\n"
+  }
+]
