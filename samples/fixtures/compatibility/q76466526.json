@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q76466526",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q76466526/reference_solution.sh"
+  },
+  {
+    "case_id": "q76466526",
+    "category": "compatibility",
+    "model": "alt_valid_docker_save_piped_into_ctr_import",
+    "code": "sudo /var/lib/bench76466526/bin/docker save bench76466526/app:v1 | sudo /var/lib/bench76466526/bin/ctr -n default images import -"
+  },
+  {
+    "case_id": "q76466526",
+    "category": "compatibility",
+    "model": "alt_valid_import_all_platforms_from_a_tar",
+    "code": "t=$(sudo mktemp)\nsudo /var/lib/bench76466526/bin/docker save -o \"$t\" bench76466526/app:v1\nsudo /var/lib/bench76466526/bin/ctr images import --all-platforms \"$t\"\nsudo rm -f \"$t\""
+  },
+  {
+    "case_id": "q76466526",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": "true"
+  },
+  {
+    "case_id": "q76466526",
+    "category": "compatibility",
+    "model": "wrong_look_in_every_namespace",
+    "code": "for ns in default k8s.io moby; do sudo /var/lib/bench76466526/bin/ctr -n $ns images ls; done\nsudo /var/lib/bench76466526/bin/docker image ls"
+  },
+  {
+    "case_id": "q76466526",
+    "category": "compatibility",
+    "model": "wrong_import_into_k8s_io",
+    "code": "sudo /var/lib/bench76466526/bin/docker save bench76466526/app:v1 | sudo /var/lib/bench76466526/bin/ctr -n k8s.io images import -"
+  },
+  {
+    "case_id": "q76466526",
+    "category": "compatibility",
+    "model": "wrong_import_into_moby",
+    "code": "sudo /var/lib/bench76466526/bin/docker save bench76466526/app:v1 | sudo /var/lib/bench76466526/bin/ctr -n moby images import -"
+  },
+  {
+    "case_id": "q76466526",
+    "category": "compatibility",
+    "model": "wrong_decoy_image_tagged_with_the_name",
+    "code": "tar -cf - -T /dev/null | sudo /var/lib/bench76466526/bin/docker import - decoy:1\nsudo /var/lib/bench76466526/bin/docker save decoy:1 | sudo /var/lib/bench76466526/bin/ctr -n default images import -\nsudo /var/lib/bench76466526/bin/ctr -n default images tag --force docker.io/library/decoy:1 docker.io/bench76466526/app:v1"
+  },
+  {
+    "case_id": "q76466526",
+    "category": "compatibility",
+    "model": "wrong_docker_image_removed_after_the_import",
+    "code": "sudo /var/lib/bench76466526/bin/docker save bench76466526/app:v1 | sudo /var/lib/bench76466526/bin/ctr -n default images import -\nsudo /var/lib/bench76466526/bin/docker rmi bench76466526/app:v1"
+  },
+  {
+    "case_id": "q76466526",
+    "category": "compatibility",
+    "model": "cheating_docker_switched_to_the_containerd_store",
+    "code": "sudo sed -i 's/\"containerd-snapshotter\": false/\"containerd-snapshotter\": true/' /var/lib/bench76466526/etc/daemon.json\nsudo /var/lib/bench76466526/bin/stack restart\nsudo /var/lib/bench76466526/bin/ctr -n moby images ls"
+  }
+]
