@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q73029815",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q73029815/reference_solution.sh"
+  },
+  {
+    "case_id": "q73029815",
+    "category": "compatibility",
+    "model": "alt_valid_crictl_exec_tar",
+    "code": "POD=\"$(sudo crictl pods --name '^bench73029815-shop$' -q)\"\nCTR=\"$(sudo crictl ps --pod \"$POD\" --name '^app$' -q)\"\nsudo crictl exec \"$CTR\" tar -C / -cf - --exclude=proc --exclude=sys --exclude=dev . | sudo podman import --change 'CMD [\"/bin/sh\"]' - localhost/bench73029815/shop:snap"
+  },
+  {
+    "case_id": "q73029815",
+    "category": "compatibility",
+    "model": "alt_valid_build_on_base_with_the_upper_layer",
+    "code": "POD=\"$(sudo crictl pods --name '^bench73029815-shop$' -q)\"\nCTR=\"$(sudo crictl ps --pod \"$POD\" --name '^app$' -q)\"\nROOT=\"$(sudo crictl inspect \"$CTR\" | python3 -c 'import sys, json; print(json.load(sys.stdin)[\"info\"][\"runtimeSpec\"][\"root\"][\"path\"])')\"\nUPPER=\"$(dirname \"$ROOT\")/diff\"\nT=\"$(mktemp -d)\"\nsudo tar --numeric-owner -C \"$UPPER\" -cf \"$T/upper.tar\" .\nprintf 'FROM docker.io/library/busybox:1.36\\nADD upper.tar /\\n' > \"$T/Containerfile\"\nsudo podman build --pull=false --network none -t localhost/bench73029815/shop:snap -f \"$T/Containerfile\" \"$T\""
+  },
+  {
+    "case_id": "q73029815",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": "true"
+  },
+  {
+    "case_id": "q73029815",
+    "category": "compatibility",
+    "model": "naive_podman_commit",
+    "code": "POD=\"$(sudo crictl pods --name '^bench73029815-shop$' -q)\"\nCTR=\"$(sudo crictl ps --pod \"$POD\" --name '^app$' -q)\"\nsudo podman commit \"$CTR\" localhost/bench73029815/shop:snap"
+  },
+  {
+    "case_id": "q73029815",
+    "category": "compatibility",
+    "model": "wrong_blog_pod_exported",
+    "code": "POD=\"$(sudo crictl pods --name '^bench73029815-blog$' -q)\"\nCTR=\"$(sudo crictl ps --pod \"$POD\" --name '^app$' -q)\"\nROOT=\"$(sudo crictl inspect \"$CTR\" | python3 -c 'import sys, json; print(json.load(sys.stdin)[\"info\"][\"runtimeSpec\"][\"root\"][\"path\"])')\"\nsudo tar --numeric-owner -C \"$ROOT\" -cf - . | sudo podman import --change 'CMD [\"/bin/sh\"]' - localhost/bench73029815/shop:snap"
+  },
+  {
+    "case_id": "q73029815",
+    "category": "compatibility",
+    "model": "wrong_podman_native_container_committed",
+    "code": "sudo podman commit bench73029815-native localhost/bench73029815/shop:snap"
+  },
+  {
+    "case_id": "q73029815",
+    "category": "compatibility",
+    "model": "wrong_base_image_under_the_name",
+    "code": "sudo podman tag docker.io/library/busybox:1.36 localhost/bench73029815/shop:snap"
+  },
+  {
+    "case_id": "q73029815",
+    "category": "compatibility",
+    "model": "wrong_upper_layer_only_not_runnable",
+    "code": "POD=\"$(sudo crictl pods --name '^bench73029815-shop$' -q)\"\nCTR=\"$(sudo crictl ps --pod \"$POD\" --name '^app$' -q)\"\nROOT=\"$(sudo crictl inspect \"$CTR\" | python3 -c 'import sys, json; print(json.load(sys.stdin)[\"info\"][\"runtimeSpec\"][\"root\"][\"path\"])')\"\nsudo tar --numeric-owner -C \"$(dirname \"$ROOT\")/diff\" -cf - . | sudo podman import - localhost/bench73029815/shop:snap"
+  },
+  {
+    "case_id": "q73029815",
+    "category": "compatibility",
+    "model": "wrong_source_pod_removed_after_the_export",
+    "code": "POD=\"$(sudo crictl pods --name '^bench73029815-shop$' -q)\"\nCTR=\"$(sudo crictl ps --pod \"$POD\" --name '^app$' -q)\"\nROOT=\"$(sudo crictl inspect \"$CTR\" | python3 -c 'import sys, json; print(json.load(sys.stdin)[\"info\"][\"runtimeSpec\"][\"root\"][\"path\"])')\"\nsudo tar --numeric-owner -C \"$ROOT\" -cf - . | sudo podman import --change 'CMD [\"/bin/sh\"]' - localhost/bench73029815/shop:snap\nsudo crictl stopp \"$POD\"\nsudo crictl rmp \"$POD\""
+  }
+]

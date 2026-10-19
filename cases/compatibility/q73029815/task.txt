@@ -1,0 +1,15 @@
+On this shared Ubuntu machine CRI-O (v1.34, crio.service) is the container runtime of a Kubernetes-style setup, and crictl (v1.34) talks to it through /etc/crictl.yaml (unix:///var/run/crio/crio.sock). Podman is installed too and is used as root ("sudo podman ..."). No Docker or containerd is involved in this task.
+
+CRI-O runs two pods from the same image docker.io/library/busybox:1.36: the pod "bench73029815-shop" with one container named "app", and the pod "bench73029815-blog" with one container named "app" as well. Podman runs a container of its own, "bench73029815-native". While it ran, each "app" container wrote data of its own that exists nowhere else: a new file /srv/state/orders.dat, a new file /root/marker, and one new line at the end of /etc/passwd, all with random content.
+
+I want to keep the shop container as it is now, the way "podman commit" would keep it, and I want to keep it as an image that Podman can run. But Podman does not seem to know the CRI-O containers: "sudo podman ps -a" shows only the container of Podman, while "sudo crictl ps -a" shows the CRI-O ones, and "sudo podman commit" on the shop container fails and makes no image.
+
+Your task is to create the image localhost/bench73029815/shop:snap in root's Podman store from the CURRENT state of the container "app" in the pod "bench73029815-shop". "sudo podman run" of that image has to show the three files exactly as the running container has them, and the image has to be a complete, runnable root file system (the base system of the busybox image plus the changed files), not just the changed files. I do not insist on a tool: Podman, crictl, tar or anything else on the machine may be used, and "podman commit" itself is not required.
+
+The check asks CRI-O and Podman about the pods and containers, runs your image with Podman and compares the checksums of the files in it with those of the running shop container (the blog container has other data and must not end up in the image).
+
+Rules: do not stop, restart, delete or change any of the three containers or the two pods (the data lives only in the running containers); keep CRI-O, crictl and Podman and their configuration, and the busybox image, as they are.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.
