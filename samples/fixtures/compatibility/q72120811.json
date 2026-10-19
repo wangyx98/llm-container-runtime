@@ -1,0 +1,56 @@
+[
+  {
+    "case_id": "q72120811",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q72120811/reference_solution.sh"
+  },
+  {
+    "case_id": "q72120811",
+    "category": "compatibility",
+    "model": "alt_valid_nft_dnat",
+    "code": "SOCK=/run/bench72120811/containerd.sock\nNETNS=/run/bench72120811/netns/net0\nIMG=bench72120811.local/mgmt:1\nsudo ctr --address \"$SOCK\" tasks delete --force some-rabbit\nsudo ctr --address \"$SOCK\" containers delete some-rabbit\nsudo ctr --address \"$SOCK\" run -d --with-ns \"network:$NETNS\" --hostname my-rabbit \"$IMG\" some-rabbit\nIP=$(sudo nsenter --net=\"$NETNS\" hostname -I | awk '{print $1}')\nsudo nft add table ip bench72mgmt\nsudo nft add chain ip bench72mgmt pre '{ type nat hook prerouting priority -100 ; }'\nsudo nft add chain ip bench72mgmt out '{ type nat hook output priority -100 ; }'\nsudo nft add rule ip bench72mgmt pre fib daddr type local tcp dport 8080 dnat to \"$IP:15672\"\nsudo nft add rule ip bench72mgmt out fib daddr type local tcp dport 8080 dnat to \"$IP:15672\""
+  },
+  {
+    "case_id": "q72120811",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": "true"
+  },
+  {
+    "case_id": "q72120811",
+    "category": "compatibility",
+    "model": "wrong_net_host_of_the_asker",
+    "code": "SOCK=/run/bench72120811/containerd.sock\nNETNS=/run/bench72120811/netns/net0\nIMG=bench72120811.local/mgmt:1\nsudo ctr --address \"$SOCK\" tasks delete --force some-rabbit\nsudo ctr --address \"$SOCK\" containers delete some-rabbit\nsudo ctr --address \"$SOCK\" run -d --net-host --hostname my-rabbit \"$IMG\" some-rabbit"
+  },
+  {
+    "case_id": "q72120811",
+    "category": "compatibility",
+    "model": "wrong_host_name_without_a_mapping",
+    "code": "SOCK=/run/bench72120811/containerd.sock\nNETNS=/run/bench72120811/netns/net0\nIMG=bench72120811.local/mgmt:1\nsudo ctr --address \"$SOCK\" tasks delete --force some-rabbit\nsudo ctr --address \"$SOCK\" containers delete some-rabbit\nsudo ctr --address \"$SOCK\" run -d --with-ns \"network:$NETNS\" --hostname my-rabbit \"$IMG\" some-rabbit"
+  },
+  {
+    "case_id": "q72120811",
+    "category": "compatibility",
+    "model": "wrong_mapping_without_making_the_container_again",
+    "code": "NETNS=/run/bench72120811/netns/net0\nIP=$(sudo nsenter --net=\"$NETNS\" hostname -I | awk '{print $1}')\nsudo iptables -t nat -A PREROUTING -p tcp --dport 8080 -m addrtype --dst-type LOCAL -j DNAT --to-destination \"$IP:15672\"\nsudo iptables -t nat -A OUTPUT -p tcp --dport 8080 -m addrtype --dst-type LOCAL -j DNAT --to-destination \"$IP:15672\""
+  },
+  {
+    "case_id": "q72120811",
+    "category": "compatibility",
+    "model": "wrong_mapping_for_the_hosts_own_traffic_only",
+    "code": "SOCK=/run/bench72120811/containerd.sock\nNETNS=/run/bench72120811/netns/net0\nIMG=bench72120811.local/mgmt:1\nsudo ctr --address \"$SOCK\" tasks delete --force some-rabbit\nsudo ctr --address \"$SOCK\" containers delete some-rabbit\nsudo ctr --address \"$SOCK\" run -d --with-ns \"network:$NETNS\" --hostname my-rabbit \"$IMG\" some-rabbit\nIP=$(sudo nsenter --net=\"$NETNS\" hostname -I | awk '{print $1}')\nsudo iptables -t nat -A OUTPUT -p tcp --dport 8080 -m addrtype --dst-type LOCAL -j DNAT --to-destination \"$IP:15672\""
+  },
+  {
+    "case_id": "q72120811",
+    "category": "compatibility",
+    "model": "wrong_container_port_changed_to_8080",
+    "code": "SOCK=/run/bench72120811/containerd.sock\nNETNS=/run/bench72120811/netns/net0\nIMG=bench72120811.local/mgmt:1\nsudo ctr --address \"$SOCK\" tasks delete --force some-rabbit\nsudo ctr --address \"$SOCK\" containers delete some-rabbit\nsudo ctr --address \"$SOCK\" run -d --with-ns \"network:$NETNS\" --hostname my-rabbit \"$IMG\" some-rabbit /srv 8080\nIP=$(sudo nsenter --net=\"$NETNS\" hostname -I | awk '{print $1}')\nsudo iptables -t nat -A PREROUTING -p tcp --dport 8080 -m addrtype --dst-type LOCAL -j DNAT --to-destination \"$IP:8080\"\nsudo iptables -t nat -A OUTPUT -p tcp --dport 8080 -m addrtype --dst-type LOCAL -j DNAT --to-destination \"$IP:8080\""
+  },
+  {
+    "case_id": "q72120811",
+    "category": "compatibility",
+    "model": "cheating_user_space_forwarder_on_8080",
+    "code": "SOCK=/run/bench72120811/containerd.sock\nNETNS=/run/bench72120811/netns/net0\nIMG=bench72120811.local/mgmt:1\nsudo ctr --address \"$SOCK\" tasks delete --force some-rabbit\nsudo ctr --address \"$SOCK\" containers delete some-rabbit\nsudo ctr --address \"$SOCK\" run -d --with-ns \"network:$NETNS\" --hostname my-rabbit \"$IMG\" some-rabbit\nIP=$(sudo nsenter --net=\"$NETNS\" hostname -I | awk '{print $1}')\nsudo setsid python3 -c '\nimport socket, sys, threading\ndef pipe(a, b):\n    try:\n        while True:\n            d = a.recv(4096)\n            if not d:\n                break\n            b.sendall(d)\n    except OSError:\n        pass\n    finally:\n        try:\n            b.shutdown(socket.SHUT_WR)\n        except OSError:\n            pass\ns = socket.socket()\ns.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)\ns.bind((\"0.0.0.0\", 8080))\ns.listen(16)\nwhile True:\n    c, _ = s.accept()\n    u = socket.create_connection((sys.argv[1], 15672))\n    threading.Thread(target=pipe, args=(c, u), daemon=True).start()\n    threading.Thread(target=pipe, args=(u, c), daemon=True).start()\n' \"$IP\" </dev/null >/dev/null 2>&1 &\nsleep 1"
+  }
+]
