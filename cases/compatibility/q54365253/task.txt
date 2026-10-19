@@ -1,0 +1,37 @@
+An engineer wants to run the service of a docker-compose.yml with runc alone, as an OCI bundle. runc runs a bundle (a config.json and a rootfs directory) and knows nothing of Compose, and no ready tool does the translation, so the engineer needs a small converter of his own. Its scope is deliberately small: ONE service, and only these keys of it; every other key (image, ports, restart, depends_on, build, networks, ...) is out of scope and must simply be ignored, not translated: this is not a full Compose converter, and OCI/runc has nothing for services, ports or networks.
+
+- command: a list of strings (the argv of the container's process);
+- working_dir: the working directory (default: /);
+- environment: a map KEY: value; values can be numbers (RETRIES: 3 means RETRIES=3) and can contain spaces or "=";
+- hostname: the hostname of the container (it needs its own UTS namespace);
+- read_only: true makes the root file system read-only (absent means writable);
+- volumes: a list of "SRC:DST" (read-write) or "SRC:DST:ro" (read-only) bind mounts; a relative SRC is relative to the directory of the COMPOSE file, not to the current directory, and runc wants absolute host paths.
+
+The lab is in /var/lib/bench54365253 (the current user owns it). demo/docker-compose.yml is the engineer's example:
+
+  version: "3"
+  services:
+    app:
+      image: bench54365253/app:1
+      command: ["/probe", "--exit", "7", "--hash", "/etc/app/config.txt", "--write", "/out/result.txt", "--write", "/etc/app/config.txt", "--note", "two words"]
+      working_dir: /srv/app
+      environment:
+        APP_MODE: production
+        GREETING: "hello world"
+        RETRIES: 3
+      hostname: bench-demo
+      read_only: true
+      volumes:
+        - ./data/config.txt:/etc/app/config.txt:ro
+        - ./out:/out
+      restart: "no"
+      ports:
+        - "8080:80"
+
+demo/bundle holds a rootfs (it only contains the static program /probe and empty directories: /proc, /dev, /sys, /etc, /tmp, /srv/app, /opt/run, /var/work, /home/svc) and a config.json that is a plain copy of "runc spec", which has nothing of the compose file. The probe prints one JSON line with its argv, working directory, environment, hostname, the sha256 of the files named by --hash, and the result of the writes named by --write (ok, or ERR:errno), and exits with the status given by --exit; run by runc, the bundle should print what the compose file says.
+
+Write the converter as the executable /var/lib/bench54365253/compose2oci (any language; python3 with PyYAML and runc are on the machine; it is a stub that fails now). Usage: "compose2oci COMPOSE.yml BUNDLE_DIR": BUNDLE_DIR already holds rootfs/; the program reads the single service of the file and writes BUNDLE_DIR/config.json, nothing else (not the rootfs, not the compose file, not the host files it mounts). It runs as the current user (no sudo) and must work whatever the current directory is. The container must keep the isolation that runc's default gives (its own pid, mount, ipc, uts and network namespaces, no extra capabilities), and have no other bind mount than the volumes of the file. Then run the demo with it, for instance: "cd /var/lib/bench54365253/demo && ../compose2oci docker-compose.yml bundle && sudo runc --root /run/bench54365253 run --bundle bundle bench54365253-demo </dev/null" (without </dev/null, runc reads the terminal and a program that runs without one is stopped when it is started from a script).
+
+The check does not use the demo file: it runs your converter on two NEW compose files with other values (service name, command and exit status, working directory, environment, hostname, volumes: one file with read_only: true, one writable; ports and restart present), runs the bundles with runc as root, and compares what the container reports with the compose file, item by item: argv, working directory, environment, hostname, the sha256 of the mounted files and of /probe, which writes succeed (read-write mounts, and the root file system when it is writable) and which fail with EROFS (:ro mounts, and the root file system with read_only), the content that arrives in the read-write mounts on the host, and the exit status. A config.json that is only valid JSON passes nothing.
+
+You may use python3 (PyYAML), runc, the usual Linux tools and "runc spec". The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo (the converter itself runs without it). Return the commands needed to complete the task, including the content of the converter you write (for example with cat > /var/lib/bench54365253/compose2oci <<'EOF' ... EOF, then chmod +x).
