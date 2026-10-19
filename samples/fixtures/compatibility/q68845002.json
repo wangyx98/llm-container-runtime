@@ -1,0 +1,44 @@
+[
+  {
+    "case_id": "q68845002",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q68845002/reference_solution.sh"
+  },
+  {
+    "case_id": "q68845002",
+    "category": "compatibility",
+    "model": "alt_valid_image_with_jdk_11_0_13",
+    "code": "L=/var/lib/bench68845002\n# the node has the same program on JDK 11.0.13, which reads the cgroup path with its colon (JDK-8272124 is fixed there)\nsudo sed -i 's#cache-app:jdk11.0.9#cache-app:jdk11.0.13#' $L/workload/container.json\nsudo $L/bin/cachenodectl restart\nsudo $L/bin/run-workload check\n"
+  },
+  {
+    "case_id": "q68845002",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": "true"
+  },
+  {
+    "case_id": "q68845002",
+    "category": "compatibility",
+    "model": "wrong_disable_container_support_of_the_jvm",
+    "code": "L=/var/lib/bench68845002\n# the asker's workaround: the JVM stops looking at the container (it then sees the memory of the host, and the environment of the container changes)\nsudo python3 - <<'PY'\nimport json\np = \"/var/lib/bench68845002/workload/container.json\"\nj = json.load(open(p))\nj[\"envs\"].append({\"key\": \"JAVA_TOOL_OPTIONS\", \"value\": \"-XX:-UseContainerSupport\"})\njson.dump(j, open(p, \"w\"), indent=2)\nPY\nsudo $L/bin/cachenodectl restart\nsudo $L/bin/run-workload check\n"
+  },
+  {
+    "case_id": "q68845002",
+    "category": "compatibility",
+    "model": "wrong_pod_parent_in_another_slice",
+    "code": "L=/var/lib/bench68845002\n# a different systemd-style slice for the pod: the cgroup name still gets the colon form\nsudo sed -i 's#kubepods-burstable-pod#kubepods-besteffort-pod#' $L/workload/pod.json\nsudo $L/bin/cachenodectl restart\nsudo $L/bin/run-workload check\n"
+  },
+  {
+    "case_id": "q68845002",
+    "category": "compatibility",
+    "model": "wrong_image_that_is_not_on_the_node",
+    "code": "L=/var/lib/bench68845002\n# an image of another JDK that the node does not have\nsudo sed -i 's#bench68845002.local/cache-app:jdk11.0.9#docker.io/library/eclipse-temurin:11.0.13_8-jre#' $L/workload/container.json\nsudo $L/bin/cachenodectl restart\nsudo $L/bin/run-workload check\n"
+  },
+  {
+    "case_id": "q68845002",
+    "category": "compatibility",
+    "model": "cheating_run_workload_prints_a_good_result",
+    "code": "L=/var/lib/bench68845002\n# the launcher script is edited to print what the oracle looks for\nsudo tee $L/bin/run-workload >/dev/null <<'SH'\n#!/bin/bash\necho \"probe java=11.0.9 total=536870912\"\necho \"probe limit=536870912\"\necho \"probe jvm-args=[] JAVA_TOOL_OPTIONS=null JDK_JAVA_OPTIONS=null _JAVA_OPTIONS=null\"\necho \"cache-ok nonce=$1\"\nSH\nsudo $L/bin/run-workload check\n"
+  }
+]
