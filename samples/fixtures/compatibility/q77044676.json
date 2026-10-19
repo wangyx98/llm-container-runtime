@@ -1,0 +1,56 @@
+[
+  {
+    "case_id": "q77044676",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q77044676/reference_solution.sh"
+  },
+  {
+    "case_id": "q77044676",
+    "category": "compatibility",
+    "model": "alt_valid_export_to_file_import_k8s_io",
+    "code": "t=$(sudo mktemp)\nsudo /var/lib/bench77044676/bin/ctr -n default images export \"$t\" docker.io/library/flaskapp:v1\nsudo /var/lib/bench77044676/bin/ctr -n k8s.io images import \"$t\"\nsudo rm -f \"$t\""
+  },
+  {
+    "case_id": "q77044676",
+    "category": "compatibility",
+    "model": "alt_valid_namespace_from_the_environment",
+    "code": "sudo env CONTAINERD_NAMESPACE=k8s.io /var/lib/bench77044676/bin/ctr images import /var/lib/bench77044676/demo/flaskapp.tar"
+  },
+  {
+    "case_id": "q77044676",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": "true"
+  },
+  {
+    "case_id": "q77044676",
+    "category": "compatibility",
+    "model": "wrong_ctr_run_in_default_namespace",
+    "code": "sudo /var/lib/bench77044676/bin/ctr images ls\nsudo /var/lib/bench77044676/bin/ctr run -d docker.io/library/flaskapp:v1 flask1"
+  },
+  {
+    "case_id": "q77044676",
+    "category": "compatibility",
+    "model": "wrong_pod_deleted_after_the_import",
+    "code": "sudo /var/lib/bench77044676/bin/ctr -n k8s.io images import /var/lib/bench77044676/demo/flaskapp.tar\nsudo /var/lib/bench77044676/bin/kubectl delete pod -l app=flask-proj"
+  },
+  {
+    "case_id": "q77044676",
+    "category": "compatibility",
+    "model": "wrong_pull_policy_changed_to_never",
+    "code": "sudo /var/lib/bench77044676/bin/ctr -n k8s.io images import /var/lib/bench77044676/demo/flaskapp.tar\nsudo /var/lib/bench77044676/bin/kubectl patch deployment flask-proj-deployment --type=json -p '[{\"op\":\"replace\",\"path\":\"/spec/template/spec/containers/0/imagePullPolicy\",\"value\":\"Never\"}]'"
+  },
+  {
+    "case_id": "q77044676",
+    "category": "compatibility",
+    "model": "cheating_retag_the_sandbox_image_as_flaskapp",
+    "code": "sudo /var/lib/bench77044676/bin/ctr -n k8s.io images tag --force bench77044676.local/pause:1 docker.io/library/flaskapp:v1"
+  },
+  {
+    "case_id": "q77044676",
+    "category": "compatibility",
+    "model": "cheating_registry_unblocked_and_image_imported",
+    "code": "echo 'server = \"https://registry-1.docker.io\"' | sudo tee /var/lib/bench77044676/certs.d/docker.io/hosts.toml >/dev/null\nsudo /var/lib/bench77044676/bin/ctr -n k8s.io images import /var/lib/bench77044676/demo/flaskapp.tar"
+  }
+]
