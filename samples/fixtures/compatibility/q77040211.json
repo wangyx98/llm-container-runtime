@@ -1,0 +1,74 @@
+[
+  {
+    "case_id": "q77040211",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "bash cases/compatibility/q77040211/reference_solution.sh"
+  },
+  {
+    "case_id": "q77040211",
+    "category": "compatibility",
+    "model": "alt_valid_one_shared_hosts_dir",
+    "code": "LIB=/var/lib/bench77040211\nREG=10.77.40.11:5000\nD=$LIB/certs.d\nsudo mkdir -p \"$D/$REG\"\nsudo tee \"$D/$REG/hosts.toml\" >/dev/null <<EOF\nserver = \"https://$REG\"\n\n[host.\"https://$REG\"]\n  ca = \"$LIB/pki/ca.crt\"\nEOF\nfor n in node1 node2 node3 node4; do\n    sudo sed -i \"/\\.registry\\]\\$/,/config_path/ s|config_path = .*|config_path = '$D'|\" \"$LIB/$n/etc/config.toml\"\n    sudo \"$LIB/bin/nodectl\" restart \"$n\"\ndone"
+  },
+  {
+    "case_id": "q77040211",
+    "category": "compatibility",
+    "model": "alt_valid_ca_copied_into_each_node_dir",
+    "code": "LIB=/var/lib/bench77040211\nREG=10.77.40.11:5000\nfor n in node1 node2 node3 node4; do\n    D=$LIB/$n/etc/certs.d\n    sudo mkdir -p \"$D/$REG\"\n    sudo cp \"$LIB/pki/ca.crt\" \"$D/$REG/ca.crt\"\n    sudo tee \"$D/$REG/hosts.toml\" >/dev/null <<EOF\nserver = \"https://$REG\"\n\n[host.\"https://$REG\"]\n  ca = \"ca.crt\"\nEOF\n    sudo sed -i \"/\\.registry\\]\\$/,/config_path/ s|config_path = .*|config_path = '$D'|\" \"$LIB/$n/etc/config.toml\"\n    sudo \"$LIB/bin/nodectl\" restart \"$n\"\ndone"
+  },
+  {
+    "case_id": "q77040211",
+    "category": "compatibility",
+    "model": "alt_valid_skip_verify",
+    "code": "LIB=/var/lib/bench77040211\nREG=10.77.40.11:5000\nfor n in node1 node2 node3 node4; do\n    D=$LIB/$n/etc/certs.d\n    sudo mkdir -p \"$D/$REG\"\n    sudo tee \"$D/$REG/hosts.toml\" >/dev/null <<EOF\nserver = \"https://$REG\"\n\n[host.\"https://$REG\"]\n  skip_verify = true\nEOF\n    sudo sed -i \"/\\.registry\\]\\$/,/config_path/ s|config_path = .*|config_path = '$D'|\" \"$LIB/$n/etc/config.toml\"\n    sudo \"$LIB/bin/nodectl\" restart \"$n\"\ndone"
+  },
+  {
+    "case_id": "q77040211",
+    "category": "compatibility",
+    "model": "so_answer_ctr_pull_into_k8s_io_on_every_node",
+    "code": "LIB=/var/lib/bench77040211\nREG=10.77.40.11:5000\n# the accepted answer: put the image into the namespace k8s.io of the node's containerd by hand (no docker here: ctr pulls it, told the CA)\nfor n in node1 node2 node3 node4; do\n    sudo ctr -a \"$LIB/$n/run/containerd.sock\" -n k8s.io images pull --local --tlscacert \"$LIB/pki/ca.crt\" \"$(cat $LIB/argus.ref)\"\ndone"
+  },
+  {
+    "case_id": "q77040211",
+    "category": "compatibility",
+    "model": "wrong_only_node1_configured",
+    "code": "LIB=/var/lib/bench77040211\nREG=10.77.40.11:5000\nn=node1\nD=$LIB/$n/etc/certs.d\nsudo mkdir -p \"$D/$REG\"\nsudo tee \"$D/$REG/hosts.toml\" >/dev/null <<EOF\nserver = \"https://$REG\"\n\n[host.\"https://$REG\"]\n  ca = \"$LIB/pki/ca.crt\"\nEOF\nsudo sed -i \"/\\.registry\\]\\$/,/config_path/ s|config_path = .*|config_path = '$D'|\" \"$LIB/$n/etc/config.toml\"\nsudo \"$LIB/bin/nodectl\" restart \"$n\""
+  },
+  {
+    "case_id": "q77040211",
+    "category": "compatibility",
+    "model": "wrong_hosts_toml_without_config_path",
+    "code": "LIB=/var/lib/bench77040211\nREG=10.77.40.11:5000\nfor n in node1 node2 node3 node4; do\n    D=$LIB/$n/etc/certs.d\n    sudo mkdir -p \"$D/$REG\"\nsudo tee \"$D/$REG/hosts.toml\" >/dev/null <<EOF\nserver = \"https://$REG\"\n\n[host.\"https://$REG\"]\n  ca = \"$LIB/pki/ca.crt\"\nEOF\n    sudo \"$LIB/bin/nodectl\" restart \"$n\"\ndone"
+  },
+  {
+    "case_id": "q77040211",
+    "category": "compatibility",
+    "model": "wrong_config_path_set_nodes_not_restarted",
+    "code": "LIB=/var/lib/bench77040211\nREG=10.77.40.11:5000\nfor n in node1 node2 node3 node4; do\n    D=$LIB/$n/etc/certs.d\n    sudo mkdir -p \"$D/$REG\"\nsudo tee \"$D/$REG/hosts.toml\" >/dev/null <<EOF\nserver = \"https://$REG\"\n\n[host.\"https://$REG\"]\n  ca = \"$LIB/pki/ca.crt\"\nEOF\n    sudo sed -i \"/\\.registry\\]\\$/,/config_path/ s|config_path = .*|config_path = '$D'|\" \"$LIB/$n/etc/config.toml\"\ndone"
+  },
+  {
+    "case_id": "q77040211",
+    "category": "compatibility",
+    "model": "wrong_hosts_dir_named_without_the_port",
+    "code": "LIB=/var/lib/bench77040211\nREG=10.77.40.11:5000\nfor n in node1 node2 node3 node4; do\n    D=$LIB/$n/etc/certs.d\n    sudo mkdir -p \"$D/10.77.40.11\"\n    sudo tee \"$D/10.77.40.11/hosts.toml\" >/dev/null <<EOF\nserver = \"https://$REG\"\n\n[host.\"https://$REG\"]\n  ca = \"$LIB/pki/ca.crt\"\nEOF\n    sudo sed -i \"/\\.registry\\]\\$/,/config_path/ s|config_path = .*|config_path = '$D'|\" \"$LIB/$n/etc/config.toml\"\n    sudo \"$LIB/bin/nodectl\" restart \"$n\"\ndone"
+  },
+  {
+    "case_id": "q77040211",
+    "category": "compatibility",
+    "model": "wrong_registry_table_appended_twice",
+    "code": "LIB=/var/lib/bench77040211\nREG=10.77.40.11:5000\nfor n in node1 node2 node3 node4; do\n    D=$LIB/$n/etc/certs.d\n    sudo mkdir -p \"$D/$REG\"\nsudo tee \"$D/$REG/hosts.toml\" >/dev/null <<EOF\nserver = \"https://$REG\"\n\n[host.\"https://$REG\"]\n  ca = \"$LIB/pki/ca.crt\"\nEOF\n    sudo tee -a \"$LIB/$n/etc/config.toml\" >/dev/null <<EOF\n\n[plugins.'io.containerd.cri.v1.images'.registry]\n  config_path = '$D'\nEOF\n    sudo \"$LIB/bin/nodectl\" restart \"$n\"\ndone"
+  },
+  {
+    "case_id": "q77040211",
+    "category": "compatibility",
+    "model": "cheating_lab_ca_in_the_host_certificate_store",
+    "code": "LIB=/var/lib/bench77040211\nREG=10.77.40.11:5000\nsudo cp \"$LIB/pki/ca.crt\" /usr/local/share/ca-certificates/lab-registry-ca.crt\nsudo update-ca-certificates\nsudo \"$LIB/bin/nodectl\" restart all"
+  },
+  {
+    "case_id": "q77040211",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  }
+]
