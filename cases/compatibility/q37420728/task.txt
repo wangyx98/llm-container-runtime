@@ -1,0 +1,54 @@
+This machine runs a small service as a container started with runc from a Go program. Everything is below /var/lib/bench37420728: runc (1.1.x) is bin/runc, the Go program is src/main.go (module bench37420728/runner) and "sudo /var/lib/bench37420728/bin/build" compiles it into bin/runner (the build wrapper of the lab, Go 1.24.7; "bin/build SRC_DIR OUT_FILE" builds another directory elsewhere). runc's state directory is /run/bench37420728/state, so every runc command takes "--root /run/bench37420728/state". The service is a static program, /svc NONCE: it answers on the unix socket /ctl/sock with "pong nonce=NONCE served=N" and writes the line "svc nonce=NONCE tick=N" to its stdout every second. The example bundle /var/lib/bench37420728/example runs it with the nonce "example" (its directory ctl is /ctl in the container).
+
+The program, src/main.go, is called as "runner RUNC ROOT BUNDLE ID [HOLD_SECONDS]". It starts the container ID of BUNDLE detached ("runc run -d") and prints how long that took; HOLD_SECONDS stands for the rest of a bigger program, which goes on working after the container is started:
+
+    package main
+
+    import (
+    	"fmt"
+    	"os"
+    	"os/exec"
+    	"strconv"
+    	"time"
+    )
+
+    // runner RUNC ROOT BUNDLE ID [HOLD_SECONDS]: starts the container ID of BUNDLE detached with RUNC (state directory ROOT) and says how long that took;
+    // with HOLD_SECONDS it then stays alive that long (a test driver that goes on to do other work).
+    func main() {
+    	if len(os.Args) < 5 {
+    		fmt.Fprintln(os.Stderr, "usage: runner RUNC ROOT BUNDLE ID [HOLD_SECONDS]")
+    		os.Exit(2)
+    	}
+    	runc, root, bundle, id := os.Args[1], os.Args[2], os.Args[3], os.Args[4]
+    	command := exec.Command(runc, "--root", root, "run", "-d", id)
+    	command.Dir = bundle
+    	start := time.Now()
+    	r, err := command.CombinedOutput()
+    	duration := int64(time.Since(start) / time.Millisecond)
+    	fmt.Println(duration)
+    	fmt.Println(err)
+    	fmt.Println(string(r))
+    	if err != nil {
+    		os.Exit(1)
+    	}
+    	if len(os.Args) > 5 {
+    		if hold, e := strconv.Atoi(os.Args[5]); e == nil {
+    			time.Sleep(time.Duration(hold) * time.Second)
+    		}
+    	}
+    }
+
+The call never comes back. runc itself is gone a moment after it started the container, the container runs and answers on its socket, and still the program waits at CombinedOutput forever; after Ctrl-C the container dies a moment later:
+
+    $ sudo /var/lib/bench37420728/bin/runner /var/lib/bench37420728/bin/runc /run/bench37420728/state /var/lib/bench37420728/example demo 5
+    (no output, it does not return)
+    $ sudo /var/lib/bench37420728/bin/runc --root /run/bench37420728/state state demo      # in another terminal
+    "status": "running"
+
+Your task is to change the program, rebuild it with bin/build and make it do what it was meant to do: start the container detached and go on. After your change, the program (1) returns from the start as soon as runc has started the container, prints the duration in milliseconds as its first line and the error (<nil> when there is none) as its second, stays alive HOLD_SECONDS and ends with status 0; (2) leaves the container running whether the program is alive or not, with the output of the service (the container's stdout and stderr) appended to the file service.log in the bundle directory; (3) waits for runc itself: while it holds it has no child process of its own (no zombie, no runc), and when it has ended no runc process of the state directory is left; (4) when runc cannot start the container (for example when args[0] of the bundle does not exist) prints the message runc gives and ends with status 1.
+
+Rules: the container is started with the runc and the state directory the program is given ("run -d", or "create" and "start"), not with another tool; the container must not be killed, deleted or restarted by the program; do not change runc, the service, bin/build or the bundle's rootfs and ctl directory (the oracle uses bundles of its own); the program has to stay a Go program of the module bench37420728/runner built by bin/build.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.
