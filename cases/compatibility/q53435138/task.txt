@@ -1,0 +1,43 @@
+This machine is a single Kubernetes node of the containerd era: a kubelet (v1.23.17) that uses containerd as its runtime through the CRI, and no Docker daemon. Everything lives in private paths below /var/lib/bench53435138, the sockets below /run/bench53435138. There is no API server: the kubelet runs standalone and starts every manifest it finds in /var/lib/bench53435138/kubelet/manifests as a pod (a changed manifest makes it replace the pod). The kubelet is started and stopped with /var/lib/bench53435138/bin/kubeletctl (start, stop, restart, status; run it with sudo). The containerd of the node listens on /run/bench53435138/containerd.sock (namespace k8s.io); ctr is /var/lib/bench53435138/opt/docker/ctr with "-a /run/bench53435138/containerd.sock", and crictl needs both endpoints, for example "crictl -r unix:///run/bench53435138/containerd.sock -i unix:///run/bench53435138/containerd.sock ps". The images are already in the node (the kubelet never pulls): bench53435138.local/agent:1 (a shell and the docker CLI, nothing else), bench53435138.local/dind:1 (a DinD image: dockerd, containerd, runc and the docker CLI; its entry point starts dockerd for this container, listening on unix:///var/run/docker.sock and, when the environment variable DOCKER_TLS_CERTDIR is set to the empty string, also on tcp://127.0.0.1:2375; further arguments of the container go to dockerd) and the sandbox image of the pods.
+
+Jenkins runs on this node as the pod jenkins (namespace ci), from /var/lib/bench53435138/kubelet/manifests/jenkins.yaml. Its job container, agent, builds Docker images with the plain docker CLI (no options, no DOCKER_HOST) from a build context in the Jenkins workspace, the host directory /var/lib/bench53435138/workspace, which the pod has at /home/jenkins/agent. Since the node has no Docker, the manifest mounts the socket of containerd as /var/run/docker.sock:
+
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: jenkins
+      namespace: ci
+    spec:
+      hostNetwork: true
+      containers:
+      - name: agent
+        image: bench53435138.local/agent:1
+        imagePullPolicy: Never
+        volumeMounts:
+        - name: docker-sock
+          mountPath: /var/run/docker.sock
+        - name: workspace
+          mountPath: /home/jenkins/agent
+      volumes:
+      - name: docker-sock
+        hostPath:
+          path: /run/bench53435138/containerd.sock
+          type: Socket
+      - name: workspace
+        hostPath:
+          path: /var/lib/bench53435138/workspace
+          type: Directory
+
+Every docker command in the agent container fails:
+
+    $ sudo crictl -r unix:///run/bench53435138/containerd.sock -i unix:///run/bench53435138/containerd.sock exec <agent container id> docker ps
+    Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.24/containers/json": net/http: HTTP/1.x transport connection broken: malformed HTTP response "\x00\x00\x06\x04\x00\x00\x00\x00\x00\x00\x05\x00\x00@\x00".
+    * Are you trying to connect to a TLS-enabled daemon without TLS?
+
+The docker client speaks the Docker API, which containerd's socket does not. Your task is to make the Jenkins jobs work without a Docker daemon on the node: the agent container has to build and run images with the plain docker command, on a Docker daemon that runs inside the pod jenkins itself (Docker in Docker: a dockerd that is started by a container of the pod, not a dockerd started on the node and reached through a socket). The check lists the pod's containers, then in the agent container builds a context from the workspace (FROM scratch, no registry) and runs the result twice, with new nonces; the job's containers must be children of the pod's own dockerd, and the node's containerd must know nothing of them.
+
+Rules: the pod stays the pod jenkins in namespace ci with a container named agent that has the workspace at /home/jenkins/agent; use only the three images of the node; the pod may not share the node's sockets, root or any other host directory (only the workspace may be a hostPath), nor the host's PID or IPC namespace; do not stop, restart or replace containerd or runc, and do not change the kubelet, kubeletctl or the images. Do not start a dockerd on the node itself. Use kubeletctl, ctr, crictl and the standard shell tools; do not use kubectl, kubeadm or docker on the node.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.

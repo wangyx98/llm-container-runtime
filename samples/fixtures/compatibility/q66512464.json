@@ -1,0 +1,68 @@
+[
+ {
+  "case_id": "q66512464",
+  "category": "compatibility",
+  "model": "reference_solution",
+  "code": "bash cases/compatibility/q66512464/reference_solution.sh"
+ },
+ {
+  "case_id": "q66512464",
+  "category": "compatibility",
+  "model": "noop",
+  "code": ""
+ },
+ {
+  "case_id": "q66512464",
+  "category": "compatibility",
+  "model": "edit_no_restart",
+  "code": "L=/var/lib/bench66512464; R=/run/bench66512464; F=$L/kubelet/kubeadm-flags.env\nsudo sed -i \"s#--container-runtime-endpoint=unix://$R/dockershim.sock#--container-runtime=remote --container-runtime-endpoint=unix://$R/containerd.sock#\" \"$F\"\ncat \"$F\"\n"
+ },
+ {
+  "case_id": "q66512464",
+  "category": "compatibility",
+  "model": "endpoint_only",
+  "code": "L=/var/lib/bench66512464; R=/run/bench66512464; F=$L/kubelet/kubeadm-flags.env\nsudo sed -i \"s#unix://$R/dockershim.sock#unix://$R/containerd.sock#\" \"$F\"\nsudo \"$L/bin/kubeletctl\" restart\n"
+ },
+ {
+  "case_id": "q66512464",
+  "category": "compatibility",
+  "model": "endpoint_docker_sock",
+  "code": "L=/var/lib/bench66512464; R=/run/bench66512464; F=$L/kubelet/kubeadm-flags.env\nsudo sed -i \"s#--container-runtime-endpoint=unix://$R/dockershim.sock#--container-runtime=remote --container-runtime-endpoint=unix://$R/docker.sock#\" \"$F\"\nsudo \"$L/bin/kubeletctl\" restart\n"
+ },
+ {
+  "case_id": "q66512464",
+  "category": "compatibility",
+  "model": "runtime_only",
+  "code": "L=/var/lib/bench66512464; R=/run/bench66512464; F=$L/kubelet/kubeadm-flags.env\necho \"KUBELET_EXTRA_ARGS=\\\"--container-runtime=remote\\\"\" | sudo tee \"$L/kubelet/kubelet-extra.env\" >/dev/null\nsudo \"$L/bin/kubeletctl\" restart\n"
+ },
+ {
+  "case_id": "q66512464",
+  "category": "compatibility",
+  "model": "config_yaml_field",
+  "code": "L=/var/lib/bench66512464; R=/run/bench66512464; F=$L/kubelet/kubeadm-flags.env\necho \"containerRuntimeEndpoint: unix://$R/containerd.sock\" | sudo tee -a \"$L/kubelet/config.yaml\" >/dev/null\nsudo \"$L/bin/kubeletctl\" restart\n"
+ },
+ {
+  "case_id": "q66512464",
+  "category": "compatibility",
+  "model": "extra_env_valid",
+  "code": "L=/var/lib/bench66512464; R=/run/bench66512464; F=$L/kubelet/kubeadm-flags.env\necho \"KUBELET_EXTRA_ARGS=\\\"--container-runtime=remote --container-runtime-endpoint=unix://$R/containerd.sock\\\"\" | sudo tee \"$L/kubelet/kubelet-extra.env\" >/dev/null\nsudo \"$L/bin/kubeletctl\" restart\n"
+ },
+ {
+  "case_id": "q66512464",
+  "category": "compatibility",
+  "model": "ctr_manual_run",
+  "code": "L=/var/lib/bench66512464; R=/run/bench66512464; F=$L/kubelet/kubeadm-flags.env\nsudo \"$L/opt/docker/ctr\" -a \"$R/containerd.sock\" -n k8s.io run -d --net-host bench66512464.local/web:1 faux-web /web manual\nsudo crictl -r \"unix://$R/containerd.sock\" -i \"unix://$R/containerd.sock\" ps\n"
+ },
+ {
+  "case_id": "q66512464",
+  "category": "compatibility",
+  "model": "docker_stopped",
+  "code": "L=/var/lib/bench66512464; R=/run/bench66512464; F=$L/kubelet/kubeadm-flags.env\nsudo sed -i \"s#--container-runtime-endpoint=unix://$R/dockershim.sock#--container-runtime=remote --container-runtime-endpoint=unix://$R/containerd.sock#\" \"$F\"\nsudo \"$L/bin/kubeletctl\" restart\nsudo kill \"$(cat \"$R/dockerd.pid\")\"\n"
+ },
+ {
+  "case_id": "q66512464",
+  "category": "compatibility",
+  "model": "containerd_killed",
+  "code": "L=/var/lib/bench66512464; R=/run/bench66512464; F=$L/kubelet/kubeadm-flags.env\nsudo sed -i \"s#--container-runtime-endpoint=unix://$R/dockershim.sock#--container-runtime=remote --container-runtime-endpoint=unix://$R/containerd.sock#\" \"$F\"\nsudo kill \"$(cat \"$R/containerd.pid\")\"; sleep 2\nsudo \"$L/bin/kubeletctl\" restart\n"
+ }
+]

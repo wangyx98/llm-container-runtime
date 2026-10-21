@@ -1,0 +1,62 @@
+[
+ {
+  "case_id": "q53435138",
+  "category": "compatibility",
+  "model": "reference_solution",
+  "code": "bash cases/compatibility/q53435138/reference_solution.sh"
+ },
+ {
+  "case_id": "q53435138",
+  "category": "compatibility",
+  "model": "alt_valid_tcp_sidecar",
+  "code": "L=/var/lib/bench53435138; R=/run/bench53435138\nCRI=\"sudo crictl -r unix://$R/containerd.sock -i unix://$R/containerd.sock\"\nsudo tee \"$L/kubelet/manifests/jenkins.yaml\" >/dev/null <<EOF\napiVersion: v1\nkind: Pod\nmetadata:\n  name: jenkins\n  namespace: ci\nspec:\n  hostNetwork: true\n  containers:\n  - name: agent\n    image: bench53435138.local/agent:1\n    imagePullPolicy: Never\n    env:\n    - {name: DOCKER_HOST, value: \"tcp://127.0.0.1:2375\"}\n    volumeMounts:\n    - {name: workspace, mountPath: /home/jenkins/agent}\n  - name: dind\n    image: bench53435138.local/dind:1\n    imagePullPolicy: Never\n    env:\n    - {name: DOCKER_TLS_CERTDIR, value: \"\"}\n    securityContext: {privileged: true}\n    volumeMounts:\n    - {name: docker-run, mountPath: /var/run}\n    - {name: docker-lib, mountPath: /var/lib/docker}\n  volumes:\n  - {name: docker-run, emptyDir: {}}\n  - {name: docker-lib, emptyDir: {}}\n  - name: workspace\n    hostPath: {path: $L/workspace, type: Directory}\nEOF\nfor _ in $(seq 40); do\n    A=$($CRI ps -q --name agent --state running 2>/dev/null | head -1)\n    [ -n \"$A\" ] && $CRI exec \"$A\" docker version >/dev/null 2>&1 && break\n    sleep 2\ndone\n$CRI exec \"$A\" docker version --format 'server {{.Server.Version}}'\n"
+ },
+ {
+  "case_id": "q53435138",
+  "category": "compatibility",
+  "model": "alt_valid_single_container",
+  "code": "L=/var/lib/bench53435138; R=/run/bench53435138\nCRI=\"sudo crictl -r unix://$R/containerd.sock -i unix://$R/containerd.sock\"\nsudo tee \"$L/kubelet/manifests/jenkins.yaml\" >/dev/null <<EOF\napiVersion: v1\nkind: Pod\nmetadata:\n  name: jenkins\n  namespace: ci\nspec:\n  hostNetwork: true\n  containers:\n  - name: agent\n    image: bench53435138.local/dind:1\n    imagePullPolicy: Never\n    securityContext: {privileged: true}\n    volumeMounts:\n    - {name: docker-lib, mountPath: /var/lib/docker}\n    - {name: workspace, mountPath: /home/jenkins/agent}\n  volumes:\n  - {name: docker-lib, emptyDir: {}}\n  - name: workspace\n    hostPath: {path: $L/workspace, type: Directory}\nEOF\nfor _ in $(seq 40); do\n    A=$($CRI ps -q --name agent --state running 2>/dev/null | head -1)\n    [ -n \"$A\" ] && $CRI exec \"$A\" docker version >/dev/null 2>&1 && break\n    sleep 2\ndone\n$CRI exec \"$A\" docker version --format 'server {{.Server.Version}}'\n"
+ },
+ {
+  "case_id": "q53435138",
+  "category": "compatibility",
+  "model": "noop",
+  "code": ""
+ },
+ {
+  "case_id": "q53435138",
+  "category": "compatibility",
+  "model": "wrong_agent_keeps_containerd_socket",
+  "code": "L=/var/lib/bench53435138; R=/run/bench53435138\nCRI=\"sudo crictl -r unix://$R/containerd.sock -i unix://$R/containerd.sock\"\nsudo tee \"$L/kubelet/manifests/jenkins.yaml\" >/dev/null <<EOF\napiVersion: v1\nkind: Pod\nmetadata:\n  name: jenkins\n  namespace: ci\nspec:\n  hostNetwork: true\n  containers:\n  - name: agent\n    image: bench53435138.local/agent:1\n    imagePullPolicy: Never\n    volumeMounts:\n    - {name: docker-sock, mountPath: /var/run/docker.sock}\n    - {name: workspace, mountPath: /home/jenkins/agent}\n  - name: dind\n    image: bench53435138.local/dind:1\n    imagePullPolicy: Never\n    securityContext: {privileged: true}\n    volumeMounts:\n    - {name: docker-lib, mountPath: /var/lib/docker}\n  volumes:\n  - name: docker-sock\n    hostPath: {path: /run/bench53435138/containerd.sock, type: Socket}\n  - {name: docker-lib, emptyDir: {}}\n  - name: workspace\n    hostPath: {path: $L/workspace, type: Directory}\nEOF\nfor _ in $(seq 15); do\n    A=$($CRI ps -q --name agent --state running 2>/dev/null | head -1)\n    [ -n \"$A\" ] && $CRI exec \"$A\" docker version >/dev/null 2>&1 && break\n    sleep 2\ndone\n$CRI exec \"$A\" docker version --format 'server {{.Server.Version}}'\n"
+ },
+ {
+  "case_id": "q53435138",
+  "category": "compatibility",
+  "model": "wrong_dind_not_privileged",
+  "code": "L=/var/lib/bench53435138; R=/run/bench53435138\nCRI=\"sudo crictl -r unix://$R/containerd.sock -i unix://$R/containerd.sock\"\nsudo tee \"$L/kubelet/manifests/jenkins.yaml\" >/dev/null <<EOF\napiVersion: v1\nkind: Pod\nmetadata:\n  name: jenkins\n  namespace: ci\nspec:\n  hostNetwork: true\n  containers:\n  - name: agent\n    image: bench53435138.local/agent:1\n    imagePullPolicy: Never\n    volumeMounts:\n    - {name: docker-run, mountPath: /var/run}\n    - {name: workspace, mountPath: /home/jenkins/agent}\n  - name: dind\n    image: bench53435138.local/dind:1\n    imagePullPolicy: Never\n    volumeMounts:\n    - {name: docker-run, mountPath: /var/run}\n    - {name: docker-lib, mountPath: /var/lib/docker}\n  volumes:\n  - {name: docker-run, emptyDir: {}}\n  - {name: docker-lib, emptyDir: {}}\n  - name: workspace\n    hostPath: {path: $L/workspace, type: Directory}\nEOF\nfor _ in $(seq 15); do\n    A=$($CRI ps -q --name agent --state running 2>/dev/null | head -1)\n    [ -n \"$A\" ] && $CRI exec \"$A\" docker version >/dev/null 2>&1 && break\n    sleep 2\ndone\n$CRI exec \"$A\" docker version --format 'server {{.Server.Version}}'\n"
+ },
+ {
+  "case_id": "q53435138",
+  "category": "compatibility",
+  "model": "wrong_sibling_dockerd_on_the_node",
+  "code": "L=/var/lib/bench53435138; R=/run/bench53435138\nCRI=\"sudo crictl -r unix://$R/containerd.sock -i unix://$R/containerd.sock\"\nsudo sh -c \"PATH=$L/opt/docker:\\$PATH setsid $L/opt/docker/dockerd --host=unix://$R/host-docker.sock --data-root=$L/host-docker --exec-root=$R/host-docker-exec --pidfile=$R/host-docker.pid --bridge=none --iptables=false </dev/null >$R/host-dockerd.log 2>&1 &\"\nfor _ in $(seq 30); do [ -S \"$R/host-docker.sock\" ] && break; sleep 1; done\nsudo tee \"$L/kubelet/manifests/jenkins.yaml\" >/dev/null <<EOF\napiVersion: v1\nkind: Pod\nmetadata:\n  name: jenkins\n  namespace: ci\nspec:\n  hostNetwork: true\n  containers:\n  - name: agent\n    image: bench53435138.local/agent:1\n    imagePullPolicy: Never\n    volumeMounts:\n    - {name: docker-sock, mountPath: /var/run/docker.sock}\n    - {name: workspace, mountPath: /home/jenkins/agent}\n  volumes:\n  - name: docker-sock\n    hostPath: {path: /run/bench53435138/host-docker.sock, type: Socket}\n  - name: workspace\n    hostPath: {path: $L/workspace, type: Directory}\nEOF\nfor _ in $(seq 15); do\n    A=$($CRI ps -q --name agent --state running 2>/dev/null | head -1)\n    [ -n \"$A\" ] && $CRI exec \"$A\" docker version >/dev/null 2>&1 && break\n    sleep 2\ndone\n$CRI exec \"$A\" docker version --format 'server {{.Server.Version}}'\n"
+ },
+ {
+  "case_id": "q53435138",
+  "category": "compatibility",
+  "model": "wrong_host_root_mounted",
+  "code": "L=/var/lib/bench53435138; R=/run/bench53435138\nCRI=\"sudo crictl -r unix://$R/containerd.sock -i unix://$R/containerd.sock\"\nsudo tee \"$L/kubelet/manifests/jenkins.yaml\" >/dev/null <<EOF\napiVersion: v1\nkind: Pod\nmetadata:\n  name: jenkins\n  namespace: ci\nspec:\n  hostNetwork: true\n  containers:\n  - name: agent\n    image: bench53435138.local/agent:1\n    imagePullPolicy: Never\n    volumeMounts:\n    - {name: docker-run, mountPath: /var/run}\n    - {name: workspace, mountPath: /home/jenkins/agent}\n  - name: dind\n    image: bench53435138.local/dind:1\n    imagePullPolicy: Never\n    securityContext: {privileged: true}\n    volumeMounts:\n    - {name: docker-run, mountPath: /var/run}\n    - {name: docker-lib, mountPath: /var/lib/docker}\n    - {name: host-root, mountPath: /host}\n  volumes:\n  - {name: docker-run, emptyDir: {}}\n  - {name: docker-lib, emptyDir: {}}\n  - name: workspace\n    hostPath: {path: $L/workspace, type: Directory}\n  - name: host-root\n    hostPath: {path: /, type: Directory}\nEOF\nfor _ in $(seq 40); do\n    A=$($CRI ps -q --name agent --state running 2>/dev/null | head -1)\n    [ -n \"$A\" ] && $CRI exec \"$A\" docker version >/dev/null 2>&1 && break\n    sleep 2\ndone\n$CRI exec \"$A\" docker version --format 'server {{.Server.Version}}'\n"
+ },
+ {
+  "case_id": "q53435138",
+  "category": "compatibility",
+  "model": "wrong_tcp_agent_without_docker_host",
+  "code": "L=/var/lib/bench53435138; R=/run/bench53435138\nCRI=\"sudo crictl -r unix://$R/containerd.sock -i unix://$R/containerd.sock\"\nsudo tee \"$L/kubelet/manifests/jenkins.yaml\" >/dev/null <<EOF\napiVersion: v1\nkind: Pod\nmetadata:\n  name: jenkins\n  namespace: ci\nspec:\n  hostNetwork: true\n  containers:\n  - name: agent\n    image: bench53435138.local/agent:1\n    imagePullPolicy: Never\n    volumeMounts:\n    - {name: workspace, mountPath: /home/jenkins/agent}\n  - name: dind\n    image: bench53435138.local/dind:1\n    imagePullPolicy: Never\n    env:\n    - {name: DOCKER_TLS_CERTDIR, value: \"\"}\n    securityContext: {privileged: true}\n    volumeMounts:\n    - {name: docker-run, mountPath: /var/run}\n    - {name: docker-lib, mountPath: /var/lib/docker}\n  volumes:\n  - {name: docker-run, emptyDir: {}}\n  - {name: docker-lib, emptyDir: {}}\n  - name: workspace\n    hostPath: {path: $L/workspace, type: Directory}\nEOF\nfor _ in $(seq 15); do\n    A=$($CRI ps -q --name agent --state running 2>/dev/null | head -1)\n    [ -n \"$A\" ] && $CRI exec \"$A\" docker version >/dev/null 2>&1 && break\n    sleep 2\ndone\n$CRI exec \"$A\" docker version --format 'server {{.Server.Version}}'\n"
+ },
+ {
+  "case_id": "q53435138",
+  "category": "compatibility",
+  "model": "cheating_dockerd_started_by_exec",
+  "code": "L=/var/lib/bench53435138; R=/run/bench53435138\nCRI=\"sudo crictl -r unix://$R/containerd.sock -i unix://$R/containerd.sock\"\nsudo tee \"$L/kubelet/manifests/jenkins.yaml\" >/dev/null <<EOF\napiVersion: v1\nkind: Pod\nmetadata:\n  name: jenkins\n  namespace: ci\nspec:\n  hostNetwork: true\n  containers:\n  - name: agent\n    image: bench53435138.local/dind:1\n    imagePullPolicy: Never\n    command: [\"/usr/local/bin/idle\"]\n    securityContext: {privileged: true}\n    volumeMounts:\n    - {name: docker-lib, mountPath: /var/lib/docker}\n    - {name: workspace, mountPath: /home/jenkins/agent}\n  volumes:\n  - {name: docker-lib, emptyDir: {}}\n  - name: workspace\n    hostPath: {path: $L/workspace, type: Directory}\nEOF\nsleep 25   # the kubelet replaces the pod\nA=$($CRI ps -q --name agent --state running | head -1)\n$CRI exec \"$A\" sh -c \"dockerd-entrypoint.sh >/tmp/dockerd.log 2>&1 </dev/null &\"\nfor _ in $(seq 20); do\n    A=$($CRI ps -q --name agent --state running 2>/dev/null | head -1)\n    [ -n \"$A\" ] && $CRI exec \"$A\" docker version >/dev/null 2>&1 && break\n    sleep 2\ndone\n$CRI exec \"$A\" docker version --format 'server {{.Server.Version}}'\n"
+ }
+]
