@@ -1,0 +1,68 @@
+[
+ {
+  "case_id": "q76136482",
+  "category": "configuration",
+  "model": "reference_solution",
+  "code": "bash cases/configuration/q76136482/reference_solution.sh"
+ },
+ {
+  "case_id": "q76136482",
+  "category": "configuration",
+  "model": "alt_valid_inline_header",
+  "code": "L=/var/lib/bench76136482; H=$L/etc/certs.d/hub.registry/hosts.toml\nUSERPW=$(sudo python3 -c 'import json; a = json.load(open(\"/var/lib/bench76136482/account.json\")); print(a[\"user\"] + \":\" + a[\"password\"])')\nB=$(printf %s \"$USERPW\" | base64 -w0)\nsudo tee $H >/dev/null <<EOF\nserver = \"http://hub.registry\"\n\n[host.\"http://hub.registry\"]\n  capabilities = [\"pull\", \"resolve\"]\n  header = { authorization = \"Basic $B\" }\nEOF\nsudo $L/bin/crictl pull hub.registry/team/app:v1 && sudo $L/bin/crictl rmi hub.registry/team/app:v1\n"
+ },
+ {
+  "case_id": "q76136482",
+  "category": "configuration",
+  "model": "alt_valid_header_then_restart_containerd",
+  "code": "L=/var/lib/bench76136482; H=$L/etc/certs.d/hub.registry/hosts.toml\nUSERPW=$(sudo python3 -c 'import json; a = json.load(open(\"/var/lib/bench76136482/account.json\")); print(a[\"user\"] + \":\" + a[\"password\"])')\nB=$(printf %s \"$USERPW\" | base64 -w0)\nsudo tee $H >/dev/null <<EOF\nserver = \"http://hub.registry\"\n\n[host.\"http://hub.registry\"]\n  capabilities = [\"pull\", \"resolve\"]\n\n  [host.\"http://hub.registry\".header]\n    authorization = \"Basic $B\"\nEOF\nsudo $L/bin/containerdctl restart\nsudo $L/bin/crictl pull hub.registry/team/app:v1 && sudo $L/bin/crictl rmi hub.registry/team/app:v1\n"
+ },
+ {
+  "case_id": "q76136482",
+  "category": "configuration",
+  "model": "noop",
+  "code": ""
+ },
+ {
+  "case_id": "q76136482",
+  "category": "configuration",
+  "model": "wrong_deprecated_registry_configs_auth",
+  "code": "L=/var/lib/bench76136482; H=$L/etc/certs.d/hub.registry/hosts.toml\nUSERPW=$(sudo python3 -c 'import json; a = json.load(open(\"/var/lib/bench76136482/account.json\")); print(a[\"user\"] + \":\" + a[\"password\"])')\nB=$(printf %s \"$USERPW\" | base64 -w0)\nPW=${USERPW#*:}\nsudo tee -a $L/etc/config.toml >/dev/null <<EOF\n\n[plugins.'io.containerd.cri.v1.images'.registry.configs.'hub.registry'.auth]\n  username = \"hubuser\"\n  password = \"$PW\"\nEOF\nsudo $L/bin/containerdctl restart\nsudo $L/bin/crictl pull hub.registry/team/app:v1 && sudo $L/bin/crictl rmi hub.registry/team/app:v1\n"
+ },
+ {
+  "case_id": "q76136482",
+  "category": "configuration",
+  "model": "wrong_header_for_the_token_host",
+  "code": "L=/var/lib/bench76136482; H=$L/etc/certs.d/hub.registry/hosts.toml\nUSERPW=$(sudo python3 -c 'import json; a = json.load(open(\"/var/lib/bench76136482/account.json\")); print(a[\"user\"] + \":\" + a[\"password\"])')\nB=$(printf %s \"$USERPW\" | base64 -w0)\nsudo tee $H >/dev/null <<EOF\nserver = \"http://hub.registry\"\n\n[host.\"http://auth.hub.registry:5001\"]\n  capabilities = [\"pull\", \"resolve\"]\n  [host.\"http://auth.hub.registry:5001\".header]\n    authorization = \"Basic $B\"\n\nEOF\nsudo $L/bin/crictl pull hub.registry/team/app:v1 && sudo $L/bin/crictl rmi hub.registry/team/app:v1\n"
+ },
+ {
+  "case_id": "q76136482",
+  "category": "configuration",
+  "model": "wrong_second_host_as_mirror",
+  "code": "L=/var/lib/bench76136482; H=$L/etc/certs.d/hub.registry/hosts.toml\nUSERPW=$(sudo python3 -c 'import json; a = json.load(open(\"/var/lib/bench76136482/account.json\")); print(a[\"user\"] + \":\" + a[\"password\"])')\nB=$(printf %s \"$USERPW\" | base64 -w0)\nsudo tee $H >/dev/null <<EOF\nserver = \"http://hub.registry\"\n\n[host.\"http://hub.registry\"]\n  capabilities = [\"pull\", \"resolve\"]\n\n  [host.\"http://hub.registry\".header]\n    authorization = \"Basic $B\"\n\n[host.\"http://127.76.13.64\"]\n  capabilities = [\"pull\", \"resolve\"]\n  [host.\"http://127.76.13.64\".header]\n    authorization = \"Basic $B\"\nEOF\nsudo $L/bin/crictl pull hub.registry/team/app:v1 && sudo $L/bin/crictl rmi hub.registry/team/app:v1\n"
+ },
+ {
+  "case_id": "q76136482",
+  "category": "configuration",
+  "model": "wrong_crictl_creds_prepull_only",
+  "code": "L=/var/lib/bench76136482; H=$L/etc/certs.d/hub.registry/hosts.toml\nUSERPW=$(sudo python3 -c 'import json; a = json.load(open(\"/var/lib/bench76136482/account.json\")); print(a[\"user\"] + \":\" + a[\"password\"])')\nB=$(printf %s \"$USERPW\" | base64 -w0)\nsudo $L/bin/crictl pull --creds \"$USERPW\" hub.registry/team/app:v1\n"
+ },
+ {
+  "case_id": "q76136482",
+  "category": "configuration",
+  "model": "wrong_token_service_made_anonymous",
+  "code": "L=/var/lib/bench76136482; H=$L/etc/certs.d/hub.registry/hosts.toml\nUSERPW=$(sudo python3 -c 'import json; a = json.load(open(\"/var/lib/bench76136482/account.json\")); print(a[\"user\"] + \":\" + a[\"password\"])')\nB=$(printf %s \"$USERPW\" | base64 -w0)\nsudo sed -i 's/for a in actions.split(\",\") if user\\]/for a in actions.split(\",\")]/' $L/auth/tokensrv.py\nsudo $L/bin/hubctl restart\nsudo $L/bin/crictl pull hub.registry/team/app:v1 && sudo $L/bin/crictl rmi hub.registry/team/app:v1\n"
+ },
+ {
+  "case_id": "q76136482",
+  "category": "configuration",
+  "model": "wrong_header_with_wrong_password",
+  "code": "L=/var/lib/bench76136482; H=$L/etc/certs.d/hub.registry/hosts.toml\nUSERPW=$(sudo python3 -c 'import json; a = json.load(open(\"/var/lib/bench76136482/account.json\")); print(a[\"user\"] + \":\" + a[\"password\"])')\nB=$(printf %s \"$USERPW\" | base64 -w0)\nsudo tee $H >/dev/null <<EOF\nserver = \"http://hub.registry\"\n\n[host.\"http://hub.registry\"]\n  capabilities = [\"pull\", \"resolve\"]\n\n  [host.\"http://hub.registry\".header]\n    authorization = \"Basic bm9ib2R5Om5vcGU=\"\nEOF\nsudo $L/bin/crictl pull hub.registry/team/app:v1 && sudo $L/bin/crictl rmi hub.registry/team/app:v1\n"
+ },
+ {
+  "case_id": "q76136482",
+  "category": "configuration",
+  "model": "wrong_header_without_the_basic_word",
+  "code": "L=/var/lib/bench76136482; H=$L/etc/certs.d/hub.registry/hosts.toml\nUSERPW=$(sudo python3 -c 'import json; a = json.load(open(\"/var/lib/bench76136482/account.json\")); print(a[\"user\"] + \":\" + a[\"password\"])')\nB=$(printf %s \"$USERPW\" | base64 -w0)\nsudo tee $H >/dev/null <<EOF\nserver = \"http://hub.registry\"\n\n[host.\"http://hub.registry\"]\n  capabilities = [\"pull\", \"resolve\"]\n\n  [host.\"http://hub.registry\".header]\n    authorization = \"$B\"\nEOF\nsudo $L/bin/crictl pull hub.registry/team/app:v1 && sudo $L/bin/crictl rmi hub.registry/team/app:v1\n"
+ }
+]

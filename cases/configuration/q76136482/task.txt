@@ -1,0 +1,27 @@
+An engineer runs a node whose container runtime is containerd 2.2.3 with the CRI plugin, and wants it to pull from a registry with an account that the node itself holds, so that no pull needs credentials in its command, in an imagePullSecret or in a mirror. This machine is a small copy of that situation, all of it private: the containerd (socket /run/bench76136482/containerd.sock; started and stopped with /var/lib/bench76136482/bin/containerdctl: start, stop, restart, status), "crictl" aimed at it (/var/lib/bench76136482/bin/crictl, and /var/lib/bench76136482/bin/ctr for ctr), and a registry that works like Docker Hub, with Bearer authentication: the registry hub.registry (HTTP, port 80 of an address in /etc/hosts) sends a pull to its token service auth.hub.registry (HTTP, port 5001), which gives a token with access to the repository team/app only to a request that carries the account of the lab as HTTP Basic credentials (a token request without credentials gets a token with no access, one with wrong credentials gets 401). /var/lib/bench76136482/bin/hubctl (start, stop, restart, status) runs the registry and the token service; their logs, a line per request, are /run/bench76136482/registry.log and /run/bench76136482/token.log. The user name and the password of the account are in /var/lib/bench76136482/account.json (readable by root).
+
+containerd's configuration is /var/lib/bench76136482/etc/config.toml:
+
+    version = 3
+
+    [plugins.'io.containerd.cri.v1.images'.registry]
+      config_path = '/var/lib/bench76136482/etc/certs.d'
+
+and the hosts directory holds one file for the registry, /var/lib/bench76136482/etc/certs.d/hub.registry/hosts.toml:
+
+    server = "http://hub.registry"
+
+    [host."http://hub.registry"]
+      capabilities = ["pull", "resolve"]
+
+The repository team/app has the tag v1. Today the node cannot pull it:
+
+    crictl pull hub.registry/team/app:v1      ->  failed to resolve image: pull access denied, repository does not exist or may require authorization: server message: insufficient_scope: authorization failed
+
+On older nodes the engineer put the account in the old "registry.configs" section of the CRI configuration, which containerd documents as deprecated, and wants the current way: the hosts directory. Your task is to make the node pull from hub.registry with the account, with nothing but the node's own configuration: a "crictl pull hub.registry/team/app:TAG" without --creds must work for any tag of team/app. The check pushes a new image with a new tag and digest, makes sure the node does not have it, pulls it without credentials, and reads the two logs: the token service must have been asked for the pull with the account's credentials and granted it, and the registry must have served the tag, the manifest and the blobs to the account.
+
+Rules: do not use the deprecated "registry.configs" or "registry.mirrors" settings, "auth", "password" or "identitytoken" fields of config.toml; config.toml stays as it is; use the files below the hosts directory only, and keep the registry as its only host (no mirror, no other server). Do not use imagePullSecrets or "--creds", do not put images into the node by hand, and do not change the registry, its token service or the account (the registry still has to refuse readers without the account). Use containerdctl, crictl, ctr, hubctl and the standard shell tools.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.

@@ -1,0 +1,24 @@
+On this shared Ubuntu machine a private containerd instance is the container runtime of a small single-node Kubernetes-style setup, modelled on a MicroK8s node. It is started and stopped with /var/lib/bench67635227/bin/mk8sctl (mk8sctl start, stop, restart or status, like microk8s start and stop; it must run as root). The node's files are below /var/lib/bench67635227: the configuration is in /var/lib/bench67635227/current/args, and the CRI socket is /var/lib/bench67635227/common/run/containerd.sock; a crictl for it needs both endpoints, for example "crictl -r unix:///var/lib/bench67635227/common/run/containerd.sock -i unix:///var/lib/bench67635227/common/run/containerd.sock images".
+
+The cluster's images come from docker.io, and the team's private repository there is docker.io/benchlab67635/app. This machine does not reach the real Docker Hub (and its quota cannot be reproduced), so it has a stand-in that follows Docker Hub's rules for anonymous and authenticated pulls: a registry on http://127.67.63.52:5000 with its token service on http://127.67.63.52:5001 (HTTP, two ports of an address of this host). The registry answers 401 with a Bearer challenge; the token service gives a token to a request without credentials (an anonymous token) or with the Basic credentials of the team's account (an account token), and 401 to wrong credentials. With an anonymous token a HEAD of a manifest works, but a GET of a manifest or a blob is refused with 429 toomanyrequests, the pull rate limit; with an account token everything is served. The user name and the password of the account are in /var/lib/bench67635227/account.json (readable by root). The hub's log, one JSON line per request, is /run/bench67635227/hub.log. The sandbox image of the pods, bench67635227.local/pause:1, is already in the node, so a pod needs nothing but its own image.
+
+The node's registry settings, in /var/lib/bench67635227/current/args/containerd-template.toml, are the engineer's: docker.io is pulled from the hub, and an authentication block for docker.io is there but empty:
+
+    [plugins.'io.containerd.cri.v1.images'.registry.mirrors.'docker.io']
+      endpoint = ['http://127.67.63.52:5000']
+
+    [plugins.'io.containerd.cri.v1.images'.registry.configs.'docker.io'.auth]
+      username = ''
+      password = ''
+      auth = ''
+      email = ''
+
+The problem: a new pod whose image is docker.io/benchlab67635/app:TAG does not start, because the node's pull (the CRI PullImage call that the kubelet makes, for example "crictl pull docker.io/benchlab67635/app:v1") ends with: failed to copy: httpReadSeeker: failed open: unexpected status from GET request to http://127.67.63.52:5000/v2/benchlab67635/app/manifests/sha256:...: 429 Too Many Requests, toomanyrequests: You have reached your pull rate limit. You may increase the limit by authenticating and upgrading. The engineer does not want an imagePullSecret in every namespace: the node itself has to authenticate, once, for the whole cluster.
+
+Your task is to make the node authenticate with the team's account whenever it pulls from docker.io, so that a new pod in any namespace can pull the private image without any credentials of its own, and so that this still works after the node has been stopped and started again. The check publishes a new build of the image to the hub (a new tag, new digests) for a pod in the namespace team-a, removes the image from the node, creates the pod with "crictl run" (a host-network pod; the image is pulled by the CRI with no credentials in the request) and reads the hub's log and the container's output; it does the same for a pod in the namespace team-b, then restarts the node with "/var/lib/bench67635227/bin/mk8sctl restart" (it runs no other command first) and does both again. For each pull the hub must have given an account token to a request that carried the account's credentials, and served the manifest and both blobs to the account, to containerd, and must not have answered 429.
+
+Rules: the hub, its token service, its rate limit and the account must stay as they are (anonymous readers are still limited to HEAD of manifests), and docker.io must still be pulled from the hub at http://127.67.63.52:5000; do not load the image into the node by hand or pull it with credentials on the command line, because the check removes it and pulls it again; containerd must stay the process that mk8sctl starts, with the files that mk8sctl uses (do not change mk8sctl or the other files in /var/lib/bench67635227/bin) and the sandbox image must stay. Use mk8sctl, crictl, ctr and the standard shell tools; do not use docker, nerdctl, microk8s or kubectl.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.

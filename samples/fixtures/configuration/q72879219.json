@@ -1,0 +1,74 @@
+[
+ {
+  "case_id": "q72879219",
+  "category": "configuration",
+  "model": "reference_solution",
+  "code": "bash cases/configuration/q72879219/reference_solution.sh"
+ },
+ {
+  "case_id": "q72879219",
+  "category": "configuration",
+  "model": "alt_valid_legacy_cri_table_in_a_version_1_file",
+  "code": "L=/var/lib/bench72879219\nsudo tee $L/etc/config.toml >/dev/null <<'EOF'\n# containerd configuration of this node\n\n[plugins.cri]\n  enable_selinux = true\n  sandbox_image = \"registry.k8s.io/pause:3.9-lab\"\n\n  [plugins.cri.containerd.runtimes.runc]\n    runtime_type = \"io.containerd.runc.v2\"\n\n    [plugins.cri.containerd.runtimes.runc.options]\n      SystemdCgroup = true\n\n  [plugins.cri.registry]\n    config_path = \"/var/lib/bench72879219/etc/certs.d\"\nEOF\nsudo $L/bin/containerdctl restart\nsudo $L/bin/crictl info | grep -i enableSelinux\n"
+ },
+ {
+  "case_id": "q72879219",
+  "category": "configuration",
+  "model": "alt_valid_whole_file_with_version_2",
+  "code": "L=/var/lib/bench72879219\nsudo tee $L/etc/config.toml >/dev/null <<'EOF'\nversion = 2\n\n[plugins.\"io.containerd.grpc.v1.cri\"]\n  enable_selinux = true\n  sandbox_image = \"registry.k8s.io/pause:3.9-lab\"\n\n  [plugins.\"io.containerd.grpc.v1.cri\".containerd.runtimes.runc]\n    runtime_type = \"io.containerd.runc.v2\"\n\n    [plugins.\"io.containerd.grpc.v1.cri\".containerd.runtimes.runc.options]\n      SystemdCgroup = true\n\n  [plugins.\"io.containerd.grpc.v1.cri\".registry]\n    config_path = \"/var/lib/bench72879219/etc/certs.d\"\nEOF\nsudo $L/bin/containerdctl restart\nsudo $L/bin/crictl info | grep -i enableSelinux\n"
+ },
+ {
+  "case_id": "q72879219",
+  "category": "configuration",
+  "model": "noop",
+  "code": ""
+ },
+ {
+  "case_id": "q72879219",
+  "category": "configuration",
+  "model": "wrong_version_2_without_restart",
+  "code": "L=/var/lib/bench72879219\nsudo sed -i '1i version = 2\\n' $L/etc/config.toml\nsudo $L/bin/crictl info | grep -i enableSelinux\n"
+ },
+ {
+  "case_id": "q72879219",
+  "category": "configuration",
+  "model": "wrong_top_level_key_and_restart",
+  "code": "L=/var/lib/bench72879219\nsudo sed -i '1i enable_selinux = true\\n' $L/etc/config.toml\nsudo $L/bin/containerdctl restart\nsudo $L/bin/crictl info | grep -i enableSelinux\n"
+ },
+ {
+  "case_id": "q72879219",
+  "category": "configuration",
+  "model": "wrong_key_under_containerd_table_and_restart",
+  "code": "L=/var/lib/bench72879219\nsudo sed -i 's/^  enable_selinux = true$//' $L/etc/config.toml\nsudo tee -a $L/etc/config.toml >/dev/null <<'EOF'\n\n[plugins.\"io.containerd.grpc.v1.cri\".containerd]\n  enable_selinux = true\nEOF\nsudo $L/bin/containerdctl restart\nsudo $L/bin/crictl info | grep -i enableSelinux\n"
+ },
+ {
+  "case_id": "q72879219",
+  "category": "configuration",
+  "model": "wrong_only_the_selinux_key_in_legacy_table",
+  "code": "L=/var/lib/bench72879219\nsudo tee -a $L/etc/config.toml >/dev/null <<'EOF'\n\n[plugins.cri]\n  enable_selinux = true\nEOF\nsudo $L/bin/containerdctl restart\nsudo $L/bin/crictl info | grep -i enableSelinux\n"
+ },
+ {
+  "case_id": "q72879219",
+  "category": "configuration",
+  "model": "wrong_config_default_regenerated_with_selinux",
+  "code": "L=/var/lib/bench72879219\nsudo sh -c \"$L/libexec/containerd config default | sed 's/enable_selinux = false/enable_selinux = true/' > $L/etc/config.toml\"\nsudo $L/bin/containerdctl restart\nsudo $L/bin/crictl info | grep -i enableSelinux\n"
+ },
+ {
+  "case_id": "q72879219",
+  "category": "configuration",
+  "model": "alt_valid_version_3_which_1_6_6_reads_as_2",
+  "code": "L=/var/lib/bench72879219\nsudo sed -i '1i version = 3\\n' $L/etc/config.toml\nsudo $L/bin/containerdctl restart\nsudo $L/bin/crictl info | grep -i enableSelinux\n"
+ },
+ {
+  "case_id": "q72879219",
+  "category": "configuration",
+  "model": "wrong_explicit_version_1",
+  "code": "L=/var/lib/bench72879219\nsudo sed -i '1i version = 1\\n' $L/etc/config.toml\nsudo $L/bin/containerdctl restart\nsudo $L/bin/crictl info | grep -i enableSelinux\n"
+ },
+ {
+  "case_id": "q72879219",
+  "category": "configuration",
+  "model": "wrong_setenforce_0",
+  "code": "sudo setenforce 0 || true\nL=/var/lib/bench72879219\nsudo $L/bin/containerdctl restart\nsudo $L/bin/crictl info | grep -i enableSelinux\n"
+ }
+]

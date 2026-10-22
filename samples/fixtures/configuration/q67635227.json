@@ -1,0 +1,80 @@
+[
+ {
+  "case_id": "q67635227",
+  "category": "configuration",
+  "model": "reference_solution",
+  "code": "bash cases/configuration/q67635227/reference_solution.sh"
+ },
+ {
+  "case_id": "q67635227",
+  "category": "configuration",
+  "model": "alt_valid_auth_field_base64",
+  "code": "L=/var/lib/bench67635227; T=$L/current/args/containerd-template.toml\nU=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"user\"])')\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"password\"])')\nB=$(printf \"%s:%s\" \"$U\" \"$PW\" | base64 -w0)\nsudo sed -i -e \"s|registry\\.configs\\.'docker\\.io'\\.auth|registry.configs.'127.67.63.52:5000'.auth|\" -e \"s|^  auth = ''|  auth = '$B'|\" \"$T\"\nsudo $L/bin/mk8sctl restart\n"
+ },
+ {
+  "case_id": "q67635227",
+  "category": "configuration",
+  "model": "alt_valid_second_auth_block_for_the_endpoint",
+  "code": "L=/var/lib/bench67635227; T=$L/current/args/containerd-template.toml\nU=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"user\"])')\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"password\"])')\nsudo tee -a \"$T\" >/dev/null <<EOF\n\n[plugins.'io.containerd.cri.v1.images'.registry.configs.'127.67.63.52:5000'.auth]\n  username = '$U'\n  password = '$PW'\nEOF\nsudo $L/bin/mk8sctl restart\n"
+ },
+ {
+  "case_id": "q67635227",
+  "category": "configuration",
+  "model": "alt_valid_hosts_toml_header_and_config_path",
+  "code": "L=/var/lib/bench67635227; T=$L/current/args/containerd-template.toml\nU=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"user\"])')\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"password\"])')\nsudo python3 - \"$T\" <<'PY'\nimport sys\n\np = sys.argv[1]\nt = open(p).read()\nt = t[:t.index(\"# registry settings of the node\")]\nt = t.replace(\"config_path = ''\", \"config_path = '/var/lib/bench67635227/certs.d'\")\nopen(p, \"w\").write(t)\nPY\nsudo mkdir -p $L/certs.d/docker.io\nB=$(printf \"%s:%s\" \"$U\" \"$PW\" | base64 -w0)\nsudo tee $L/certs.d/docker.io/hosts.toml >/dev/null <<EOF\nserver = \"https://registry-1.docker.io\"\n\n[host.\"http://127.67.63.52:5000\"]\n  capabilities = [\"pull\", \"resolve\"]\n\n  [host.\"http://127.67.63.52:5000\".header]\n    authorization = \"Basic $B\"\nEOF\nsudo $L/bin/mk8sctl restart\n"
+ },
+ {
+  "case_id": "q67635227",
+  "category": "configuration",
+  "model": "noop",
+  "code": ""
+ },
+ {
+  "case_id": "q67635227",
+  "category": "configuration",
+  "model": "wrong_account_under_the_docker_io_key",
+  "code": "L=/var/lib/bench67635227; T=$L/current/args/containerd-template.toml\nU=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"user\"])')\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"password\"])')\nsudo sed -i -e \"s|^  username = ''|  username = '$U'|\" -e \"s|^  password = ''|  password = '$PW'|\" \"$T\"\nsudo $L/bin/mk8sctl restart\n"
+ },
+ {
+  "case_id": "q67635227",
+  "category": "configuration",
+  "model": "wrong_endpoint_key_without_the_port",
+  "code": "L=/var/lib/bench67635227; T=$L/current/args/containerd-template.toml\nU=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"user\"])')\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"password\"])')\nsudo sed -i -e \"s|registry\\.configs\\.'docker\\.io'\\.auth|registry.configs.'127.67.63.52'.auth|\" -e \"s|^  username = ''|  username = '$U'|\" -e \"s|^  password = ''|  password = '$PW'|\" \"$T\"\nsudo $L/bin/mk8sctl restart\n"
+ },
+ {
+  "case_id": "q67635227",
+  "category": "configuration",
+  "model": "wrong_template_fixed_node_not_restarted",
+  "code": "L=/var/lib/bench67635227; T=$L/current/args/containerd-template.toml\nU=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"user\"])')\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"password\"])')\nsudo sed -i -e \"s|registry\\.configs\\.'docker\\.io'\\.auth|registry.configs.'127.67.63.52:5000'.auth|\" -e \"s|^  username = ''|  username = '$U'|\" -e \"s|^  password = ''|  password = '$PW'|\" \"$T\"\n"
+ },
+ {
+  "case_id": "q67635227",
+  "category": "configuration",
+  "model": "wrong_generated_containerd_toml_edited_then_restart",
+  "code": "L=/var/lib/bench67635227; T=$L/current/args/containerd-template.toml\nU=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"user\"])')\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"password\"])')\nG=$L/current/args/containerd.toml\nsudo sed -i -e \"s|registry\\.configs\\.'docker\\.io'\\.auth|registry.configs.'127.67.63.52:5000'.auth|\" -e \"s|^  username = ''|  username = '$U'|\" -e \"s|^  password = ''|  password = '$PW'|\" \"$G\"\nsudo $L/bin/mk8sctl restart\n"
+ },
+ {
+  "case_id": "q67635227",
+  "category": "configuration",
+  "model": "wrong_wrong_password",
+  "code": "L=/var/lib/bench67635227; T=$L/current/args/containerd-template.toml\nU=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"user\"])')\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"password\"])')\nsudo sed -i -e \"s|registry\\.configs\\.'docker\\.io'\\.auth|registry.configs.'127.67.63.52:5000'.auth|\" -e \"s|^  username = ''|  username = '$U'|\" -e \"s|^  password = ''|  password = 'not-the-password'|\" \"$T\"\nsudo $L/bin/mk8sctl restart\n"
+ },
+ {
+  "case_id": "q67635227",
+  "category": "configuration",
+  "model": "wrong_config_path_with_the_mirror_kept",
+  "code": "L=/var/lib/bench67635227; T=$L/current/args/containerd-template.toml\nU=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"user\"])')\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"password\"])')\nsudo python3 - \"$T\" <<'PY'\nimport sys\n\np = sys.argv[1]\nt = open(p).read()\nt = t.replace(\"config_path = ''\", \"config_path = '/var/lib/bench67635227/certs.d'\")\nopen(p, \"w\").write(t)\nPY\nsudo mkdir -p $L/certs.d/docker.io\nB=$(printf \"%s:%s\" \"$U\" \"$PW\" | base64 -w0)\nsudo tee $L/certs.d/docker.io/hosts.toml >/dev/null <<EOF\nserver = \"https://registry-1.docker.io\"\n\n[host.\"http://127.67.63.52:5000\"]\n  capabilities = [\"pull\", \"resolve\"]\n\n  [host.\"http://127.67.63.52:5000\".header]\n    authorization = \"Basic $B\"\nEOF\nsudo $L/bin/mk8sctl restart\n"
+ },
+ {
+  "case_id": "q67635227",
+  "category": "configuration",
+  "model": "wrong_prepull_with_ctr_and_the_account",
+  "code": "L=/var/lib/bench67635227; T=$L/current/args/containerd-template.toml\nU=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"user\"])')\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench67635227/account.json\"))[\"password\"])')\nsudo ctr -a $L/common/run/containerd.sock -n k8s.io images pull --plain-http --user \"$U:$PW\" 127.67.63.52:5000/benchlab67635/app:v1\n"
+ },
+ {
+  "case_id": "q67635227",
+  "category": "configuration",
+  "model": "cheating_hub_rate_limit_removed",
+  "code": "S=/tmp/bench67635227/.bench\nPID=$(sudo pgrep -f \"$S/[h]ub.py serve\" | head -1)\nCMD=$(sudo tr '\\0' ' ' < /proc/$PID/cmdline)\nsudo sed -i 's/if sub == \"anonymous\" and not (head and kind == \"manifests\"):/if False:/' $S/hub.py\nsudo kill $PID\nsleep 1\nsudo sh -c \"setsid -f $CMD >/dev/null 2>&1 </dev/null\"\nsleep 1\n"
+ }
+]

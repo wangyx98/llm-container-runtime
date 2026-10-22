@@ -1,0 +1,26 @@
+An engineer runs a node with containerd 1.6.6 and the CRI plugin as the runtime of a Kubernetes cluster, on a distribution that runs SELinux in enforcing mode. He wants the containers' processes to get an SELinux label of their own (container_t), so he put "enable_selinux = true" into the CRI section of containerd's configuration and restarted containerd; but the processes of the containers still run as spc_t. This machine does not run SELinux (there is no policy here, and it must not be switched on or off: do not touch setenforce or the boot parameters), so it is a small copy of the part that comes first, which is all that this task is about: does the running containerd use that setting at all? The label is only set when the CRI plugin of the running containerd has SELinux support turned on, and what it uses is what "crictl info" reports in its "config" part ("enableSelinux").
+
+The lab is private: containerd 1.6.6 (socket /run/bench72879219/containerd.sock; started and stopped with /var/lib/bench72879219/bin/containerdctl: start, stop, restart, status; it reads its configuration when it starts, it was started with --config /var/lib/bench72879219/etc/config.toml), and "crictl" aimed at it (/var/lib/bench72879219/bin/crictl; "sudo /var/lib/bench72879219/bin/crictl info" prints the CRI plugin's configuration as JSON). The engineer's configuration, /var/lib/bench72879219/etc/config.toml, is:
+
+    # containerd configuration of this node
+
+    [plugins."io.containerd.grpc.v1.cri"]
+      enable_selinux = true
+      sandbox_image = "registry.k8s.io/pause:3.9-lab"
+
+      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+        runtime_type = "io.containerd.runc.v2"
+
+        [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+          SystemdCgroup = true
+
+      [plugins."io.containerd.grpc.v1.cri".registry]
+        config_path = "/var/lib/bench72879219/etc/certs.d"
+
+Today the running containerd reports "enableSelinux": false, and its other three settings of this file (the sandbox image, SystemdCgroup of runc, the registry config_path) are not in force either. Your task is to make the running containerd use the file: after your commands, "crictl info" must report enableSelinux true while the sandbox image registry.k8s.io/pause:3.9-lab, runc's SystemdCgroup true and the registry config_path /var/lib/bench72879219/etc/certs.d are in force too, from the node's own configuration file. The check reads these from the live containerd (so the daemon has to have been restarted on the file you leave behind), checks that it is still the lab's containerd 1.6.6 (same binary, same socket, started with --config /var/lib/bench72879219/etc/config.toml), and that the file still holds the four settings of the engineer (edit the file; a file made by "containerd config default" would lose the others).
+
+Rules: do not replace or upgrade containerd, do not use another configuration file or other flags for the daemon, do not change the four settings, do not touch the host's SELinux (setenforce, selinux config, boot parameters). Use containerdctl, crictl and the standard shell tools.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.
