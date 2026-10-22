@@ -1,0 +1,80 @@
+[
+  {
+    "case_id": "q75622952",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q75622952/reference_solution.sh"
+  },
+  {
+    "case_id": "q75622952",
+    "category": "diagnostics",
+    "model": "alt_valid_endpoint_with_v2",
+    "code": "set -e\nsudo sed -i 's|endpoint = \\[\"https://10.75.62.29:8443/\"\\]|endpoint = [\"https://10.75.62.29:8443/v2/\"]|' /var/lib/bench75622952/etc/containerd.toml\nsudo /var/lib/bench75622952/bin/nodectl restart\nsudo /var/lib/bench75622952/bin/crictl pull 10.75.62.29:8443/k8mtest/k8m:v1.0\n"
+  },
+  {
+    "case_id": "q75622952",
+    "category": "diagnostics",
+    "model": "alt_valid_mirror_entry_removed",
+    "code": "set -e\nsudo python3 - <<'PYEOF'\nimport re\np = '/var/lib/bench75622952/etc/containerd.toml'\ns = open(p).read()\ns = re.sub(r'\\n[ ]*\\[plugins.\"io.containerd.grpc.v1.cri\".registry.mirrors.\"10.75.62.29:8443\"\\]\\n[ ]*endpoint = \\[[^\\n]*\\]', '', s)\nassert 'endpoint = [\"https://10.75.62.29:8443' not in s\nopen(p, 'w').write(s)\nPYEOF\nsudo /var/lib/bench75622952/bin/nodectl restart\nsudo /var/lib/bench75622952/bin/crictl pull 10.75.62.29:8443/k8mtest/k8m:v1.0\n"
+  },
+  {
+    "case_id": "q75622952",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q75622952",
+    "category": "diagnostics",
+    "model": "wrong_ca_put_into_the_system_trust",
+    "code": "set -e\nsudo cp /var/lib/bench75622952/pki/ca.crt /usr/local/share/ca-certificates/harbor-lab.crt\nsudo update-ca-certificates\nsudo /var/lib/bench75622952/bin/nodectl restart\nsudo /var/lib/bench75622952/bin/crictl pull 10.75.62.29:8443/k8mtest/k8m:v1.0\n"
+  },
+  {
+    "case_id": "q75622952",
+    "category": "diagnostics",
+    "model": "cheating_skip_tls_verify",
+    "code": "set -e\nsudo sed -i 's|endpoint = \\[\"https://10.75.62.29:8443/\"\\]|endpoint = [\"https://10.75.62.29:8443\"]|' /var/lib/bench75622952/etc/containerd.toml\nsudo sed -i 's|insecure_skip_verify = false|insecure_skip_verify = true|' /var/lib/bench75622952/etc/containerd.toml\nsudo /var/lib/bench75622952/bin/nodectl restart\nsudo /var/lib/bench75622952/bin/crictl pull 10.75.62.29:8443/k8mtest/k8m:v1.0\n"
+  },
+  {
+    "case_id": "q75622952",
+    "category": "diagnostics",
+    "model": "cheating_ca_bundle_trusts_the_other_ca_too",
+    "code": "set -e\nsudo sh -c 'cat /var/lib/bench75622952/pki/lab-ca.crt /var/lib/bench75622952/pki/rogue-ca.crt > /var/lib/bench75622952/etc/ca-bundle.pem'\nsudo sed -i 's|ca_file = \"/var/lib/bench75622952/pki/ca.crt\"|ca_file = \"/var/lib/bench75622952/etc/ca-bundle.pem\"|' /var/lib/bench75622952/etc/containerd.toml\nsudo sed -i 's|endpoint = \\[\"https://10.75.62.29:8443/\"\\]|endpoint = [\"https://10.75.62.29:8443\"]|' /var/lib/bench75622952/etc/containerd.toml\nsudo /var/lib/bench75622952/bin/nodectl restart\nsudo /var/lib/bench75622952/bin/crictl pull 10.75.62.29:8443/k8mtest/k8m:v1.0\n"
+  },
+  {
+    "case_id": "q75622952",
+    "category": "diagnostics",
+    "model": "wrong_endpoint_fixed_but_no_restart",
+    "code": "set -e\nsudo sed -i 's|endpoint = \\[\"https://10.75.62.29:8443/\"\\]|endpoint = [\"https://10.75.62.29:8443\"]|' /var/lib/bench75622952/etc/containerd.toml\nsudo /var/lib/bench75622952/bin/crictl pull 10.75.62.29:8443/k8mtest/k8m:v1.0 || true\n"
+  },
+  {
+    "case_id": "q75622952",
+    "category": "diagnostics",
+    "model": "wrong_image_put_into_k8s_io_with_ctr",
+    "code": "set -e\nsudo /var/lib/bench75622952/bin/ctr -n k8s.io images pull --user admin:Harbor12345 --tlscacert /var/lib/bench75622952/pki/ca.crt 10.75.62.29:8443/k8mtest/k8m:v1.0\nsudo /var/lib/bench75622952/bin/crictl images\n"
+  },
+  {
+    "case_id": "q75622952",
+    "category": "diagnostics",
+    "model": "wrong_account_removed",
+    "code": "set -e\nsudo sed -i 's|endpoint = \\[\"https://10.75.62.29:8443/\"\\]|endpoint = [\"https://10.75.62.29:8443\"]|' /var/lib/bench75622952/etc/containerd.toml\nsudo python3 - <<'PYEOF'\nimport re\np = '/var/lib/bench75622952/etc/containerd.toml'\ns = open(p).read()\ns = re.sub(r'\\n[ ]*username = \"admin\"\\n[ ]*password = \"Harbor12345\"', '\\n', s)\nopen(p, 'w').write(s)\nPYEOF\nsudo /var/lib/bench75622952/bin/nodectl restart\nsudo /var/lib/bench75622952/bin/crictl pull 10.75.62.29:8443/k8mtest/k8m:v1.0 || true\n"
+  },
+  {
+    "case_id": "q75622952",
+    "category": "diagnostics",
+    "model": "wrong_http_endpoint",
+    "code": "set -e\nsudo sed -i 's|endpoint = \\[\"https://10.75.62.29:8443/\"\\]|endpoint = [\"http://10.75.62.29:8443\"]|' /var/lib/bench75622952/etc/containerd.toml\nsudo /var/lib/bench75622952/bin/nodectl restart\nsudo /var/lib/bench75622952/bin/crictl pull 10.75.62.29:8443/k8mtest/k8m:v1.0 || true\n"
+  },
+  {
+    "case_id": "q75622952",
+    "category": "diagnostics",
+    "model": "wrong_loopback_endpoint",
+    "code": "set -e\nsudo sed -i 's|endpoint = \\[\"https://10.75.62.29:8443/\"\\]|endpoint = [\"https://127.0.0.1:8443\"]|' /var/lib/bench75622952/etc/containerd.toml\nsudo /var/lib/bench75622952/bin/nodectl restart\nsudo /var/lib/bench75622952/bin/crictl pull 10.75.62.29:8443/k8mtest/k8m:v1.0 || true\n"
+  },
+  {
+    "case_id": "q75622952",
+    "category": "diagnostics",
+    "model": "cheating_the_front_edited",
+    "code": "set -e\nsudo sed -i 's|if p in (\"/v2/\", \"/v2\"):|if p in (\"/v2/\", \"/v2\", \"/\"):|' /var/lib/bench75622952/front/front.py\nsudo sed -i 's|endpoint = \\[\"https://10.75.62.29:8443/\"\\]|endpoint = [\"https://10.75.62.29:8443\"]|' /var/lib/bench75622952/etc/containerd.toml\nsudo /var/lib/bench75622952/bin/nodectl restart\nsudo /var/lib/bench75622952/bin/crictl pull 10.75.62.29:8443/k8mtest/k8m:v1.0\n"
+  }
+]
