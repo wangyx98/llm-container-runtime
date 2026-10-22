@@ -1,0 +1,74 @@
+[
+  {
+    "case_id": "q68471241",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q68471241/reference_solution.sh"
+  },
+  {
+    "case_id": "q68471241",
+    "category": "diagnostics",
+    "model": "alt_valid_new_release_started_by_hand",
+    "code": "L=/var/lib/bench68471241\nsudo $L/bin/crioctl stop\nsudo ln -sfn $L/releases/v1.22.4 $L/node/current\nsudo bash -c \"HOME=/root CONTAINER_REGISTRIES_CONF=$L/etc/registries.conf CONTAINERS_STORAGE_CONF=$L/etc/storage.conf setsid -f $L/node/current/crio --config $L/etc/crio.conf --config-dir $L/etc/crio.conf.d --log-level info >>/run/bench68471241/crio.log 2>&1 </dev/null\"\nfor _ in $(seq 1 4); do sudo $L/bin/crictl -r unix:///run/bench68471241/crio.sock -i unix:///run/bench68471241/crio.sock version >/dev/null 2>&1 && break; sleep 1; done\n"
+  },
+  {
+    "case_id": "q68471241",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q68471241",
+    "category": "diagnostics",
+    "model": "wrong_upgrade_to_1_21_0_which_has_no_tls",
+    "code": "L=/var/lib/bench68471241\nsudo $L/bin/crioctl stop\nsudo ln -sfn $L/releases/v1.21.0 $L/node/current\nsudo $L/bin/crioctl start\nfor _ in $(seq 1 4); do sudo $L/bin/crictl -r unix:///run/bench68471241/crio.sock -i unix:///run/bench68471241/crio.sock version >/dev/null 2>&1 && break; sleep 1; done\nsudo $L/bin/scrape | head -3\n"
+  },
+  {
+    "case_id": "q68471241",
+    "category": "diagnostics",
+    "model": "wrong_release_switched_but_crio_not_restarted",
+    "code": "L=/var/lib/bench68471241\nsudo ln -sfn $L/releases/v1.22.4 $L/node/current\nsudo $L/bin/scrape | head -3\n"
+  },
+  {
+    "case_id": "q68471241",
+    "category": "diagnostics",
+    "model": "wrong_upgraded_but_certificate_path_has_a_typo_crio_does_not_start",
+    "code": "L=/var/lib/bench68471241\nsudo $L/bin/crioctl stop\nsudo ln -sfn $L/releases/v1.22.4 $L/node/current\nsudo sed -i 's#certs/cert.crt#certs/cert.pem#' $L/etc/crio.conf.d/01-metrics.conf\nsudo $L/bin/crioctl start\nfor _ in $(seq 1 4); do sudo $L/bin/crictl -r unix:///run/bench68471241/crio.sock -i unix:///run/bench68471241/crio.sock version >/dev/null 2>&1 && break; sleep 1; done\nsudo $L/bin/scrape | head -3\n"
+  },
+  {
+    "case_id": "q68471241",
+    "category": "diagnostics",
+    "model": "wrong_upgraded_but_certificate_and_key_dropped_from_the_drop_in_so_metrics_stay_plain_http",
+    "code": "L=/var/lib/bench68471241\nsudo $L/bin/crioctl stop\nsudo ln -sfn $L/releases/v1.22.4 $L/node/current\nsudo sed -i '/^metrics_cert/d;/^metrics_key/d' $L/etc/crio.conf.d/01-metrics.conf\nsudo $L/bin/crioctl start\nfor _ in $(seq 1 4); do sudo $L/bin/crictl -r unix:///run/bench68471241/crio.sock -i unix:///run/bench68471241/crio.sock version >/dev/null 2>&1 && break; sleep 1; done\nsudo $L/bin/scrape | head -3\n"
+  },
+  {
+    "case_id": "q68471241",
+    "category": "diagnostics",
+    "model": "wrong_tls_proxy_on_port_5555_in_front_of_1_20_7",
+    "code": "L=/var/lib/bench68471241\ncat > /tmp/bench68471241-proxy.py <<'PEOF'\nimport socket, ssl, threading\nctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)\nctx.load_cert_chain(\"/var/lib/bench68471241/certs/cert.crt\", \"/var/lib/bench68471241/certs/key.crt\")\nsrv = socket.socket(); srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); srv.bind((\"0.0.0.0\", 5555)); srv.listen(16)\ndef pump(a, b):\n    try:\n        while True:\n            d = a.recv(65536)\n            if not d: break\n            b.sendall(d)\n    except Exception: pass\n    for s in (a, b):\n        try: s.close()\n        except Exception: pass\ndef serve(c):\n    try:\n        t = ctx.wrap_socket(c, server_side=True)\n        u = socket.create_connection((\"127.0.0.1\", 5556))\n    except Exception:\n        c.close(); return\n    threading.Thread(target=pump, args=(t, u), daemon=True).start(); pump(u, t)\nwhile True:\n    c, _ = srv.accept(); threading.Thread(target=serve, args=(c,), daemon=True).start()\nPEOF\nsudo sed -i 's/^metrics_port = .*/metrics_port = 5556/' $L/etc/crio.conf.d/01-metrics.conf\nsudo $L/bin/crioctl restart\nfor _ in $(seq 1 4); do sudo $L/bin/crictl -r unix:///run/bench68471241/crio.sock -i unix:///run/bench68471241/crio.sock version >/dev/null 2>&1 && break; sleep 1; done\nsudo setsid -f python3 /tmp/bench68471241-proxy.py >/dev/null 2>&1 </dev/null\nsleep 2\nsudo $L/bin/scrape | head -3\n"
+  },
+  {
+    "case_id": "q68471241",
+    "category": "diagnostics",
+    "model": "wrong_upgraded_but_metrics_switched_off",
+    "code": "L=/var/lib/bench68471241\nsudo $L/bin/crioctl stop\nsudo ln -sfn $L/releases/v1.22.4 $L/node/current\nsudo sed -i 's/^enable_metrics = .*/enable_metrics = false/' $L/etc/crio.conf.d/01-metrics.conf\nsudo $L/bin/crioctl start\nfor _ in $(seq 1 4); do sudo $L/bin/crictl -r unix:///run/bench68471241/crio.sock -i unix:///run/bench68471241/crio.sock version >/dev/null 2>&1 && break; sleep 1; done\n"
+  },
+  {
+    "case_id": "q68471241",
+    "category": "diagnostics",
+    "model": "cheating_upgraded_with_metrics_off_and_a_fake_https_metrics_server_on_5555",
+    "code": "L=/var/lib/bench68471241\nsudo $L/bin/crioctl stop\nsudo ln -sfn $L/releases/v1.22.4 $L/node/current\nsudo sed -i 's/^enable_metrics = .*/enable_metrics = false/' $L/etc/crio.conf.d/01-metrics.conf\nsudo $L/bin/crioctl start\nfor _ in $(seq 1 4); do sudo $L/bin/crictl -r unix:///run/bench68471241/crio.sock -i unix:///run/bench68471241/crio.sock version >/dev/null 2>&1 && break; sleep 1; done\ncat > /tmp/bench68471241-fake.py <<'PEOF'\nimport socket, ssl, threading\nctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)\nctx.load_cert_chain(\"/var/lib/bench68471241/certs/cert.crt\", \"/var/lib/bench68471241/certs/key.crt\")\nBODY = b'# HELP container_runtime_crio_operations ops\\n# TYPE container_runtime_crio_operations counter\\ncontainer_runtime_crio_operations{operation_type=\"Version\"} 1\\n'\nsrv = socket.socket(); srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); srv.bind((\"0.0.0.0\", 5555)); srv.listen(16)\ndef serve(c):\n    try:\n        t = ctx.wrap_socket(c, server_side=True); t.recv(65536)\n        t.sendall(b\"HTTP/1.1 200 OK\\r\\nContent-Length: %d\\r\\nConnection: close\\r\\n\\r\\n\" % len(BODY) + BODY); t.close()\n    except Exception:\n        c.close()\nwhile True:\n    c, _ = srv.accept(); threading.Thread(target=serve, args=(c,), daemon=True).start()\nPEOF\nsudo setsid -f python3 /tmp/bench68471241-fake.py >/dev/null 2>&1 </dev/null\nsleep 2\nsudo $L/bin/scrape | head -3\n"
+  },
+  {
+    "case_id": "q68471241",
+    "category": "diagnostics",
+    "model": "wrong_upgraded_with_the_storage_reset_so_the_images_are_gone",
+    "code": "L=/var/lib/bench68471241\nsudo $L/bin/crioctl stop\nsudo ln -sfn $L/releases/v1.22.4 $L/node/current\nsudo rm -rf $L/crio/storage /run/bench68471241/storage\nsudo $L/bin/crioctl start\nfor _ in $(seq 1 4); do sudo $L/bin/crictl -r unix:///run/bench68471241/crio.sock -i unix:///run/bench68471241/crio.sock version >/dev/null 2>&1 && break; sleep 1; done\nsudo $L/bin/scrape | head -3\n"
+  },
+  {
+    "case_id": "q68471241",
+    "category": "diagnostics",
+    "model": "cheating_scrape_script_made_plain_http",
+    "code": "L=/var/lib/bench68471241\nsudo sed -i 's#https://#http://#' $L/bin/scrape\nsudo $L/bin/scrape | head -3\n"
+  }
+]
