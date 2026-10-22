@@ -1,0 +1,98 @@
+[
+ {
+  "case_id": "q64935442",
+  "category": "configuration",
+  "model": "reference_solution",
+  "code": "bash cases/configuration/q64935442/reference_solution.sh"
+ },
+ {
+  "case_id": "q64935442",
+  "category": "configuration",
+  "model": "alt_valid_apply_full_yaml",
+  "code": "K='sudo /var/lib/bench64935442/bin/kubectl'\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench64935442/account.json\"))[\"password\"])')\n$K apply -f - <<'EOF'\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: blaw\n  namespace: default\n  labels:\n    app: blaw\nspec:\n  replicas: 1\n  strategy:\n    type: Recreate\n  selector:\n    matchLabels:\n      app: blaw\n  template:\n    metadata:\n      labels:\n        app: blaw\n    spec:\n      imagePullSecrets:\n      - name: regcred\n      containers:\n      - name: transcribe-service\n        image: benchlab64935/blaw-service:v0.3.10\nEOF\n$K rollout status deployment/blaw -n default --timeout=120s\n"
+ },
+ {
+  "case_id": "q64935442",
+  "category": "configuration",
+  "model": "alt_valid_default_serviceaccount_patch_and_rollout_restart",
+  "code": "K='sudo /var/lib/bench64935442/bin/kubectl'\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench64935442/account.json\"))[\"password\"])')\n$K patch serviceaccount default -n default -p '{\"imagePullSecrets\":[{\"name\":\"regcred\"}]}'\n$K rollout restart deployment/blaw -n default\n$K rollout status deployment/blaw -n default --timeout=120s\n"
+ },
+ {
+  "case_id": "q64935442",
+  "category": "configuration",
+  "model": "alt_valid_secret_recreated_for_docker_io",
+  "code": "K='sudo /var/lib/bench64935442/bin/kubectl'\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench64935442/account.json\"))[\"password\"])')\n$K delete secret regcred -n default\n$K create secret docker-registry regcred -n default --docker-server=docker.io --docker-username=hubuser --docker-password=\"$PW\" --docker-email=engineer@example.com\n$K patch deployment blaw -n default --type merge -p '{\"spec\":{\"template\":{\"spec\":{\"imagePullSecrets\":[{\"name\":\"regcred\"}]}}}}'\n$K rollout status deployment/blaw -n default --timeout=120s\n"
+ },
+ {
+  "case_id": "q64935442",
+  "category": "configuration",
+  "model": "noop",
+  "code": ""
+ },
+ {
+  "case_id": "q64935442",
+  "category": "configuration",
+  "model": "wrong_secret_recreated_but_not_referenced",
+  "code": "K='sudo /var/lib/bench64935442/bin/kubectl'\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench64935442/account.json\"))[\"password\"])')\n$K delete secret regcred -n default\n$K create secret docker-registry regcred -n default --docker-server=https://index.docker.io/v1/ --docker-username=hubuser --docker-password=\"$PW\" --docker-email=engineer@example.com\n$K rollout restart deployment/blaw -n default\n"
+ },
+ {
+  "case_id": "q64935442",
+  "category": "configuration",
+  "model": "wrong_secret_name_does_not_exist",
+  "code": "K='sudo /var/lib/bench64935442/bin/kubectl'\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench64935442/account.json\"))[\"password\"])')\n$K patch deployment blaw -n default --type merge -p '{\"spec\":{\"template\":{\"spec\":{\"imagePullSecrets\":[{\"name\":\"regcred-dockerhub\"}]}}}}'\n"
+ },
+ {
+  "case_id": "q64935442",
+  "category": "configuration",
+  "model": "wrong_secret_only_in_another_namespace",
+  "code": "K='sudo /var/lib/bench64935442/bin/kubectl'\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench64935442/account.json\"))[\"password\"])')\n$K delete secret regcred -n default\n$K create secret docker-registry regcred -n kube-system --docker-server=https://index.docker.io/v1/ --docker-username=hubuser --docker-password=\"$PW\"\n$K patch deployment blaw -n default --type merge -p '{\"spec\":{\"template\":{\"spec\":{\"imagePullSecrets\":[{\"name\":\"regcred\"}]}}}}'\n"
+ },
+ {
+  "case_id": "q64935442",
+  "category": "configuration",
+  "model": "wrong_generic_secret_with_config_json_key",
+  "code": "K='sudo /var/lib/bench64935442/bin/kubectl'\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench64935442/account.json\"))[\"password\"])')\nD=$(mktemp -d)\nprintf '{\"auths\":{\"https://index.docker.io/v1/\":{\"username\":\"hubuser\",\"password\":\"%s\"}}}' \"$PW\" > $D/config.json\n$K create secret generic regcred-file -n default --from-file=$D/config.json\n$K patch deployment blaw -n default --type merge -p '{\"spec\":{\"template\":{\"spec\":{\"imagePullSecrets\":[{\"name\":\"regcred-file\"}]}}}}'\n"
+ },
+ {
+  "case_id": "q64935442",
+  "category": "configuration",
+  "model": "wrong_generic_secret_with_dockerconfigjson_key_but_no_type",
+  "code": "K='sudo /var/lib/bench64935442/bin/kubectl'\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench64935442/account.json\"))[\"password\"])')\nD=$(mktemp -d)\nprintf '{\"auths\":{\"https://index.docker.io/v1/\":{\"username\":\"hubuser\",\"password\":\"%s\"}}}' \"$PW\" > $D/dockerconfig.json\n$K create secret generic regcred-opaque -n default --from-file=.dockerconfigjson=$D/dockerconfig.json\n$K patch deployment blaw -n default --type merge -p '{\"spec\":{\"template\":{\"spec\":{\"imagePullSecrets\":[{\"name\":\"regcred-opaque\"}]}}}}'\n"
+ },
+ {
+  "case_id": "q64935442",
+  "category": "configuration",
+  "model": "wrong_secret_with_wrong_password",
+  "code": "K='sudo /var/lib/bench64935442/bin/kubectl'\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench64935442/account.json\"))[\"password\"])')\n$K delete secret regcred -n default\n$K create secret docker-registry regcred -n default --docker-server=https://index.docker.io/v1/ --docker-username=hubuser --docker-password=not-the-password\n$K patch deployment blaw -n default --type merge -p '{\"spec\":{\"template\":{\"spec\":{\"imagePullSecrets\":[{\"name\":\"regcred\"}]}}}}'\n"
+ },
+ {
+  "case_id": "q64935442",
+  "category": "configuration",
+  "model": "wrong_secret_for_the_key_of_the_lab_endpoint",
+  "code": "K='sudo /var/lib/bench64935442/bin/kubectl'\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench64935442/account.json\"))[\"password\"])')\n$K delete secret regcred -n default\n$K create secret docker-registry regcred -n default --docker-server=127.64.93.54:5000 --docker-username=hubuser --docker-password=\"$PW\" --docker-email=engineer@example.com\n$K patch deployment blaw -n default --type merge -p '{\"spec\":{\"template\":{\"spec\":{\"imagePullSecrets\":[{\"name\":\"regcred\"}]}}}}'\n"
+ },
+ {
+  "case_id": "q64935442",
+  "category": "configuration",
+  "model": "wrong_imagepullsecrets_under_the_container",
+  "code": "K='sudo /var/lib/bench64935442/bin/kubectl'\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench64935442/account.json\"))[\"password\"])')\n$K apply -f - <<'EOF'\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: blaw\n  namespace: default\n  labels:\n    app: blaw\nspec:\n  replicas: 1\n  strategy:\n    type: Recreate\n  selector:\n    matchLabels:\n      app: blaw\n  template:\n    metadata:\n      labels:\n        app: blaw\n    spec:\n      containers:\n      - name: transcribe-service\n        image: benchlab64935/blaw-service:v0.3.10\n        imagePullSecrets:\n        - name: regcred\nEOF\n"
+ },
+ {
+  "case_id": "q64935442",
+  "category": "configuration",
+  "model": "wrong_node_level_credentials_in_hosts_toml",
+  "code": "K='sudo /var/lib/bench64935442/bin/kubectl'\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench64935442/account.json\"))[\"password\"])')\nB=$(printf 'hubuser:%s' \"$PW\" | base64 -w0)\nsudo tee -a /var/lib/bench64935442/certs.d/docker.io/hosts.toml >/dev/null <<EOF\n\n[host.\"http://127.64.93.54:5000\"]\n  capabilities = [\"pull\", \"resolve\"]\n\n  [host.\"http://127.64.93.54:5000\".header]\n    authorization = \"Basic $B\"\nEOF\n"
+ },
+ {
+  "case_id": "q64935442",
+  "category": "configuration",
+  "model": "wrong_prepull_with_ctr_and_the_account",
+  "code": "K='sudo /var/lib/bench64935442/bin/kubectl'\nPW=$(sudo python3 -c 'import json; print(json.load(open(\"/var/lib/bench64935442/account.json\"))[\"password\"])')\nsudo ctr -a /run/bench64935442/containerd.sock -n k8s.io images pull --hosts-dir /var/lib/bench64935442/certs.d --user \"hubuser:$PW\" docker.io/benchlab64935/blaw-service:v0.3.10\n"
+ },
+ {
+  "case_id": "q64935442",
+  "category": "configuration",
+  "model": "cheating_hub_made_public",
+  "code": "S=/tmp/bench64935442/.bench\nsudo sed -i 's/if sub == \"anonymous\":/if False:/' $S/hub.py\nPID=$(sudo pgrep -f \"$S/[h]ub.py serve\" | head -1)\nCMD=$(sudo tr '\\0' ' ' < /proc/$PID/cmdline)\nsudo kill $PID\nsleep 1\nsudo sh -c \"setsid -f $CMD >/dev/null 2>&1 </dev/null\"\nsleep 1\n"
+ }
+]
