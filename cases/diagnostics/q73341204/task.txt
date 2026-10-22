@@ -1,0 +1,16 @@
+On this shared Ubuntu machine a small node is modelled on LinuxKit's redis-os example (a real LinuxKit VM needs its own kernel and image build, so this is a copy of the situation on the host): a private containerd (socket /run/bench73341204/containerd.sock, its files below /var/lib/bench73341204 and /run/bench73341204) runs the node's containers, and the node's runc started its onboot container by itself. The containers are made the way LinuxKit makes them: an onboot container 000-dhcpcd (run once and stopped), and two services, getty and redis. The commands that the getty container of a LinuxKit VM has are /var/lib/bench73341204/bin/ctr (ctr for the node's containerd socket) and /var/lib/bench73341204/bin/runc (runc for the node's runc); use them like the engineer in the question does, with sudo. The machine's own ctr, runc and crictl are not the node's.
+
+Redis is a stand-in (the lab's one static program, box; its redis-server, redis-cli, sha256sum, cat, ls and "sh -c" are all the container contains): it speaks the Redis protocol for PING and CLIENT SETNAME, listens at 127.73.34.12:6379 (the host network), reads /etc/redis.conf of its container, and logs every PING, with the name that the client gave itself, in /run/bench73341204/log/redis.log; the redis-cli of the container names itself with the mount namespace it runs in.
+
+The situation, as in the question "Linuxkit where is the container running": a process redis-server is running on the node and listening at 127.73.34.12:6379, but "sudo /var/lib/bench73341204/bin/runc list" shows only the stopped 000-dhcpcd, and "sudo /var/lib/bench73341204/bin/ctr containers ls" shows nothing. The engineer wants to know where the redis container is, to read its configuration file, and to run a command in it.
+
+Your task: find the container and use it. Write three files in /tmp/bench73341204/answer (the directory exists):
+- container.txt: the containerd namespace and the ID of the container that runs redis, separated by a space (NAMESPACE ID);
+- config.sha256: the sha256 of the file /etc/redis.conf as the redis container sees it (the 64 hexadecimal digits; a file name after them is fine);
+- ping.txt: the reply that redis gives to a PING that is sent from inside the redis container (run a command in the container, not from the host).
+
+Rules: redis and getty must go on running as the processes they are (do not stop, kill, restart or recreate them; the check compares their process IDs and start times), do not start another Redis or any other container, do not change the containers, the namespaces, the onboot container or the lab's files (box, the two tools above, containerd's configuration, /etc/redis.conf inside the container); do not write the answers by hand without having asked the container: the check reads redis's log for a PING from inside its mount namespace. Use ctr, runc, ps, procfs and the standard shell tools; do not use docker, nerdctl, crictl or kubectl.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.

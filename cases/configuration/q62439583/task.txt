@@ -1,0 +1,30 @@
+On this shared Ubuntu machine a private containerd instance is the container runtime of a small single-node Kubernetes-style setup. It is started and stopped with /var/lib/bench62439583/bin/nodectl (nodectl start, stop, restart or status; it must run as root). The node's configuration is /var/lib/bench62439583/etc/containerd.toml, which containerd reads when it starts; the CRI socket is /var/lib/bench62439583/common/run/containerd.sock, and a crictl for it needs both endpoints, for example "crictl -r unix:///var/lib/bench62439583/common/run/containerd.sock -i unix:///var/lib/bench62439583/common/run/containerd.sock images".
+
+The node pulls every image through the company's JFrog Container Registry. JFrog cannot run here, so the machine has a stand-in for it, with two repositories, each on an address of its own (the "port method" of the reverse proxy: HTTP, the Docker API v2 at the root of the address): the virtual repository "docker" at http://127.62.43.95:8082, whose only member is docker-remote, the cache of Docker Hub; and the remote repository "quay-remote" at http://127.62.43.96:8082, the cache of Quay (quay.io). The two caches read stand-ins for the public registries (http://127.62.43.97:5000 for Docker Hub, http://127.62.43.98:5000 for Quay) that the node must not use itself. Authentication is HTTP Basic: a request without credentials, or with wrong ones, gets 401 and the challenge 'Basic realm="Artifactory Realm"'; valid credentials of an account that has no permission on the repository get 403 Forbidden; an image that is not in the repository gets 404 (the virtual repository looks in its members only). There are two accounts: ci, which may read the repository docker, and quay-reader, which may read quay-remote; nothing else is permitted to either. Their passwords are in /var/lib/bench62439583/accounts.json (readable by root). The stand-in's log, one JSON line per request (repository, account, status, user agent), is /run/bench62439583/jcr.log, and the requests that its caches make to the public registries are in /run/bench62439583/upstream.log. The sandbox image of the pods, bench62439583.local/pause:1, is already in the node, so a pod needs nothing but its own image.
+
+The registry settings of the node, at the end of containerd.toml, are the engineer's (they follow the question "Unable to pull some image from jfrog artifactory with my containerd"):
+
+    [plugins.'io.containerd.cri.v1.images'.registry.mirrors.'*']
+      endpoint = ['http://127.62.43.95:8082']
+    [plugins.'io.containerd.cri.v1.images'.registry.mirrors.'docker.io']
+      endpoint = ['http://127.62.43.95:8082']
+    [plugins.'io.containerd.cri.v1.images'.registry.mirrors.'k8s.gcr.io']
+      endpoint = ['http://127.62.43.95:8082']
+    [plugins.'io.containerd.cri.v1.images'.registry.mirrors.'quai.io']
+      endpoint = ['http://127.62.43.95:8082']
+    [plugins.'io.containerd.cri.v1.images'.registry.configs.'127.62.43.95:8082'.auth]
+      username = 'ci'
+      password = '...'
+    [plugins.'io.containerd.cri.v1.images'.registry.configs.'127.62.43.96:8082'.auth]
+      username = 'ci'
+      password = '...'
+
+The problem: the images of the team on Docker Hub (docker.io/benchlab62439/web:TAG, and the same repository under the name k8s.gcr.io/benchlab62439/web:TAG, as the pause image of k8s.gcr.io in the question) are pulled through the repository docker, but "crictl pull quay.io/benchlab62439/flannel:v0.11.0-amd64" fails, and the stand-in's log shows why: the request went to the repository docker and was answered 404. The engineer's first attempt to send quay.io to http://127.62.43.96:8082 fails too: the log shows 403 Forbidden for the account ci on quay-remote (the question's error was "unexpected status code [manifests v0.11.0-amd64]: 403 Forbidden"). When the mirrors of a name fail, containerd also tries the registry named in the reference; the check uses repositories and tags that exist only in the stand-ins, so that never helps.
+
+Your task is to make the node pull all three kinds of images from its own configuration: a Docker Hub image of the team under the names docker.io/... and k8s.gcr.io/..., through the repository docker as ci, and the Quay image quay.io/benchlab62439/flannel:TAG through the repository quay-remote as quay-reader, and so that this still works after the node has been stopped and started again. The check publishes a new build (a new tag, new digests) of each image to the matching public-registry stand-in, removes every image from the node but the sandbox image, creates a host-network pod with "crictl run" (the image is pulled by the CRI with no credentials in the request) and reads the stand-in's logs and the container's output; it does this for the three names, then restarts the node with "/var/lib/bench62439583/bin/nodectl restart" (it runs no other command first) and does it again. For each pull, every request must have come from containerd to the right repository, as the right account, without a 403 or a 404, the manifest and both blobs must have been served and read from the public registry by the stand-in's cache only, and the pod must run the new build.
+
+Rules: the JFrog stand-in, the two public-registry stand-ins, the accounts and their permissions must stay as they are; the node must not pull from the public-registry stand-ins (127.62.43.97 and 127.62.43.98) itself; do not load images into the node by hand or pull them with credentials on the command line, because the check removes every image and pulls them again; containerd must stay the process that nodectl starts, with /var/lib/bench62439583/etc/containerd.toml as its configuration (do not change nodectl or the other files in /var/lib/bench62439583/bin), and the sandbox image must stay. Use nodectl, crictl, ctr and the standard shell tools; do not use docker, nerdctl, microk8s or kubectl.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.

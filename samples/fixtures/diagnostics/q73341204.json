@@ -1,0 +1,92 @@
+[
+ {
+  "case_id": "q73341204",
+  "category": "diagnostics",
+  "model": "reference_solution",
+  "code": "bash cases/diagnostics/q73341204/reference_solution.sh"
+ },
+ {
+  "case_id": "q73341204",
+  "category": "diagnostics",
+  "model": "alt_valid_find_namespace_in_a_loop",
+  "code": "B=/var/lib/bench73341204/bin; A=/tmp/bench73341204/answer; NS=services.linuxkit\nfor ns in $(sudo $B/ctr namespaces ls -q); do\n    sudo $B/ctr -n $ns containers ls -q | grep -qx redis && NS=$ns\ndone\necho \"$NS redis\" > $A/container.txt\nsudo $B/ctr -n $NS tasks exec --exec-id cfg redis sha256sum /etc/redis.conf | awk '{print $1}' > $A/config.sha256\nsudo $B/ctr -n $NS tasks exec --exec-id ping redis redis-cli ping > $A/ping.txt\n"
+ },
+ {
+  "case_id": "q73341204",
+  "category": "diagnostics",
+  "model": "alt_valid_sh_c_in_the_container",
+  "code": "B=/var/lib/bench73341204/bin; A=/tmp/bench73341204/answer; NS=services.linuxkit\necho \"$NS redis\" > $A/container.txt\nsudo $B/ctr -n $NS tasks exec --exec-id s1 redis sh -c \"sha256sum /etc/redis.conf\" | cut -d\" \" -f1 > $A/config.sha256\nsudo $B/ctr -n $NS tasks exec --exec-id s2 redis sh -c \"redis-cli ping\" > $A/ping.txt\n"
+ },
+ {
+  "case_id": "q73341204",
+  "category": "diagnostics",
+  "model": "alt_valid_runc_with_the_root_of_the_namespace",
+  "code": "B=/var/lib/bench73341204/bin; A=/tmp/bench73341204/answer; NS=services.linuxkit\nR=/run/bench73341204/containerd-runc/services.linuxkit\nsudo runc --root $R list\necho \"$NS redis\" > $A/container.txt\nsudo runc --root $R exec redis sha256sum /etc/redis.conf | cut -d\" \" -f1 > $A/config.sha256\nsudo runc --root $R exec redis redis-cli ping > $A/ping.txt\n"
+ },
+ {
+  "case_id": "q73341204",
+  "category": "diagnostics",
+  "model": "alt_valid_hash_through_proc_root_ping_by_exec",
+  "code": "B=/var/lib/bench73341204/bin; A=/tmp/bench73341204/answer; NS=services.linuxkit\nPID=$(sudo $B/ctr -n $NS tasks ls | awk '$1==\"redis\" {print $2}')\necho \"$NS redis\" > $A/container.txt\nsudo sha256sum /proc/$PID/root/etc/redis.conf | cut -d\" \" -f1 > $A/config.sha256\nsudo $B/ctr -n $NS tasks exec --exec-id ping redis redis-cli ping > $A/ping.txt\n"
+ },
+ {
+  "case_id": "q73341204",
+  "category": "diagnostics",
+  "model": "noop",
+  "code": ""
+ },
+ {
+  "case_id": "q73341204",
+  "category": "diagnostics",
+  "model": "wrong_only_runc_list_and_default_ctr",
+  "code": "B=/var/lib/bench73341204/bin; A=/tmp/bench73341204/answer; NS=services.linuxkit\nsudo $B/runc list\nsudo $B/ctr containers ls\necho \"none\" > $A/container.txt\necho \"none\" > $A/config.sha256\necho \"none\" > $A/ping.txt\n"
+ },
+ {
+  "case_id": "q73341204",
+  "category": "diagnostics",
+  "model": "wrong_default_namespace_in_the_answer",
+  "code": "B=/var/lib/bench73341204/bin; A=/tmp/bench73341204/answer; NS=services.linuxkit\necho \"default redis\" > $A/container.txt\nsudo $B/ctr -n $NS tasks exec --exec-id cfg redis sha256sum /etc/redis.conf | awk '{print $1}' > $A/config.sha256\nsudo $B/ctr -n $NS tasks exec --exec-id ping redis redis-cli ping > $A/ping.txt\n"
+ },
+ {
+  "case_id": "q73341204",
+  "category": "diagnostics",
+  "model": "wrong_getty_instead_of_redis",
+  "code": "B=/var/lib/bench73341204/bin; A=/tmp/bench73341204/answer; NS=services.linuxkit\necho \"$NS getty\" > $A/container.txt\nsudo $B/ctr -n $NS tasks exec --exec-id cfg getty sha256sum /etc/redis.conf | awk '{print $1}' > $A/config.sha256\nsudo $B/ctr -n $NS tasks exec --exec-id ping getty redis-cli ping > $A/ping.txt\n"
+ },
+ {
+  "case_id": "q73341204",
+  "category": "diagnostics",
+  "model": "wrong_hash_of_a_host_file",
+  "code": "B=/var/lib/bench73341204/bin; A=/tmp/bench73341204/answer; NS=services.linuxkit\necho \"$NS redis\" > $A/container.txt\nsha256sum /etc/hostname | cut -d\" \" -f1 > $A/config.sha256\nsudo $B/ctr -n $NS tasks exec --exec-id ping redis redis-cli ping > $A/ping.txt\n"
+ },
+ {
+  "case_id": "q73341204",
+  "category": "diagnostics",
+  "model": "wrong_ping_reply_written_without_asking",
+  "code": "B=/var/lib/bench73341204/bin; A=/tmp/bench73341204/answer; NS=services.linuxkit\necho \"$NS redis\" > $A/container.txt\nsudo $B/ctr -n $NS tasks exec --exec-id cfg redis sha256sum /etc/redis.conf | awk '{print $1}' > $A/config.sha256\necho PONG > $A/ping.txt\n"
+ },
+ {
+  "case_id": "q73341204",
+  "category": "diagnostics",
+  "model": "wrong_ping_sent_from_the_host",
+  "code": "B=/var/lib/bench73341204/bin; A=/tmp/bench73341204/answer; NS=services.linuxkit\necho \"$NS redis\" > $A/container.txt\nsudo $B/ctr -n $NS tasks exec --exec-id cfg redis sha256sum /etc/redis.conf | awk '{print $1}' > $A/config.sha256\npython3 - > $A/ping.txt <<'EOF'\nimport socket\ns = socket.create_connection((\"127.73.34.12\", 6379), timeout=3)\ns.sendall(b\"PING\\r\\n\")\nprint(s.recv(16).decode().strip().lstrip(\"+\"))\nEOF\n"
+ },
+ {
+  "case_id": "q73341204",
+  "category": "diagnostics",
+  "model": "wrong_configuration_edited_before_the_hash",
+  "code": "B=/var/lib/bench73341204/bin; A=/tmp/bench73341204/answer; NS=services.linuxkit\necho \"# edited\" | sudo tee -a /var/lib/bench73341204/services/redis/rootfs/etc/redis.conf >/dev/null\necho \"$NS redis\" > $A/container.txt\nsudo $B/ctr -n $NS tasks exec --exec-id cfg redis sha256sum /etc/redis.conf | awk '{print $1}' > $A/config.sha256\nsudo $B/ctr -n $NS tasks exec --exec-id ping redis redis-cli ping > $A/ping.txt\n"
+ },
+ {
+  "case_id": "q73341204",
+  "category": "diagnostics",
+  "model": "wrong_second_redis_started",
+  "code": "B=/var/lib/bench73341204/bin; A=/tmp/bench73341204/answer; NS=services.linuxkit\necho \"$NS redis\" > $A/container.txt\nsudo $B/ctr -n $NS tasks exec --exec-id cfg redis sha256sum /etc/redis.conf | awk '{print $1}' > $A/config.sha256\nsudo $B/ctr -n $NS tasks exec --exec-id ping redis redis-cli ping > $A/ping.txt\nprintf \"bind 127.73.34.12\\nport 6380\\n\" > /tmp/bench73341204/other.conf\nsudo setsid -f /var/lib/bench73341204/services/redis/rootfs/bin/redis-server /tmp/bench73341204/other.conf >/dev/null 2>&1 </dev/null\nsleep 1\n"
+ },
+ {
+  "case_id": "q73341204",
+  "category": "diagnostics",
+  "model": "wrong_redis_killed_after_the_answers",
+  "code": "B=/var/lib/bench73341204/bin; A=/tmp/bench73341204/answer; NS=services.linuxkit\necho \"$NS redis\" > $A/container.txt\nsudo $B/ctr -n $NS tasks exec --exec-id cfg redis sha256sum /etc/redis.conf | awk '{print $1}' > $A/config.sha256\nsudo $B/ctr -n $NS tasks exec --exec-id ping redis redis-cli ping > $A/ping.txt\nsudo $B/ctr -n $NS tasks kill -s SIGKILL redis\nsleep 1\n"
+ }
+]
