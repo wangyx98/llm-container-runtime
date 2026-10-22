@@ -1,0 +1,86 @@
+[
+ {
+  "case_id": "q63132692",
+  "category": "diagnostics",
+  "model": "reference_solution",
+  "code": "bash cases/diagnostics/q63132692/reference_solution.sh"
+ },
+ {
+  "case_id": "q63132692",
+  "category": "diagnostics",
+  "model": "alt_valid_release_20230306",
+  "code": "L=/var/lib/bench63132692; C=\"sudo $L/bin/crictl\"\nfor n in gv-busy gv-idle; do for p in $($C pods --name $n -q); do $C stopp $p; $C rmp $p; done; done\nsudo ln -sfn $L/releases/20230306.0/runsc $L/node/bin/runsc\nfor n in gv-busy gv-idle; do p=$($C runp --runtime runsc $L/pods/$n.pod.json); c=$($C create $p $L/pods/$n.ctr.json $L/pods/$n.pod.json); $C start $c; done\n"
+ },
+ {
+  "case_id": "q63132692",
+  "category": "diagnostics",
+  "model": "alt_valid_copy_of_the_release_over_the_link",
+  "code": "L=/var/lib/bench63132692; C=\"sudo $L/bin/crictl\"\nfor n in gv-busy gv-idle; do for p in $($C pods --name $n -q); do $C stopp $p; $C rmp $p; done; done\nsudo rm -f $L/node/bin/runsc\nsudo cp $L/releases/20260105.0/runsc $L/node/bin/runsc\nfor n in gv-busy gv-idle; do p=$($C runp --runtime runsc $L/pods/$n.pod.json); c=$($C create $p $L/pods/$n.ctr.json $L/pods/$n.pod.json); $C start $c; done\n"
+ },
+ {
+  "case_id": "q63132692",
+  "category": "diagnostics",
+  "model": "noop",
+  "code": ""
+ },
+ {
+  "case_id": "q63132692",
+  "category": "diagnostics",
+  "model": "wrong_release_switched_pods_not_recreated",
+  "code": "L=/var/lib/bench63132692; C=\"sudo $L/bin/crictl\"\nsudo ln -sfn $L/releases/20260105.0/runsc $L/node/bin/runsc\n"
+ },
+ {
+  "case_id": "q63132692",
+  "category": "diagnostics",
+  "model": "wrong_pods_recreated_with_the_same_old_runsc",
+  "code": "L=/var/lib/bench63132692; C=\"sudo $L/bin/crictl\"\nfor n in gv-busy gv-idle; do for p in $($C pods --name $n -q); do $C stopp $p; $C rmp $p; done; done\nfor n in gv-busy gv-idle; do p=$($C runp --runtime runsc $L/pods/$n.pod.json); c=$($C create $p $L/pods/$n.ctr.json $L/pods/$n.pod.json); $C start $c; done\n"
+ },
+ {
+  "case_id": "q63132692",
+  "category": "diagnostics",
+  "model": "wrong_release_20210208_reports_a_number_that_is_not_the_pods",
+  "code": "L=/var/lib/bench63132692; C=\"sudo $L/bin/crictl\"\nfor n in gv-busy gv-idle; do for p in $($C pods --name $n -q); do $C stopp $p; $C rmp $p; done; done\nsudo ln -sfn $L/releases/20210208.0/runsc $L/node/bin/runsc\nfor n in gv-busy gv-idle; do p=$($C runp --runtime runsc $L/pods/$n.pod.json); c=$($C create $p $L/pods/$n.ctr.json $L/pods/$n.pod.json); $C start $c; done\n"
+ },
+ {
+  "case_id": "q63132692",
+  "category": "diagnostics",
+  "model": "wrong_gvisor_pods_replaced_by_runc_pods",
+  "code": "L=/var/lib/bench63132692; C=\"sudo $L/bin/crictl\"\nfor n in gv-busy gv-idle; do for p in $($C pods --name $n -q); do $C stopp $p; $C rmp $p; done; done\nfor n in gv-busy gv-idle; do p=$($C runp --runtime runc $L/pods/$n.pod.json); c=$($C create $p $L/pods/$n.ctr.json $L/pods/$n.pod.json); $C start $c; done\n"
+ },
+ {
+  "case_id": "q63132692",
+  "category": "diagnostics",
+  "model": "wrong_gvisor_pods_only_deleted",
+  "code": "L=/var/lib/bench63132692; C=\"sudo $L/bin/crictl\"\nfor n in gv-busy gv-idle; do for p in $($C pods --name $n -q); do $C stopp $p; $C rmp $p; done; done\n"
+ },
+ {
+  "case_id": "q63132692",
+  "category": "diagnostics",
+  "model": "wrong_wrapper_script_instead_of_a_release",
+  "code": "L=/var/lib/bench63132692; C=\"sudo $L/bin/crictl\"\nfor n in gv-busy gv-idle; do for p in $($C pods --name $n -q); do $C stopp $p; $C rmp $p; done; done\nsudo rm -f $L/node/bin/runsc\nprintf '#!/bin/sh\\nexec %s/releases/20260105.0/runsc \"$@\"\\n' \"$L\" | sudo tee $L/node/bin/runsc >/dev/null\nsudo chmod 755 $L/node/bin/runsc\nfor n in gv-busy gv-idle; do p=$($C runp --runtime runsc $L/pods/$n.pod.json); c=$($C create $p $L/pods/$n.ctr.json $L/pods/$n.pod.json); $C start $c; done\n"
+ },
+ {
+  "case_id": "q63132692",
+  "category": "diagnostics",
+  "model": "wrong_pod_definition_edited",
+  "code": "L=/var/lib/bench63132692; C=\"sudo $L/bin/crictl\"\nfor n in gv-busy gv-idle; do for p in $($C pods --name $n -q); do $C stopp $p; $C rmp $p; done; done\nsudo ln -sfn $L/releases/20260105.0/runsc $L/node/bin/runsc\nsudo sed -i 's#\"attempt\": 1#\"attempt\": 2#' $L/pods/gv-busy.pod.json\nfor n in gv-busy gv-idle; do p=$($C runp --runtime runsc $L/pods/$n.pod.json); c=$($C create $p $L/pods/$n.ctr.json $L/pods/$n.pod.json); $C start $c; done\n"
+ },
+ {
+  "case_id": "q63132692",
+  "category": "diagnostics",
+  "model": "wrong_control_pod_recreated_too",
+  "code": "L=/var/lib/bench63132692; C=\"sudo $L/bin/crictl\"\nfor n in gv-busy gv-idle; do for p in $($C pods --name $n -q); do $C stopp $p; $C rmp $p; done; done\nfor p in $($C pods --name rc-busy -q); do $C stopp $p; $C rmp $p; done\nsudo ln -sfn $L/releases/20260105.0/runsc $L/node/bin/runsc\nfor n in gv-busy gv-idle; do p=$($C runp --runtime runsc $L/pods/$n.pod.json); c=$($C create $p $L/pods/$n.ctr.json $L/pods/$n.pod.json); $C start $c; done\np=$($C runp --runtime runc $L/pods/rc-busy.pod.json); c=$($C create $p $L/pods/rc-busy.ctr.json $L/pods/rc-busy.pod.json); $C start $c\n"
+ },
+ {
+  "case_id": "q63132692",
+  "category": "diagnostics",
+  "model": "wrong_extra_pod_left_running",
+  "code": "L=/var/lib/bench63132692; C=\"sudo $L/bin/crictl\"\nfor n in gv-busy gv-idle; do for p in $($C pods --name $n -q); do $C stopp $p; $C rmp $p; done; done\nsudo ln -sfn $L/releases/20260105.0/runsc $L/node/bin/runsc\nfor n in gv-busy gv-idle; do p=$($C runp --runtime runsc $L/pods/$n.pod.json); c=$($C create $p $L/pods/$n.ctr.json $L/pods/$n.pod.json); $C start $c; done\nsed 's/\"uid\": \"gv-busy-uid\"/\"uid\": \"extra-uid\"/; s/\"name\": \"gv-busy\"/\"name\": \"extra\"/' $L/pods/gv-busy.pod.json | sudo tee /tmp/bench63132692/extra.pod.json >/dev/null\np=$($C runp --runtime runsc /tmp/bench63132692/extra.pod.json); c=$($C create $p $L/pods/gv-busy.ctr.json /tmp/bench63132692/extra.pod.json); $C start $c\n"
+ },
+ {
+  "case_id": "q63132692",
+  "category": "diagnostics",
+  "model": "wrong_only_gv_busy_recreated",
+  "code": "L=/var/lib/bench63132692; C=\"sudo $L/bin/crictl\"\nfor p in $($C pods --name gv-busy -q); do $C stopp $p; $C rmp $p; done\nsudo ln -sfn $L/releases/20260105.0/runsc $L/node/bin/runsc\np=$($C runp --runtime runsc $L/pods/gv-busy.pod.json); c=$($C create $p $L/pods/gv-busy.ctr.json $L/pods/gv-busy.pod.json); $C start $c\n"
+ }
+]
