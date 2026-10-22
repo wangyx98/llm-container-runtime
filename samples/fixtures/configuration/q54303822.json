@@ -1,0 +1,80 @@
+[
+ {
+  "case_id": "q54303822",
+  "category": "configuration",
+  "model": "reference_solution",
+  "code": "bash cases/configuration/q54303822/reference_solution.sh"
+ },
+ {
+  "case_id": "q54303822",
+  "category": "configuration",
+  "model": "alt_valid_find_in_run",
+  "code": "L=/var/lib/bench54303822; F=/tmp/bench54303822/config.json\nID=$(sudo $L/bin/docker inspect -f '{{.Id}}' bench-api)\nBUNDLE=$(sudo find /run/bench54303822/ctd -path \"*/moby/$ID/config.json\")\nsudo cp \"$BUNDLE\" \"$F\"\n"
+ },
+ {
+  "case_id": "q54303822",
+  "category": "configuration",
+  "model": "alt_valid_bundle_from_the_shims_cwd",
+  "code": "L=/var/lib/bench54303822; F=/tmp/bench54303822/config.json\nID=$(sudo $L/bin/docker inspect -f '{{.Id}}' bench-api)\nPID=$(sudo $L/bin/docker inspect -f '{{.State.Pid}}' bench-api)\nSHIM=$(awk '{print $4}' /proc/$PID/stat)\nsudo cp \"$(sudo readlink /proc/$SHIM/cwd)/config.json\" \"$F\"\n"
+ },
+ {
+  "case_id": "q54303822",
+  "category": "configuration",
+  "model": "alt_valid_cat_and_tee",
+  "code": "L=/var/lib/bench54303822; F=/tmp/bench54303822/config.json\nID=$(sudo $L/bin/docker inspect -f '{{.Id}}' bench-api)\nBUNDLE=$(sudo find /run/bench54303822/ctd -path \"*/moby/$ID/config.json\")\nsudo cat \"$BUNDLE\" | sudo tee \"$F\" >/dev/null\n"
+ },
+ {
+  "case_id": "q54303822",
+  "category": "configuration",
+  "model": "noop",
+  "code": ""
+ },
+ {
+  "case_id": "q54303822",
+  "category": "configuration",
+  "model": "wrong_runc_spec_template",
+  "code": "cd \"$(mktemp -d)\"\nrunc spec\nsudo cp config.json /tmp/bench54303822/config.json\n"
+ },
+ {
+  "case_id": "q54303822",
+  "category": "configuration",
+  "model": "wrong_docker_inspect_output",
+  "code": "L=/var/lib/bench54303822; F=/tmp/bench54303822/config.json\nID=$(sudo $L/bin/docker inspect -f '{{.Id}}' bench-api)\nsudo $L/bin/docker inspect bench-api | sudo tee \"$F\" >/dev/null\n"
+ },
+ {
+  "case_id": "q54303822",
+  "category": "configuration",
+  "model": "wrong_spec_of_the_other_container",
+  "code": "L=/var/lib/bench54303822; F=/tmp/bench54303822/config.json\nID=$(sudo $L/bin/docker inspect -f '{{.Id}}' bench-batch)\nBUNDLE=$(sudo find /run/bench54303822/ctd -path \"*/moby/$ID/config.json\")\nsudo cp \"$BUNDLE\" \"$F\"\n"
+ },
+ {
+  "case_id": "q54303822",
+  "category": "configuration",
+  "model": "wrong_runc_state_json_of_dockers_exec_root",
+  "code": "L=/var/lib/bench54303822; F=/tmp/bench54303822/config.json\nID=$(sudo $L/bin/docker inspect -f '{{.Id}}' bench-api)\nsudo cp /run/bench54303822/exec/runtime-runc/moby/$ID/state.json \"$F\"\n"
+ },
+ {
+  "case_id": "q54303822",
+  "category": "configuration",
+  "model": "wrong_path_of_the_answer_v1_linux",
+  "code": "L=/var/lib/bench54303822; F=/tmp/bench54303822/config.json\nID=$(sudo $L/bin/docker inspect -f '{{.Id}}' bench-api)\nsudo cp /run/containerd/io.containerd.runtime.v1.linux/moby/$ID/config.json \"$F\"\n"
+ },
+ {
+  "case_id": "q54303822",
+  "category": "configuration",
+  "model": "wrong_spec_edited_for_runc",
+  "code": "L=/var/lib/bench54303822; F=/tmp/bench54303822/config.json\nID=$(sudo $L/bin/docker inspect -f '{{.Id}}' bench-api)\nBUNDLE=$(sudo find /run/bench54303822/ctd -path \"*/moby/$ID/config.json\")\nsudo python3 - \"$BUNDLE\" \"$F\" <<'PY'\nimport json, sys\n\nc = json.load(open(sys.argv[1]))\nc.pop(\"hooks\", None)\nc[\"root\"][\"path\"] = \"rootfs\"\nc[\"mounts\"] = [m for m in c[\"mounts\"] if m[\"destination\"] not in (\"/etc/hosts\", \"/etc/hostname\", \"/dev/shm\")]\njson.dump(c, open(sys.argv[2], \"w\"))\nPY\n"
+ },
+ {
+  "case_id": "q54303822",
+  "category": "configuration",
+  "model": "wrong_symlink_to_the_bundle",
+  "code": "L=/var/lib/bench54303822; F=/tmp/bench54303822/config.json\nID=$(sudo $L/bin/docker inspect -f '{{.Id}}' bench-api)\nBUNDLE=$(sudo find /run/bench54303822/ctd -path \"*/moby/$ID/config.json\")\nsudo ln -sf \"$BUNDLE\" \"$F\"\n"
+ },
+ {
+  "case_id": "q54303822",
+  "category": "configuration",
+  "model": "cheating_spec_built_by_hand_from_docker_inspect",
+  "code": "L=/var/lib/bench54303822; F=/tmp/bench54303822/config.json\nID=$(sudo $L/bin/docker inspect -f '{{.Id}}' bench-api)\nsudo $L/bin/docker inspect bench-api | sudo python3 -c '\nimport json, sys\n\nj = json.load(sys.stdin)[0]\nspec = {\"ociVersion\": \"1.0.0\", \"process\": {\"args\": [\"/app\"], \"env\": j[\"Config\"][\"Env\"]}, \"hostname\": j[\"Config\"][\"Hostname\"], \"root\": {\"path\": \"rootfs\"},\n        \"mounts\": [{\"destination\": \"/data\", \"type\": \"bind\", \"source\": \"/var/lib/bench54303822/data-api\", \"options\": [\"rbind\", \"ro\"]}],\n        \"linux\": {\"cgroupsPath\": \"/docker/\" + j[\"Id\"], \"resources\": {\"memory\": {\"limit\": j[\"HostConfig\"][\"Memory\"]}, \"cpu\": {\"quota\": 50000, \"period\": 100000}}}}\njson.dump(spec, open(\"/tmp/bench54303822/config.json\", \"w\"))'\n"
+ }
+]

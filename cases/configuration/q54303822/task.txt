@@ -1,0 +1,13 @@
+On this shared Ubuntu machine a Docker daemon (dockerd) of its own runs on top of a containerd of its own; they are not the services installed on the machine. Use /var/lib/bench54303822/bin/docker as the docker client (it talks to the daemon's socket /run/bench54303822/docker.sock) and /var/lib/bench54303822/bin/ctr as ctr (it talks to the containerd's socket /run/bench54303822/containerd.sock; Docker keeps its containers in the containerd namespace moby). The containerd's configuration file is /var/lib/bench54303822/etc/containerd.toml. Both processes run as root, so docker, ctr and the files of the lab need sudo.
+
+Two containers of the same image are running: bench-api and bench-batch. Each has its own environment variable BENCH_TOKEN, its own read-only bind mount on /data, its own hostname, memory limit and CPU limit.
+
+You want to start the same container again with runc, outside Docker, and for that you need the OCI runtime spec, the config.json, that runc was started with for the running container bench-api. The places named on the web for it (for example /run/docker/libcontainerd/<id>/config.json, /var/run/docker/libcontainerd/<id>, /var/run/docker/containerd/daemon/io.containerd.runtime.v1.linux/moby/<id> and /run/containerd/io.containerd.runtime.v1.linux/moby/<id>, where <id> is the container id) do not exist on this engine: where the file is depends on the versions of Docker, containerd and runc. Find the config.json of bench-api and save a copy of it as the regular file /tmp/bench54303822/config.json.
+
+The check reads the saved file and accepts it only if it is the real thing: it must be identical to the config.json that runc was started with for bench-api and be the spec of that container (its BENCH_TOKEN, hostname, read-only mount on /data, memory limit, CPU quota and cgroup are compared with Docker's object, with the running process and with its cgroup). A template made with "runc spec", the output of "docker inspect", the spec of bench-batch, a spec you edited or built by hand, and a link to the original are not accepted.
+
+Rules: leave both containers and both daemons running as they are (do not stop, restart, recreate or change them), and do not change any file below /var/lib/bench54303822 or /run/bench54303822; the only thing you write is /tmp/bench54303822/config.json. Use docker, ctr, runc and the standard shell tools.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.
