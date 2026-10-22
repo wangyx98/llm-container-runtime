@@ -1,0 +1,18 @@
+An engineer runs a node with containerd and a container that must keep Docker's default-style seccomp profile. This machine has a private containerd (socket /run/bench78402595/containerd.sock, started and stopped with /var/lib/bench78402595/bin/containerdctl: start, stop, restart, status) and the wrapper /var/lib/bench78402595/bin/ctr, which is ctr aimed at it and at its namespace bench78402595; both are run with sudo. The container tgt was made like this and has been running for days:
+
+    ctr images import app.tar     (image docker.io/library/bench78402595-app:1: one static program, /app)
+    ctr run -d --seccomp docker.io/library/bench78402595-app:1 tgt /app sleep
+
+/app has three uses: "/app sleep" waits forever (the container's first process), "/app hold" waits forever (what old probe runs of the node ran), and "/app probe" prints one line, for example "probe seccomp=2 userns_rc=-1 userns_errno=1": the seccomp filter mode of the process and what the profile says about creating a new user namespace, which the default profile forbids (EPERM).
+
+The node runs "exec probes" in tgt with "ctr tasks exec --exec-id ID tgt /app probe", and since a while every one of them fails:
+
+    ctr: OCI runtime exec failed: exec failed: unable to start container process: unable to init seccomp: error loading seccomp filter into kernel: error loading seccomp filter: errno 524: unknown
+
+Restarting the container's probes, containerd and the machine's services does not help. Someone remarked that raising the sysctl net.core.bpf_jit_limit makes the error go away for a while. The root cause was never established: find out what uses up the memory this limit is about, and recover it. The value net.core.bpf_jit_limit had on this machine before the lab changed it (the machine's default) is in /var/lib/bench78402595/default_bpf_jit_limit; the kernel offers no counter of the JIT memory in use, the way to see it is how many more filters still load under a given limit.
+
+Rules: the container tgt must keep its image, its default seccomp profile (it must still be running with a seccomp filter and still be refused the new user namespace by it), its capabilities and its user; the exec probes must work again in it; net.core.bpf_jit_limit must not be set above the machine's default, and net.core.bpf_jit_enable and net.core.bpf_jit_harden stay as they are. The check puts the lab's own limit back for its run, holds twelve more execs at once and runs the exec probe six times in tgt; the memory of the processes that were using it up must be given back (a bigger number does not do that). Keep the private containerd and its binaries. Use ctr, containerdctl and the standard shell tools.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.

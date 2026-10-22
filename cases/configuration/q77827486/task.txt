@@ -1,0 +1,38 @@
+This machine is a single-node Kubernetes (k3s, Kubernetes v1.26.4) whose container runtime is CRI-O 1.25.2. Everything lives in private paths: the programs below /var/lib/bench77827486, the configuration, sockets and logs below /run/bench77827486. The control scripts, to run with sudo, are /var/lib/bench77827486/bin/crioctl, k3sctl and registryctl (start, stop, restart, status), /var/lib/bench77827486/bin/kubectl (the kubectl of this cluster) and /var/lib/bench77827486/bin/crictl (it needs both endpoints: "-r unix:///run/bench77827486/crio.sock -i unix:///run/bench77827486/crio.sock").
+
+A private registry with basic authentication serves plain HTTP on port 80 of an address that both names private.registry and mirror.registry resolve to (they are in /etc/hosts); its log, with a line for every request, is /run/bench77827486/registry.log. The names are two names of the same registry, as in the question. CRI-O is told to send the images of private.registry to mirror.registry: /run/bench77827486/registries.conf, which CRI-O reads when it starts, says
+
+    [[registry]]
+    prefix = "private.registry"
+    location = "mirror.registry"
+    insecure = true
+
+CRI-O's own configuration is /run/bench77827486/crio.conf plus the drop-in files in /run/bench77827486/crio.conf.d; it is read when CRI-O starts. The registry's credentials are in the secret registry-secret of the namespace my-ns (type kubernetes.io/dockerconfigjson, for the server private.registry). The engineer's Pod uses it:
+
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: pod
+      name: pod
+      namespace: my-ns
+    spec:
+      hostNetwork: true
+      containers:
+        - image: private.registry/team/app:v1
+          name: pod
+      imagePullSecrets:
+        - name: registry-secret
+
+The Pod never starts. Its events say:
+
+    Failed to pull image "private.registry/team/app:v1": rpc error: code = Unknown desc = reading manifest v1 in mirror.registry/team/app: unauthorized: authentication required
+
+The credentials in the secret are right and the secret is in the Pod's namespace: "crictl pull" of mirror.registry/team/app:v1 with the same credentials works, "crictl pull" of private.registry/team/app:v1 with the same credentials ("--creds USER:PASSWORD") fails with the same message, and a registry without the rewrite would accept the Pod. Your task is to make pulls through the rewrite work: a Pod whose image is written with the original name (private.registry/team/app:TAG) in a namespace that has a secret of type kubernetes.io/dockerconfigjson for private.registry must pull the image from mirror.registry, authenticated, and run it. The check pushes a new image with a new digest to the registry, creates a Pod like the one above in a new namespace with a secret of its own for private.registry, requires the container to run and print the marker of the new image, and reads the registry's log: the manifest and the blobs of the image must have been requested by CRI-O as mirror.registry, authenticated as the registry's user, and no request may carry the host name private.registry.
+
+Rules: keep the rewrite (registries.conf stays as it is) and the images' names, the Pod, the namespace and the secret of the engineer as they are; keep the registry's authentication, its configuration, its password file and its process as they are (an anonymous request must still get 401); do not put images into the node by hand (the image of the check is new); keep CRI-O 1.25.2, its programs and k3s (CRI-O may be restarted with crioctl). Use crioctl, kubectl, crictl and the standard shell tools.
+
+The current user has passwordless sudo. Unless stated otherwise, assume container-runtime and system commands need sudo.
+
+Return the commands needed to complete the task.

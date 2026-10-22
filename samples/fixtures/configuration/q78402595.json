@@ -1,0 +1,74 @@
+[
+ {
+  "case_id": "q78402595",
+  "category": "configuration",
+  "model": "reference_solution",
+  "code": "bash cases/configuration/q78402595/reference_solution.sh"
+ },
+ {
+  "case_id": "q78402595",
+  "category": "configuration",
+  "model": "alt_valid_kill_leftovers_only",
+  "code": "L=/var/lib/bench78402595; CTR=\"sudo $L/bin/ctr\"; DEF=$(cat $L/default_bpf_jit_limit)\nREF=docker.io/library/bench78402595-app:1\nINIT=$($CTR tasks ls | awk '$1==\"tgt\" {print $2}')\nfor pid in $($CTR tasks ps tgt | awk 'NR>1 {print $1}'); do\n    [ \"$pid\" = \"$INIT\" ] && continue\n    [ \"$(tr '\\0' ' ' 2>/dev/null < /proc/$pid/cmdline)\" = \"/app hold \" ] && sudo kill -KILL \"$pid\"\ndone\nsleep 1\n$CTR tasks exec --exec-id check tgt /app probe\n"
+ },
+ {
+  "case_id": "q78402595",
+  "category": "configuration",
+  "model": "alt_valid_recreate_container",
+  "code": "L=/var/lib/bench78402595; CTR=\"sudo $L/bin/ctr\"; DEF=$(cat $L/default_bpf_jit_limit)\nREF=docker.io/library/bench78402595-app:1\n$CTR tasks kill -s SIGKILL --all tgt\nsleep 1\n$CTR tasks delete --force tgt\n$CTR containers delete tgt\n$CTR run -d --seccomp $REF tgt /app sleep\nsleep 1\n$CTR tasks exec --exec-id check tgt /app probe\n"
+ },
+ {
+  "case_id": "q78402595",
+  "category": "configuration",
+  "model": "noop",
+  "code": ""
+ },
+ {
+  "case_id": "q78402595",
+  "category": "configuration",
+  "model": "wrong_limit_back_to_default_only",
+  "code": "L=/var/lib/bench78402595; CTR=\"sudo $L/bin/ctr\"; DEF=$(cat $L/default_bpf_jit_limit)\nREF=docker.io/library/bench78402595-app:1\nsudo sysctl -w net.core.bpf_jit_limit=\"$DEF\"\n$CTR tasks exec --exec-id check tgt /app probe\n"
+ },
+ {
+  "case_id": "q78402595",
+  "category": "configuration",
+  "model": "wrong_limit_far_above_default_only",
+  "code": "L=/var/lib/bench78402595; CTR=\"sudo $L/bin/ctr\"; DEF=$(cat $L/default_bpf_jit_limit)\nREF=docker.io/library/bench78402595-app:1\nsudo sysctl -w net.core.bpf_jit_limit=\"$((DEF * 2))\" || true\n$CTR tasks exec --exec-id check tgt /app probe\n"
+ },
+ {
+  "case_id": "q78402595",
+  "category": "configuration",
+  "model": "wrong_restart_containerd",
+  "code": "L=/var/lib/bench78402595; CTR=\"sudo $L/bin/ctr\"; DEF=$(cat $L/default_bpf_jit_limit)\nREF=docker.io/library/bench78402595-app:1\nsudo $L/bin/containerdctl restart\nsleep 2\n$CTR tasks exec --exec-id check tgt /app probe\n"
+ },
+ {
+  "case_id": "q78402595",
+  "category": "configuration",
+  "model": "wrong_recreate_without_seccomp",
+  "code": "L=/var/lib/bench78402595; CTR=\"sudo $L/bin/ctr\"; DEF=$(cat $L/default_bpf_jit_limit)\nREF=docker.io/library/bench78402595-app:1\n$CTR tasks kill -s SIGKILL --all tgt\nsleep 1\n$CTR tasks delete --force tgt\n$CTR containers delete tgt\n$CTR run -d  $REF tgt /app sleep\nsleep 1\n$CTR tasks exec --exec-id check tgt /app probe\n"
+ },
+ {
+  "case_id": "q78402595",
+  "category": "configuration",
+  "model": "wrong_recreate_privileged",
+  "code": "L=/var/lib/bench78402595; CTR=\"sudo $L/bin/ctr\"; DEF=$(cat $L/default_bpf_jit_limit)\nREF=docker.io/library/bench78402595-app:1\n$CTR tasks kill -s SIGKILL --all tgt\nsleep 1\n$CTR tasks delete --force tgt\n$CTR containers delete tgt\n$CTR run -d --seccomp --privileged $REF tgt /app sleep\nsleep 1\n$CTR tasks exec --exec-id check tgt /app probe\n"
+ },
+ {
+  "case_id": "q78402595",
+  "category": "configuration",
+  "model": "wrong_kill_leftovers_limit_above_default",
+  "code": "L=/var/lib/bench78402595; CTR=\"sudo $L/bin/ctr\"; DEF=$(cat $L/default_bpf_jit_limit)\nREF=docker.io/library/bench78402595-app:1\nINIT=$($CTR tasks ls | awk '$1==\"tgt\" {print $2}')\nfor pid in $($CTR tasks ps tgt | awk 'NR>1 {print $1}'); do\n    [ \"$pid\" = \"$INIT\" ] && continue\n    [ \"$(tr '\\0' ' ' 2>/dev/null < /proc/$pid/cmdline)\" = \"/app hold \" ] && sudo kill -KILL \"$pid\"\ndone\nsleep 1\nsudo sysctl -w net.core.bpf_jit_limit=\"$((DEF * 2))\" || true\n$CTR tasks exec --exec-id check tgt /app probe\n"
+ },
+ {
+  "case_id": "q78402595",
+  "category": "configuration",
+  "model": "wrong_disable_jit",
+  "code": "L=/var/lib/bench78402595; CTR=\"sudo $L/bin/ctr\"; DEF=$(cat $L/default_bpf_jit_limit)\nREF=docker.io/library/bench78402595-app:1\nsudo sysctl -w net.core.bpf_jit_enable=0 || true\n$CTR tasks exec --exec-id check tgt /app probe\n"
+ },
+ {
+  "case_id": "q78402595",
+  "category": "configuration",
+  "model": "wrong_kill_half_of_leftovers",
+  "code": "L=/var/lib/bench78402595; CTR=\"sudo $L/bin/ctr\"; DEF=$(cat $L/default_bpf_jit_limit)\nREF=docker.io/library/bench78402595-app:1\nINIT=$($CTR tasks ls | awk '$1==\"tgt\" {print $2}')\nn=0\nfor pid in $($CTR tasks ps tgt | awk 'NR>1 {print $1}'); do\n    [ \"$pid\" = \"$INIT\" ] && continue\n    n=$((n+1)); [ $n -le 8 ] && sudo kill -KILL \"$pid\"\ndone\nsleep 1\n$CTR tasks exec --exec-id check tgt /app probe\n"
+ }
+]
