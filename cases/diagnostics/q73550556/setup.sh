@@ -1,0 +1,325 @@
+#!/bin/bash
+set -e
+
+CASE_ID="bench73550556"
+CASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+LIB="/var/lib/$CASE_ID"                      # the node (containerd's root, its programs), the collector, the pod's definitions and the tools
+RUN="/run/$CASE_ID"                          # containerd's state, socket and log, the collector's log and its span file
+CACHE="/var/cache/$CASE_ID"                  # the downloaded containerd, runc, crictl and OpenTelemetry Collector (kept by cleanup, checked by sha256 at every setup)
+BIN="$LIB/bin"                               # nodectl, crictl, ctr, otelctl
+NODEBIN="$LIB/node/bin"
+ETC="$LIB/etc"                               # containerd.toml (the task's file)
+OTEL="$LIB/otelcol"                          # the collector: its binary and its configuration
+PODS="$LIB/pods"
+WORK_DIR="/tmp/$CASE_ID"
+STATE_DIR="$WORK_DIR/.bench"                 # the oracle's own record (root only)
+PAUSE_REF="$CASE_ID.local/pause:1"
+APP_REF="$CASE_ID.local/app:1"
+CTD_VERSION="1.6.8"                          # the containerd of the question
+RUNC_VERSION="v1.1.12"
+CRICTL_VERSION="v1.34.0"
+OTEL_VERSION="0.91.0"
+export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a NEEDRESTART_SUSPEND=1
+APT_OPTS=(-o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold)
+case "$(uname -m)" in
+    x86_64|amd64)   KARCH="amd64"
+        CTD_SHA="3a1322c18ee5ff4b9bd5af6b7b30c923a3eab8af1df05554f530ef8e2b24ac5e"
+        RUNC_SHA="aadeef400b8f05645768c1476d1023f7875b78f52c7ff1967a6dbce236b8cbd8"
+        CRICTL_SHA="a8ff2a3edb37a98daf3aba7c3b284fe0aa5bff24166d896ab9ef64c8913c9f51"
+        OTEL_SHA="2bc5950e6c9ac3f25f637d95230dacd7a54684e610d450840f0cf5f2f88f24fd" ;;
+    aarch64|arm64)  KARCH="arm64"
+        CTD_SHA="b114e36ecce78cef9d611416c01b784a420928c82766d6df7dc02b10d9da94cd"
+        RUNC_SHA="879f910a05c95c10c64ad8eb7d5e3aa8e4b30e65587b3d68e009a3565aed5bb8"
+        CRICTL_SHA="c31d252e203df5f4cf37f314bd3092eb79087e791631c1e607087c74b6d0423f"
+        OTEL_SHA="fac5880eff9eca05bcb8f2c30567d235407bb04ea2b692a9fb54ac6f4acade6a" ;;
+    *) echo "[setup] ERROR: unsupported architecture $(uname -m)"; exit 1 ;;
+esac
+
+echo "[setup] checking the tools: python3, curl, tar, sudo, sha256sum, gcc..."
+for c in python3 curl tar sudo sha256sum; do
+    command -v "$c" >/dev/null || { echo "[setup] ERROR: $c not found"; exit 1; }
+done
+if ! command -v gcc >/dev/null 2>&1; then
+    sudo -E apt-get update -qq
+    sudo -E apt-get install -y -qq "${APT_OPTS[@]}" gcc libc6-dev
+fi
+command -v gcc >/dev/null || { echo "[setup] ERROR: gcc could not be installed"; exit 1; }
+echo "  host: $(uname -m), kernel $(uname -r), cgroup $(stat -fc %T /sys/fs/cgroup 2>/dev/null)"
+
+echo "[setup] clearing leftovers from a previous run (idempotency)..."
+bash "$CASE_DIR/cleanup.sh" >/dev/null 2>&1 || true
+
+echo "[setup] resetting the work dir (the record of what is true lives in a root-only subdirectory)..."
+sudo rm -rf "$WORK_DIR"
+mkdir -p "$WORK_DIR"
+chmod 755 "$WORK_DIR"
+sudo mkdir -p "$STATE_DIR"
+sudo chown root:root "$STATE_DIR"
+sudo chmod 700 "$STATE_DIR"
+sudo install -d -m 755 "$LIB" "$BIN" "$NODEBIN" "$ETC" "$PODS" "$OTEL" "$RUN" "$RUN/log"
+sudo sh -c "find /sys/fs/cgroup -type d -path '*/$CASE_ID' 2>/dev/null | sort > '$STATE_DIR/cgroups.before'"
+
+sudo install -d -m 755 "$CACHE"
+fetch() {   # $1 = file name in the cache, $2 = url, $3 = sha256
+    if [ -f "$CACHE/$1" ] && echo "$3  $CACHE/$1" | sha256sum -c --quiet - 2>/dev/null; then return 0; fi
+    sudo rm -f "$CACHE/$1"
+    curl -fsSL --retry 3 --max-time 600 -o "$WORK_DIR/$1" "$2" || { echo "[setup] ERROR: could not download $2"; exit 1; }
+    echo "$3  $WORK_DIR/$1" | sha256sum -c --quiet - || { echo "[setup] ERROR: $1 does not match its sha256"; exit 1; }
+    sudo install -m 644 "$WORK_DIR/$1" "$CACHE/$1"
+    rm -f "$WORK_DIR/$1"
+}
+echo "[setup] containerd $CTD_VERSION, runc $RUNC_VERSION, crictl $CRICTL_VERSION and the OpenTelemetry Collector $OTEL_VERSION ($KARCH): from the cache $CACHE, else downloaded; the sha256 is checked either way..."
+fetch "containerd-$CTD_VERSION-linux-$KARCH.tar.gz" "https://github.com/containerd/containerd/releases/download/v$CTD_VERSION/containerd-$CTD_VERSION-linux-$KARCH.tar.gz" "$CTD_SHA"
+fetch "runc.$KARCH.$RUNC_VERSION" "https://github.com/opencontainers/runc/releases/download/$RUNC_VERSION/runc.$KARCH" "$RUNC_SHA"
+fetch "crictl-$CRICTL_VERSION-linux-$KARCH.tar.gz" "https://github.com/kubernetes-sigs/cri-tools/releases/download/$CRICTL_VERSION/crictl-$CRICTL_VERSION-linux-$KARCH.tar.gz" "$CRICTL_SHA"
+fetch "otelcol_${OTEL_VERSION}_linux_$KARCH.tar.gz" "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v$OTEL_VERSION/otelcol_${OTEL_VERSION}_linux_$KARCH.tar.gz" "$OTEL_SHA"
+mkdir "$WORK_DIR/x"
+tar -xzf "$CACHE/containerd-$CTD_VERSION-linux-$KARCH.tar.gz" -C "$WORK_DIR/x" bin/containerd bin/containerd-shim-runc-v2 bin/ctr
+for b in containerd containerd-shim-runc-v2 ctr; do sudo install -m 755 -o root -g root "$WORK_DIR/x/bin/$b" "$NODEBIN/$b"; done
+sudo install -m 755 -o root -g root "$CACHE/runc.$KARCH.$RUNC_VERSION" "$NODEBIN/runc"
+tar -xzf "$CACHE/crictl-$CRICTL_VERSION-linux-$KARCH.tar.gz" -C "$WORK_DIR/x" crictl
+sudo install -m 755 -o root -g root "$WORK_DIR/x/crictl" "$BIN/crictl.real"
+tar -xzf "$CACHE/otelcol_${OTEL_VERSION}_linux_$KARCH.tar.gz" -C "$WORK_DIR" --one-top-level=o otelcol
+rm -rf "$WORK_DIR/x"
+
+echo "[setup] the workload image (a static program that logs one numbered line every half second, with a per-run token) and the sandbox image, built offline..."
+TOKEN=$(head -c 8 /dev/urandom | od -An -tx1 | tr -d ' \n')
+sudo tee "$STATE_DIR/app.c" >/dev/null <<'APP_C_EOF'
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
+#ifndef TOKEN
+#define TOKEN "none"
+#endif
+
+int main(int argc, char **argv) {
+    const char *n = strrchr(argv[0], '/');
+    n = n ? n + 1 : argv[0];
+    if (!strcmp(n, "pause")) for (;;) pause();
+    for (unsigned long seq = 1;; seq++) { printf("bench73550556 %s %lu\n", TOKEN, seq); fflush(stdout); usleep(500000); }
+}
+APP_C_EOF
+sudo gcc -static -Os -s -w -DTOKEN="\"$TOKEN\"" -o "$STATE_DIR/app" "$STATE_DIR/app.c"
+sudo tee "$STATE_DIR/mkimg.py" >/dev/null <<'MKIMG_PY_EOF'
+"""mkimg.py OUTDIR REF ENTRYPOINT_JSON BIN FILE... : an OCI image layout in OUTDIR (oci-layout, index.json, blobs/sha256/*) with one layer: BIN as the first FILE, the others are links to it."""
+import hashlib
+import io
+import json
+import os
+import platform
+import sys
+import tarfile
+
+out, ref, entry, binary = sys.argv[1:5]
+names = sys.argv[5:]
+arch = {"x86_64": "amd64", "aarch64": "arm64"}[platform.machine()]
+T = 1700000000
+
+
+def sha(b):
+    return "sha256:" + hashlib.sha256(b).hexdigest()
+
+
+buf = io.BytesIO()
+with tarfile.open(fileobj=buf, mode="w", format=tarfile.PAX_FORMAT) as t:
+    for d in ("bin", "etc", "proc", "dev", "sys", "tmp"):
+        ti = tarfile.TarInfo(d)
+        ti.type, ti.mode, ti.mtime = tarfile.DIRTYPE, 0o755, T
+        t.addfile(ti)
+    data = open(binary, "rb").read()
+    ti = tarfile.TarInfo(names[0])
+    ti.size, ti.mode, ti.mtime = len(data), 0o755, T
+    t.addfile(ti, io.BytesIO(data))
+    for n in names[1:]:
+        ti = tarfile.TarInfo(n)
+        ti.type, ti.linkname, ti.mode, ti.mtime = tarfile.SYMTYPE, "/" + names[0], 0o777, T
+        t.addfile(ti)
+layer = buf.getvalue()
+cfg = {"architecture": arch, "os": "linux", "config": {"Entrypoint": json.loads(entry)}, "rootfs": {"type": "layers", "diff_ids": [sha(layer)]},
+       "history": [{"created_by": "COPY app /app"}]}
+config = json.dumps(cfg).encode()
+manifest = json.dumps({"schemaVersion": 2, "mediaType": "application/vnd.oci.image.manifest.v1+json",
+                       "config": {"mediaType": "application/vnd.oci.image.config.v1+json", "digest": sha(config), "size": len(config)},
+                       "layers": [{"mediaType": "application/vnd.oci.image.layer.v1.tar", "digest": sha(layer), "size": len(layer)}]}).encode()
+index = json.dumps({"schemaVersion": 2, "manifests": [{"mediaType": "application/vnd.oci.image.manifest.v1+json", "digest": sha(manifest), "size": len(manifest),
+                    "annotations": {"io.containerd.image.name": ref, "org.opencontainers.image.ref.name": ref.rsplit(":", 1)[1]}}]}).encode()
+os.makedirs(out + "/blobs/sha256", exist_ok=True)
+for name, blob in (("oci-layout", b'{"imageLayoutVersion":"1.0.0"}'), ("index.json", index), ("blobs/sha256/" + sha(layer)[7:], layer),
+                   ("blobs/sha256/" + sha(config)[7:], config), ("blobs/sha256/" + sha(manifest)[7:], manifest)):
+    open(out + "/" + name, "wb").write(blob)
+print(sha(manifest))
+MKIMG_PY_EOF
+sudo python3 "$STATE_DIR/mkimg.py" "$STATE_DIR/app-layout" "$APP_REF" '["/app"]' "$STATE_DIR/app" bin/app app >/dev/null
+sudo python3 "$STATE_DIR/mkimg.py" "$STATE_DIR/pause-layout" "$PAUSE_REF" '["/pause"]' "$STATE_DIR/app" bin/pause pause >/dev/null
+sudo tar -C "$STATE_DIR/app-layout" -cf "$STATE_DIR/app.tar" .
+sudo tar -C "$STATE_DIR/pause-layout" -cf "$STATE_DIR/pause.tar" .
+
+echo "[setup] ctr, crictl, nodectl and the pod's and the container's definitions..."
+sudo tee "$BIN/ctr" >/dev/null <<CEOF
+#!/bin/sh
+exec $NODEBIN/ctr -a $RUN/containerd.sock "\$@"
+CEOF
+sudo tee "$BIN/crictl" >/dev/null <<CEOF
+#!/bin/sh
+# crictl for the node's containerd (the machine's own crictl configuration is not used)
+exec $BIN/crictl.real -r unix://$RUN/containerd.sock -i unix://$RUN/containerd.sock "\$@"
+CEOF
+sudo tee "$BIN/nodectl" >/dev/null <<CEOF
+#!/bin/bash
+# nodectl start|stop|restart|status : starts and stops the node's containerd (configuration $ETC/containerd.toml, read at the start). Must run as root.
+PIDF="$RUN/containerd.pid"
+SOCK="$RUN/containerd.sock"
+[ "\$(id -u)" = 0 ] || { echo "nodectl: must run as root (use sudo)" >&2; exit 1; }
+pid() { [ -s "\$PIDF" ] && cat "\$PIDF"; }
+running() { local p; p=\$(pid) && [ -n "\$p" ] && [ "\$(cat /proc/\$p/comm 2>/dev/null)" = containerd ]; }
+up() { [ -S "\$SOCK" ] && timeout 3 $BIN/crictl version >/dev/null 2>&1; }
+case "\${1:-}" in
+    start)
+        if running; then echo "nodectl: containerd is already running (pid \$(pid))"; exit 0; fi
+        mkdir -p "$RUN" "$LIB/containerd"
+        setsid -f bash -c 'echo \$\$ > "\$1"; exec env -i PATH="$NODEBIN:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" containerd --config "\$2"' _ "\$PIDF" "$ETC/containerd.toml" >> "$RUN/containerd.log" 2>&1 < /dev/null
+        for _ in \$(seq 60); do up && { echo "nodectl: containerd started (pid \$(pid))"; exit 0; }; sleep 0.5; done
+        echo "nodectl: containerd did not answer on \$SOCK within 30 s; see $RUN/containerd.log" >&2; exit 1 ;;
+    stop)
+        p=\$(pid) || true
+        if [ -n "\$p" ] && running; then
+            kill -TERM "\$p" 2>/dev/null
+            for _ in \$(seq 60); do kill -0 "\$p" 2>/dev/null || break; sleep 0.5; done
+            kill -0 "\$p" 2>/dev/null && kill -KILL "\$p" 2>/dev/null
+        fi
+        rm -f "\$PIDF" "\$SOCK" "\$SOCK.ttrpc"
+        echo "nodectl: containerd stopped" ;;
+    restart) "\$0" stop; "\$0" start ;;
+    status) if running; then echo "containerd is running (pid \$(pid))"; else echo "containerd is not running"; exit 1; fi ;;
+    *) echo "usage: nodectl start|stop|restart|status" >&2; exit 2 ;;
+esac
+CEOF
+sudo chmod 755 "$BIN/ctr" "$BIN/crictl" "$BIN/nodectl"
+sudo tee "$PODS/pod.json" >/dev/null <<PEOF
+{
+  "metadata": {"name": "app-pod", "namespace": "default", "uid": "uid73550556", "attempt": 1},
+  "log_directory": "$RUN/log",
+  "linux": {"cgroup_parent": "/$CASE_ID", "security_context": {"namespace_options": {"network": 2}}}
+}
+PEOF
+sudo tee "$PODS/ctr.json" >/dev/null <<CEOF
+{
+  "metadata": {"name": "app"},
+  "image": {"image": "$APP_REF"},
+  "log_path": "app/0.log",
+  "linux": {}
+}
+CEOF
+
+echo "[setup] the node's configuration (containerd's default, config version 2, the node's directories, a local sandbox image, no CNI plugins of the machine)..."
+sudo tee "$STATE_DIR/patch_config.py" >/dev/null <<'CONFIG_PY_EOF'
+"""patch_config.py LIB RUN PAUSE < default.toml > containerd.toml : containerd 1.6's default configuration with the node's directories (root, state, socket), a local sandbox image, runc with its own root, no CNI of the machine."""
+import re
+import sys
+
+lib, run, pause = sys.argv[1:4]
+section = ""
+for line in sys.stdin:
+    m = re.match(r"^\s*\[+\s*([^\]]+?)\s*\]+\s*$", line)
+    if m:
+        section = m.group(1).replace('"', "")
+    key = re.match(r"^\s*([A-Za-z_]+)\s*=", line)
+    k = key.group(1) if key else None
+    indent = re.match(r"^\s*", line).group(0)
+    out = None
+    if section == "" and k == "root":
+        out = f'root = "{lib}/containerd"\n'
+    elif section == "" and k == "state":
+        out = f'state = "{run}/containerd"\n'
+    elif section == "grpc" and k == "address":
+        out = f'{indent}address = "{run}/containerd.sock"\n'
+    elif section == "ttrpc" and k == "address":
+        out = f'{indent}address = "{run}/containerd.sock.ttrpc"\n'
+    elif k == "restrict_oom_score_adj":
+        out = f"{indent}restrict_oom_score_adj = true\n"
+    elif k == "sandbox_image":
+        out = f'{indent}sandbox_image = "{pause}"\n'
+    elif section.endswith("grpc.v1.cri.cni") and k == "bin_dir":
+        out = f'{indent}bin_dir = "{lib}/cni/bin"\n'
+    elif section.endswith("grpc.v1.cri.cni") and k == "conf_dir":
+        out = f'{indent}conf_dir = "{lib}/cni/net.d"\n'
+    elif section.endswith("runtimes.runc.options") and k == "Root":
+        out = f'{indent}Root = "{run}/runc"\n'
+    sys.stdout.write(out or line)
+CONFIG_PY_EOF
+sudo env PATH="$NODEBIN:$PATH" containerd config default | sudo python3 "$STATE_DIR/patch_config.py" "$LIB" "$RUN" "$PAUSE_REF" | sudo tee "$ETC/containerd.toml" >/dev/null
+sudo grep -q "Root = \"$RUN/runc\"" "$ETC/containerd.toml" && sudo grep -q "sandbox_image = \"$PAUSE_REF\"" "$ETC/containerd.toml" || { echo "[setup] ERROR: could not write the node's configuration"; exit 1; }
+
+echo "[setup] starting the node (the question's setup: containerd's default configuration, no tracing endpoint), importing the images (offline), running the pod and the container that log..."
+sudo "$BIN/nodectl" start || { echo "[setup] ERROR: the node did not start"; sudo tail -8 "$RUN/containerd.log" 2>/dev/null; exit 1; }
+sudo "$BIN/ctr" -n k8s.io images import "$STATE_DIR/pause.tar" >/dev/null 2>&1 || { echo "[setup] ERROR: could not import the sandbox image"; exit 1; }
+sudo "$BIN/ctr" -n k8s.io images import "$STATE_DIR/app.tar" >/dev/null 2>&1 || { echo "[setup] ERROR: could not import the workload image"; exit 1; }
+POD=$(sudo "$BIN/crictl" runp "$PODS/pod.json" 2>&1 | tail -1)
+[ ${#POD} = 64 ] || { echo "[setup] ERROR: the pod does not start: $POD"; exit 1; }
+CID=$(sudo "$BIN/crictl" create "$POD" "$PODS/ctr.json" "$PODS/pod.json" 2>&1 | tail -1)
+[ ${#CID} = 64 ] || { echo "[setup] ERROR: the container is not created: $CID"; exit 1; }
+sudo "$BIN/crictl" start "$CID" >/dev/null 2>&1 || { echo "[setup] ERROR: the container does not start"; exit 1; }
+sudo sh -c "printf '%s %s' '$POD' '$CID' > '$STATE_DIR/pod.txt'; printf '%s' '$TOKEN' > '$STATE_DIR/token'"
+sudo sh -c "'$BIN/crictl' inspect --output go-template --template '{{.status.startedAt}}' '$CID' > '$STATE_DIR/started.txt'"
+for _ in $(seq 20); do sudo test -s "$RUN/log/app/0.log" && break; sleep 0.5; done
+sudo grep -q "bench73550556 $TOKEN " "$RUN/log/app/0.log" || { echo "[setup] ERROR: the container does not log"; exit 1; }
+
+echo "[setup] the collector: the real OpenTelemetry Collector $OTEL_VERSION with an OTLP receiver (gRPC 127.0.0.1:4317, HTTP 127.0.0.1:4318) and a file exporter (every span it receives is written to $RUN/spans.jsonl)..."
+sudo install -m 755 -o root -g root "$WORK_DIR/o/otelcol" "$OTEL/otelcol"
+sudo tee "$OTEL/config.yaml" >/dev/null <<OTEL_CONF_EOF
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 127.0.0.1:4317
+      http:
+        endpoint: 127.0.0.1:4318
+exporters:
+  file:
+    path: $RUN/spans.jsonl
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [file]
+  telemetry:
+    metrics:
+      level: none
+OTEL_CONF_EOF
+sudo tee "$BIN/otelctl" >/dev/null <<CEOF
+#!/bin/bash
+# otelctl start|stop|restart|status : the OpenTelemetry Collector ($OTEL/otelcol --config $OTEL/config.yaml; its log is $RUN/otelcol.log, the spans it receives go to $RUN/spans.jsonl). Must run as root.
+PIDF="$RUN/otelcol.pid"
+[ "\$(id -u)" = 0 ] || { echo "otelctl: must run as root (use sudo)" >&2; exit 1; }
+pid() { [ -s "\$PIDF" ] && cat "\$PIDF"; }
+running() { local p; p=\$(pid) && [ -n "\$p" ] && [ "\$(cat /proc/\$p/comm 2>/dev/null)" = otelcol ]; }
+case "\${1:-}" in
+    start)
+        if running; then echo "otelctl: the collector is already running (pid \$(pid))"; exit 0; fi
+        rm -f "\$PIDF"
+        setsid -f bash -c 'echo \$\$ > "\$1"; exec env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin "\$2" --config "\$3"' _ "\$PIDF" "$OTEL/otelcol" "$OTEL/config.yaml" >> "$RUN/otelcol.log" 2>&1 < /dev/null
+        for _ in \$(seq 40); do running && grep -q "Everything is ready" "$RUN/otelcol.log" 2>/dev/null && { echo "otelctl: the collector started (pid \$(pid))"; exit 0; }; sleep 0.25; done
+        echo "otelctl: the collector did not start; see $RUN/otelcol.log" >&2; tail -5 "$RUN/otelcol.log" >&2; exit 1 ;;
+    stop)
+        p=\$(pid) || true
+        if [ -n "\$p" ] && running; then
+            kill -TERM "\$p" 2>/dev/null
+            for _ in \$(seq 40); do kill -0 "\$p" 2>/dev/null || break; sleep 0.25; done
+            kill -0 "\$p" 2>/dev/null && kill -KILL "\$p" 2>/dev/null
+        fi
+        rm -f "\$PIDF"
+        echo "otelctl: the collector stopped" ;;
+    restart) "\$0" stop; "\$0" start ;;
+    status) if running; then echo "the collector is running (pid \$(pid))"; else echo "the collector is not running"; exit 1; fi ;;
+    *) echo "usage: otelctl start|stop|restart|status" >&2; exit 2 ;;
+esac
+CEOF
+sudo chmod 755 "$BIN/otelctl"
+sudo "$BIN/otelctl" start || exit 1
+
+echo "[setup] the record of what is true (hashes of the lab's files, the processes, the token)..."
+sudo sh -c "cd / && { sha256sum '$NODEBIN/containerd' '$NODEBIN/containerd-shim-runc-v2' '$NODEBIN/runc' '$NODEBIN/ctr' '$BIN/crictl.real' '$BIN/crictl' '$BIN/ctr' '$BIN/nodectl' '$BIN/otelctl' '$OTEL/otelcol' '$OTEL/config.yaml' '$PODS/pod.json' '$PODS/ctr.json'; } > '$STATE_DIR/lab.sha'"
+sudo sh -c "cat '$RUN/otelcol.pid' > '$STATE_DIR/otel.pid'; readlink /proc/\$(cat '$RUN/otelcol.pid')/exe > '$STATE_DIR/otel.exe'"
+
+echo "[setup] done. The node's configuration is $ETC/containerd.toml (containerd's default: the tracing plugin has no endpoint); tools: $BIN/{nodectl,crictl,ctr,otelctl} (with sudo); containerd's log: $RUN/containerd.log; the collector's spans: $RUN/spans.jsonl."

@@ -1,0 +1,80 @@
+[
+  {
+    "case_id": "q73550556",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q73550556/reference_solution.sh"
+  },
+  {
+    "case_id": "q73550556",
+    "category": "diagnostics",
+    "model": "alt_valid_url_with_v1_traces_path",
+    "code": "set -e\nsudo sed -i '/^\\s*\\[plugins.\"io.containerd.tracing.processor.v1.otlp\"\\]/,/^\\s*$/ s|^\\(\\s*endpoint = \\)\"\"|\\1\"http://127.0.0.1:4318/v1/traces\"|' /var/lib/bench73550556/etc/containerd.toml\nsudo /var/lib/bench73550556/bin/nodectl restart\n"
+  },
+  {
+    "case_id": "q73550556",
+    "category": "diagnostics",
+    "model": "alt_valid_localhost_and_explicit_protocol",
+    "code": "set -e\nsudo sed -i '/^\\s*\\[plugins.\"io.containerd.tracing.processor.v1.otlp\"\\]/,/^\\s*$/ s|^\\(\\s*endpoint = \\)\"\"|\\1\"http://localhost:4318\"|' /var/lib/bench73550556/etc/containerd.toml\nsudo sed -i '/^\\s*\\[plugins.\"io.containerd.tracing.processor.v1.otlp\"\\]/,/^\\s*$/ s|^\\(\\s*protocol = \\)\"\"|\\1\"http/protobuf\"|' /var/lib/bench73550556/etc/containerd.toml\nsudo /var/lib/bench73550556/bin/nodectl restart\n"
+  },
+  {
+    "case_id": "q73550556",
+    "category": "diagnostics",
+    "model": "alt_valid_service_name_changed",
+    "code": "set -e\nsudo sed -i '/^\\s*\\[plugins.\"io.containerd.tracing.processor.v1.otlp\"\\]/,/^\\s*$/ s|^\\(\\s*endpoint = \\)\"\"|\\1\"http://127.0.0.1:4318\"|' /var/lib/bench73550556/etc/containerd.toml\nsudo sed -i 's|^\\(\\s*service_name = \\)\"containerd\"|\\1\"node-containerd\"|' /var/lib/bench73550556/etc/containerd.toml\nsudo /var/lib/bench73550556/bin/nodectl restart\n"
+  },
+  {
+    "case_id": "q73550556",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q73550556",
+    "category": "diagnostics",
+    "model": "wrong_endpoint_without_scheme",
+    "code": "set -e\nsudo sed -i '/^\\s*\\[plugins.\"io.containerd.tracing.processor.v1.otlp\"\\]/,/^\\s*$/ s|^\\(\\s*endpoint = \\)\"\"|\\1\"127.0.0.1:4318\"|' /var/lib/bench73550556/etc/containerd.toml\nsudo /var/lib/bench73550556/bin/nodectl restart\n"
+  },
+  {
+    "case_id": "q73550556",
+    "category": "diagnostics",
+    "model": "wrong_http_url_on_the_grpc_port",
+    "code": "set -e\nsudo sed -i '/^\\s*\\[plugins.\"io.containerd.tracing.processor.v1.otlp\"\\]/,/^\\s*$/ s|^\\(\\s*endpoint = \\)\"\"|\\1\"http://127.0.0.1:4317\"|' /var/lib/bench73550556/etc/containerd.toml\nsudo /var/lib/bench73550556/bin/nodectl restart\n"
+  },
+  {
+    "case_id": "q73550556",
+    "category": "diagnostics",
+    "model": "wrong_protocol_grpc_on_4317",
+    "code": "set -e\nsudo sed -i '/^\\s*\\[plugins.\"io.containerd.tracing.processor.v1.otlp\"\\]/,/^\\s*$/ s|^\\(\\s*endpoint = \\)\"\"|\\1\"http://127.0.0.1:4317\"|' /var/lib/bench73550556/etc/containerd.toml\nsudo sed -i '/^\\s*\\[plugins.\"io.containerd.tracing.processor.v1.otlp\"\\]/,/^\\s*$/ s|^\\(\\s*protocol = \\)\"\"|\\1\"grpc\"|' /var/lib/bench73550556/etc/containerd.toml\nsudo /var/lib/bench73550556/bin/nodectl restart\n"
+  },
+  {
+    "case_id": "q73550556",
+    "category": "diagnostics",
+    "model": "wrong_config_edited_containerd_not_restarted",
+    "code": "set -e\nsudo sed -i '/^\\s*\\[plugins.\"io.containerd.tracing.processor.v1.otlp\"\\]/,/^\\s*$/ s|^\\(\\s*endpoint = \\)\"\"|\\1\"http://127.0.0.1:4318\"|' /var/lib/bench73550556/etc/containerd.toml\ngrep -n 'endpoint' /var/lib/bench73550556/etc/containerd.toml\n"
+  },
+  {
+    "case_id": "q73550556",
+    "category": "diagnostics",
+    "model": "wrong_only_hide_the_message_plugins_disabled",
+    "code": "set -e\nsudo sed -i 's|^disabled_plugins = \\[\\]|disabled_plugins = [\"io.containerd.tracing.processor.v1.otlp\", \"io.containerd.internal.v1.tracing\"]|' /var/lib/bench73550556/etc/containerd.toml\nsudo /var/lib/bench73550556/bin/nodectl restart\n"
+  },
+  {
+    "case_id": "q73550556",
+    "category": "diagnostics",
+    "model": "wrong_tracing_on_but_cri_disabled",
+    "code": "set -e\nsudo sed -i '/^\\s*\\[plugins.\"io.containerd.tracing.processor.v1.otlp\"\\]/,/^\\s*$/ s|^\\(\\s*endpoint = \\)\"\"|\\1\"http://127.0.0.1:4318\"|' /var/lib/bench73550556/etc/containerd.toml\nsudo sed -i 's|^disabled_plugins = \\[\\]|disabled_plugins = [\"io.containerd.grpc.v1.cri\"]|' /var/lib/bench73550556/etc/containerd.toml\nsudo /var/lib/bench73550556/bin/nodectl restart\n"
+  },
+  {
+    "case_id": "q73550556",
+    "category": "diagnostics",
+    "model": "cheating_forged_spans_posted_to_the_collector",
+    "code": "set -e\nsudo sed -i 's|^disabled_plugins = \\[\\]|disabled_plugins = [\"io.containerd.tracing.processor.v1.otlp\", \"io.containerd.internal.v1.tracing\"]|' /var/lib/bench73550556/etc/containerd.toml\nsudo /var/lib/bench73550556/bin/nodectl restart\npython3 - <<'PYEOF'\nimport json, time, urllib.request\nnow = time.time_ns() + 600 * 10**9\ndef span(n, i): return {'traceId': '%032x' % (now + i), 'spanId': '%016x' % (now + i), 'name': n, 'kind': 2, 'startTimeUnixNano': str(now + i), 'endTimeUnixNano': str(now + i + 1000)}\nnames = ['runtime.v1.RuntimeService/ListPodSandbox', 'runtime.v1.ImageService/ListImages', 'runtime.v1.RuntimeService/RunPodSandbox', 'runtime.v1.RuntimeService/CreateContainer', 'runtime.v1.RuntimeService/StartContainer']\nbody = {'resourceSpans': [{'resource': {'attributes': [{'key': 'service.name', 'value': {'stringValue': 'containerd'}}]}, 'scopeSpans': [{'scope': {'name': 'forged'}, 'spans': [span(n, i * 10 + k) for i, n in enumerate(names) for k in range(3)]}]}]}\nurllib.request.urlopen(urllib.request.Request('http://127.0.0.1:4318/v1/traces', json.dumps(body).encode(), {'Content-Type': 'application/json'}), timeout=5)\nPYEOF\nsleep 1\n"
+  },
+  {
+    "case_id": "q73550556",
+    "category": "diagnostics",
+    "model": "wrong_collector_stopped_after_enabling",
+    "code": "set -e\nsudo sed -i '/^\\s*\\[plugins.\"io.containerd.tracing.processor.v1.otlp\"\\]/,/^\\s*$/ s|^\\(\\s*endpoint = \\)\"\"|\\1\"http://127.0.0.1:4318\"|' /var/lib/bench73550556/etc/containerd.toml\nsudo /var/lib/bench73550556/bin/nodectl restart\nsudo /var/lib/bench73550556/bin/otelctl stop\n"
+  }
+]
