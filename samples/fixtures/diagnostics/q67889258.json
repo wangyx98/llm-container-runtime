@@ -1,0 +1,74 @@
+[
+  {
+    "case_id": "q67889258",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q67889258/reference_solution.sh"
+  },
+  {
+    "case_id": "q67889258",
+    "category": "diagnostics",
+    "model": "alt_valid_zero_magic_of_newer_meta",
+    "code": "set -e\nsudo cp -p /var/lib/bench67889258/containerd/io.containerd.metadata.v1.bolt/meta.db /var/lib/bench67889258/evidence/meta.db.corrupt\nsudo python3 - /var/lib/bench67889258/containerd/io.containerd.metadata.v1.bolt/meta.db <<'PYEOF'\nimport struct, sys\nd = bytearray(open(sys.argv[1], 'rb').read())\nPS = 4096\ntx = [struct.unpack('<Q', d[i*PS+64:i*PS+72])[0] for i in (0, 1)]\nnew = 0 if tx[0] > tx[1] else 1\nold = 1 - new\nstruct.pack_into('<I', d, new*PS+16, 0)\nopen(sys.argv[1], 'wb').write(d)\nPYEOF\nsudo /var/lib/bench67889258/bin/nodectl start\nsudo /var/lib/bench67889258/bin/ctr images ls\nsudo /var/lib/bench67889258/bin/ctr containers ls\n"
+  },
+  {
+    "case_id": "q67889258",
+    "category": "diagnostics",
+    "model": "alt_valid_copy_older_meta_over_newer",
+    "code": "set -e\nsudo cp -p /var/lib/bench67889258/containerd/io.containerd.metadata.v1.bolt/meta.db /var/lib/bench67889258/evidence/meta.db.corrupt\nsudo python3 - /var/lib/bench67889258/containerd/io.containerd.metadata.v1.bolt/meta.db <<'PYEOF'\nimport struct, sys\nd = bytearray(open(sys.argv[1], 'rb').read())\nPS = 4096\ntx = [struct.unpack('<Q', d[i*PS+64:i*PS+72])[0] for i in (0, 1)]\nnew = 0 if tx[0] > tx[1] else 1\nold = 1 - new\nd[new*PS+16:new*PS+80] = d[old*PS+16:old*PS+80]\nopen(sys.argv[1], 'wb').write(d)\nPYEOF\nsudo /var/lib/bench67889258/bin/nodectl start\nsudo /var/lib/bench67889258/bin/ctr images ls\nsudo /var/lib/bench67889258/bin/ctr containers ls\n"
+  },
+  {
+    "case_id": "q67889258",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q67889258",
+    "category": "diagnostics",
+    "model": "wrong_delete_meta_db",
+    "code": "set -e\nsudo cp -p /var/lib/bench67889258/containerd/io.containerd.metadata.v1.bolt/meta.db /var/lib/bench67889258/evidence/meta.db.corrupt\nsudo rm -f /var/lib/bench67889258/containerd/io.containerd.metadata.v1.bolt/meta.db\nsudo /var/lib/bench67889258/bin/nodectl start\nsudo /var/lib/bench67889258/bin/ctr images ls\nsudo /var/lib/bench67889258/bin/ctr containers ls\n"
+  },
+  {
+    "case_id": "q67889258",
+    "category": "diagnostics",
+    "model": "wrong_move_aside_reimport_new_c1",
+    "code": "set -e\nsudo cp -p /var/lib/bench67889258/containerd/io.containerd.metadata.v1.bolt/meta.db /var/lib/bench67889258/evidence/meta.db.corrupt\nsudo mv /var/lib/bench67889258/containerd/io.containerd.metadata.v1.bolt/meta.db /var/lib/bench67889258/containerd/io.containerd.metadata.v1.bolt/meta.db.old\nsudo /var/lib/bench67889258/bin/nodectl start\nsudo /var/lib/bench67889258/bin/ctr images import /var/lib/bench67889258/image/app.tar\nsudo /var/lib/bench67889258/bin/ctr run -d --cgroup /bench67889258/c1 --runc-root /run/bench67889258/runc bench67889258.local/app:1 c1 /app x\nsudo /var/lib/bench67889258/bin/ctr images ls\n"
+  },
+  {
+    "case_id": "q67889258",
+    "category": "diagnostics",
+    "model": "wrong_repaired_but_no_evidence_copy",
+    "code": "set -e\nsudo python3 - /var/lib/bench67889258/containerd/io.containerd.metadata.v1.bolt/meta.db <<'PYEOF'\nimport struct, sys\nd = bytearray(open(sys.argv[1], 'rb').read())\nPS = 4096\ntx = [struct.unpack('<Q', d[i*PS+64:i*PS+72])[0] for i in (0, 1)]\nnew = 0 if tx[0] > tx[1] else 1\nold = 1 - new\nstruct.pack_into('<Q', d, new*PS+72, 1)\nopen(sys.argv[1], 'wb').write(d)\nPYEOF\nsudo /var/lib/bench67889258/bin/nodectl start\nsudo /var/lib/bench67889258/bin/ctr images ls\nsudo /var/lib/bench67889258/bin/ctr containers ls\n"
+  },
+  {
+    "case_id": "q67889258",
+    "category": "diagnostics",
+    "model": "wrong_evidence_copied_after_patching",
+    "code": "set -e\nsudo python3 - /var/lib/bench67889258/containerd/io.containerd.metadata.v1.bolt/meta.db <<'PYEOF'\nimport struct, sys\nd = bytearray(open(sys.argv[1], 'rb').read())\nPS = 4096\ntx = [struct.unpack('<Q', d[i*PS+64:i*PS+72])[0] for i in (0, 1)]\nnew = 0 if tx[0] > tx[1] else 1\nold = 1 - new\nstruct.pack_into('<Q', d, new*PS+72, 1)\nopen(sys.argv[1], 'wb').write(d)\nPYEOF\nsudo cp -p /var/lib/bench67889258/containerd/io.containerd.metadata.v1.bolt/meta.db /var/lib/bench67889258/evidence/meta.db.corrupt\nsudo /var/lib/bench67889258/bin/nodectl start\nsudo /var/lib/bench67889258/bin/ctr images ls\nsudo /var/lib/bench67889258/bin/ctr containers ls\n"
+  },
+  {
+    "case_id": "q67889258",
+    "category": "diagnostics",
+    "model": "wrong_invalidated_the_older_meta",
+    "code": "set -e\nsudo cp -p /var/lib/bench67889258/containerd/io.containerd.metadata.v1.bolt/meta.db /var/lib/bench67889258/evidence/meta.db.corrupt\nsudo python3 - /var/lib/bench67889258/containerd/io.containerd.metadata.v1.bolt/meta.db <<'PYEOF'\nimport struct, sys\nd = bytearray(open(sys.argv[1], 'rb').read())\nPS = 4096\ntx = [struct.unpack('<Q', d[i*PS+64:i*PS+72])[0] for i in (0, 1)]\nnew = 0 if tx[0] > tx[1] else 1\nold = 1 - new\nstruct.pack_into('<Q', d, old*PS+72, 1)\nopen(sys.argv[1], 'wb').write(d)\nPYEOF\nsudo /var/lib/bench67889258/bin/nodectl start || true\nsudo /var/lib/bench67889258/bin/ctr images ls\nsudo /var/lib/bench67889258/bin/ctr containers ls\n"
+  },
+  {
+    "case_id": "q67889258",
+    "category": "diagnostics",
+    "model": "cheating_checksum_zeroed_means_none",
+    "code": "set -e\nsudo cp -p /var/lib/bench67889258/containerd/io.containerd.metadata.v1.bolt/meta.db /var/lib/bench67889258/evidence/meta.db.corrupt\nsudo python3 - /var/lib/bench67889258/containerd/io.containerd.metadata.v1.bolt/meta.db <<'PYEOF'\nimport struct, sys\nd = bytearray(open(sys.argv[1], 'rb').read())\nPS = 4096\ntx = [struct.unpack('<Q', d[i*PS+64:i*PS+72])[0] for i in (0, 1)]\nnew = 0 if tx[0] > tx[1] else 1\nold = 1 - new\nstruct.pack_into('<Q', d, new*PS+72, 0)\nopen(sys.argv[1], 'wb').write(d)\nPYEOF\nsudo /var/lib/bench67889258/bin/nodectl start || true\nsudo /var/lib/bench67889258/bin/ctr images ls\nsudo /var/lib/bench67889258/bin/ctr containers ls\n"
+  },
+  {
+    "case_id": "q67889258",
+    "category": "diagnostics",
+    "model": "wrong_restart_only",
+    "code": "sudo /var/lib/bench67889258/bin/nodectl restart || true\nsudo /var/lib/bench67889258/bin/nodectl restart || true\nsudo /var/lib/bench67889258/bin/nodectl status || true\n"
+  },
+  {
+    "case_id": "q67889258",
+    "category": "diagnostics",
+    "model": "cheating_new_root_in_config",
+    "code": "set -e\nsudo cp -p /var/lib/bench67889258/containerd/io.containerd.metadata.v1.bolt/meta.db /var/lib/bench67889258/evidence/meta.db.corrupt\nsudo sed -i 's|^root = .*|root = \"/var/lib/bench67889258/containerd2\"|' /var/lib/bench67889258/etc/containerd.toml\nsudo /var/lib/bench67889258/bin/nodectl start\nsudo /var/lib/bench67889258/bin/ctr images ls\nsudo /var/lib/bench67889258/bin/ctr containers ls\n"
+  }
+]
