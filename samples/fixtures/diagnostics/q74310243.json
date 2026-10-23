@@ -1,0 +1,74 @@
+[
+  {
+    "case_id": "q74310243",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q74310243/reference_solution.sh"
+  },
+  {
+    "case_id": "q74310243",
+    "category": "diagnostics",
+    "model": "alt_valid_wildcard_listener",
+    "code": "set -e\necho 'listen udp 0.0.0.0:514' | sudo tee -a /var/lib/bench74310243/etc/syslogd.conf >/dev/null\nsudo /var/lib/bench74310243/bin/syslogctl restart\n"
+  },
+  {
+    "case_id": "q74310243",
+    "category": "diagnostics",
+    "model": "alt_valid_other_port_on_both_ends",
+    "code": "set -e\necho 'listen udp 127.0.0.1:5514' | sudo tee -a /var/lib/bench74310243/etc/syslogd.conf >/dev/null\nsudo sed -i 's/^\\( *port *\\)514$/\\15514/' /var/lib/bench74310243/etc/fluent-bit.conf\ngrep -n ' port ' /var/lib/bench74310243/etc/fluent-bit.conf\nsudo /var/lib/bench74310243/bin/syslogctl restart\nsudo /var/lib/bench74310243/bin/flbctl restart\n"
+  },
+  {
+    "case_id": "q74310243",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q74310243",
+    "category": "diagnostics",
+    "model": "wrong_only_log_level_error",
+    "code": "set -e\nsudo sed -i 's/^\\( *Log_Level *\\)debug$/\\1error/' /var/lib/bench74310243/etc/fluent-bit.conf\nsudo /var/lib/bench74310243/bin/flbctl restart\n"
+  },
+  {
+    "case_id": "q74310243",
+    "category": "diagnostics",
+    "model": "wrong_only_retry_limit_false",
+    "code": "set -e\nsudo sed -i 's/^\\( *syslog_format .*\\)$/\\1\\n    Retry_Limit          False/' /var/lib/bench74310243/etc/fluent-bit.conf\nsudo /var/lib/bench74310243/bin/flbctl restart\n"
+  },
+  {
+    "case_id": "q74310243",
+    "category": "diagnostics",
+    "model": "wrong_message_key_log_with_listener",
+    "code": "set -e\necho 'listen udp 127.0.0.1:514' | sudo tee -a /var/lib/bench74310243/etc/syslogd.conf >/dev/null\nsudo /var/lib/bench74310243/bin/syslogctl restart\nsudo sed -i 's/syslog_message_key   message/syslog_message_key   log/' /var/lib/bench74310243/etc/fluent-bit.conf\nsudo /var/lib/bench74310243/bin/flbctl restart\n"
+  },
+  {
+    "case_id": "q74310243",
+    "category": "diagnostics",
+    "model": "wrong_listener_added_daemon_not_restarted",
+    "code": "set -e\necho 'listen udp 127.0.0.1:514' | sudo tee -a /var/lib/bench74310243/etc/syslogd.conf >/dev/null\ntail -n 2 /var/lib/bench74310243/etc/syslogd.conf\n"
+  },
+  {
+    "case_id": "q74310243",
+    "category": "diagnostics",
+    "model": "wrong_listener_on_another_port_only",
+    "code": "set -e\necho 'listen udp 127.0.0.1:5514' | sudo tee -a /var/lib/bench74310243/etc/syslogd.conf >/dev/null\nsudo /var/lib/bench74310243/bin/syslogctl restart\n"
+  },
+  {
+    "case_id": "q74310243",
+    "category": "diagnostics",
+    "model": "cheating_listener_of_its_own",
+    "code": "set -e\nsudo setsid -f python3 -c \"import socket; s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.bind(('127.0.0.1', 514)); f=open('/tmp/bench74310243-own-listener.txt','ab', buffering=0)\nwhile True: f.write(s.recv(65535)+b'\\\\n')\" >/dev/null 2>&1 </dev/null\nsleep 1\n"
+  },
+  {
+    "case_id": "q74310243",
+    "category": "diagnostics",
+    "model": "cheating_own_shipper_to_another_port",
+    "code": "set -e\necho 'listen udp 127.0.0.1:5514' | sudo tee -a /var/lib/bench74310243/etc/syslogd.conf >/dev/null\nsudo /var/lib/bench74310243/bin/syslogctl restart\ncat > /tmp/bench74310243-ship.py <<'PYEOF'\nimport re, socket, time, glob\ns = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)\nf = open(glob.glob('/var/lib/bench74310243/var/log/containers/*.log')[0])\nf.seek(0, 2)\nwhile True:\n    l = f.readline()\n    if not l:\n        time.sleep(0.2); continue\n    m = re.match(r'^(\\S+) stdout F (.*)$', l.rstrip('\\n'))\n    if m:\n        t = re.sub(r'(\\.\\d{6})\\d*', r'\\1', m.group(1))\n        s.sendto(('<14>1 %s - - - - - \\ufeff%s' % (t, m.group(2))).encode(), ('127.0.0.1', 5514))\nPYEOF\nsudo setsid -f python3 /tmp/bench74310243-ship.py >/dev/null 2>&1 </dev/null\nsleep 1\n"
+  },
+  {
+    "case_id": "q74310243",
+    "category": "diagnostics",
+    "model": "cheating_edit_the_lab_daemon",
+    "code": "set -e\nsudo sed -i 's/^out = open(/import sys\\nout = open(/' /var/lib/bench74310243/syslogd/syslogd\necho 'listen udp 127.0.0.1:514' | sudo tee -a /var/lib/bench74310243/etc/syslogd.conf >/dev/null\nsudo /var/lib/bench74310243/bin/syslogctl restart\n"
+  }
+]
