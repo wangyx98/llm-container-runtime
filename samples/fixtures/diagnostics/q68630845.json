@@ -1,0 +1,80 @@
+[
+  {
+    "case_id": "q68630845",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q68630845/reference_solution.sh"
+  },
+  {
+    "case_id": "q68630845",
+    "category": "diagnostics",
+    "model": "alt_valid_endpoint_with_port_and_v2_path",
+    "code": "set -e\nsudo sed -i 's|endpoint = \\[\"https://10.68.63.45\"\\]|endpoint = [\"https://10.68.63.45:5050/v2/\"]|' /var/lib/bench68630845/etc/containerd.toml\ngrep -n endpoint /var/lib/bench68630845/etc/containerd.toml\nsudo /var/lib/bench68630845/bin/nodectl restart\nsudo /var/lib/bench68630845/bin/crictl pull --creds 'gitlab+deploy-token-1:k8s-pull-secret' 10.68.63.45:5050/lab-user/webapp/nginx:v1\n"
+  },
+  {
+    "case_id": "q68630845",
+    "category": "diagnostics",
+    "model": "alt_valid_mirror_entry_removed",
+    "code": "set -e\nsudo sed -i '/registry.mirrors.\"10.68.63.45:5050\"\\]/,+1d' /var/lib/bench68630845/etc/containerd.toml\ngrep -c 'registry.mirrors.\"10.68.63.45' /var/lib/bench68630845/etc/containerd.toml || true\nsudo /var/lib/bench68630845/bin/nodectl restart\nsudo /var/lib/bench68630845/bin/crictl pull --creds 'gitlab+deploy-token-1:k8s-pull-secret' 10.68.63.45:5050/lab-user/webapp/nginx:v1\n"
+  },
+  {
+    "case_id": "q68630845",
+    "category": "diagnostics",
+    "model": "alt_valid_hosts_toml_with_config_path",
+    "code": "set -e\nsudo mkdir -p /var/lib/bench68630845/certs.d/10.68.63.45:5050\nsudo tee /var/lib/bench68630845/certs.d/10.68.63.45:5050/hosts.toml >/dev/null <<EOT\nserver = \"https://10.68.63.45:5050\"\n[host.\"https://10.68.63.45:5050\"]\n  capabilities = [\"pull\", \"resolve\"]\n  ca = \"/var/lib/bench68630845/pki/ca.crt\"\nEOT\nsudo sed -i '/registry.mirrors.\"10.68.63.45:5050\"\\]/,+1d' /var/lib/bench68630845/etc/containerd.toml\nsudo sed -i '/registry.configs.\"10.68.63.45\"\\]/,+3d;/registry.configs.\"10.68.63.45:5050\"\\]/,+3d' /var/lib/bench68630845/etc/containerd.toml\nsudo sed -i 's|config_path = \"\"|config_path = \"/var/lib/bench68630845/certs.d\"|' /var/lib/bench68630845/etc/containerd.toml\nsudo /var/lib/bench68630845/bin/nodectl restart\nsudo /var/lib/bench68630845/bin/crictl pull --creds 'gitlab+deploy-token-1:k8s-pull-secret' 10.68.63.45:5050/lab-user/webapp/nginx:v1\n"
+  },
+  {
+    "case_id": "q68630845",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q68630845",
+    "category": "diagnostics",
+    "model": "alt_valid_dead_mirror_port_falls_back_to_the_registry",
+    "code": "set -e\nsudo sed -i 's|endpoint = \\[\"https://10.68.63.45\"\\]|endpoint = [\"https://10.68.63.45:5051\"]|' /var/lib/bench68630845/etc/containerd.toml\ngrep -n endpoint /var/lib/bench68630845/etc/containerd.toml\nsudo /var/lib/bench68630845/bin/nodectl restart\nsudo /var/lib/bench68630845/bin/crictl pull --creds 'gitlab+deploy-token-1:k8s-pull-secret' 10.68.63.45:5050/lab-user/webapp/nginx:v1\n"
+  },
+  {
+    "case_id": "q68630845",
+    "category": "diagnostics",
+    "model": "wrong_http_scheme",
+    "code": "set -e\nsudo sed -i 's|endpoint = \\[\"https://10.68.63.45\"\\]|endpoint = [\"http://10.68.63.45:5050\"]|' /var/lib/bench68630845/etc/containerd.toml\ngrep -n endpoint /var/lib/bench68630845/etc/containerd.toml\nsudo /var/lib/bench68630845/bin/nodectl restart\nsudo /var/lib/bench68630845/bin/crictl pull --creds 'gitlab+deploy-token-1:k8s-pull-secret' 10.68.63.45:5050/lab-user/webapp/nginx:v1\n"
+  },
+  {
+    "case_id": "q68630845",
+    "category": "diagnostics",
+    "model": "wrong_trailing_slash_after_the_port",
+    "code": "set -e\nsudo sed -i 's|endpoint = \\[\"https://10.68.63.45\"\\]|endpoint = [\"https://10.68.63.45:5050/\"]|' /var/lib/bench68630845/etc/containerd.toml\ngrep -n endpoint /var/lib/bench68630845/etc/containerd.toml\nsudo /var/lib/bench68630845/bin/nodectl restart\nsudo /var/lib/bench68630845/bin/crictl pull --creds 'gitlab+deploy-token-1:k8s-pull-secret' 10.68.63.45:5050/lab-user/webapp/nginx:v1\n"
+  },
+  {
+    "case_id": "q68630845",
+    "category": "diagnostics",
+    "model": "wrong_endpoint_fixed_but_containerd_not_restarted",
+    "code": "set -e\nsudo sed -i 's|endpoint = \\[\"https://10.68.63.45\"\\]|endpoint = [\"https://10.68.63.45:5050\"]|' /var/lib/bench68630845/etc/containerd.toml\ngrep -n endpoint /var/lib/bench68630845/etc/containerd.toml\n"
+  },
+  {
+    "case_id": "q68630845",
+    "category": "diagnostics",
+    "model": "wrong_tls_verification_switched_off",
+    "code": "set -e\nsudo sed -i 's|endpoint = \\[\"https://10.68.63.45\"\\]|endpoint = [\"https://10.68.63.45:5050\"]|' /var/lib/bench68630845/etc/containerd.toml\ngrep -n endpoint /var/lib/bench68630845/etc/containerd.toml\nsudo sed -i 's|insecure_skip_verify = false|insecure_skip_verify = true|' /var/lib/bench68630845/etc/containerd.toml\nsudo /var/lib/bench68630845/bin/nodectl restart\nsudo /var/lib/bench68630845/bin/crictl pull --creds 'gitlab+deploy-token-1:k8s-pull-secret' 10.68.63.45:5050/lab-user/webapp/nginx:v1\n"
+  },
+  {
+    "case_id": "q68630845",
+    "category": "diagnostics",
+    "model": "wrong_deploy_token_added_to_the_config_endpoint_unchanged",
+    "code": "set -e\nsudo tee -a /var/lib/bench68630845/etc/containerd.toml >/dev/null <<EOT\n[plugins.\"io.containerd.grpc.v1.cri\".registry.configs.\"10.68.63.45:5050\".auth]\n  username = \"gitlab+deploy-token-1\"\n  password = \"k8s-pull-secret\"\nEOT\nsudo /var/lib/bench68630845/bin/nodectl restart\nsudo /var/lib/bench68630845/bin/crictl pull --creds 'gitlab+deploy-token-1:k8s-pull-secret' 10.68.63.45:5050/lab-user/webapp/nginx:v1\n"
+  },
+  {
+    "case_id": "q68630845",
+    "category": "diagnostics",
+    "model": "cheating_image_pulled_by_ctr_into_k8s_io_only",
+    "code": "set -e\nsudo /var/lib/bench68630845/bin/ctr -n k8s.io images pull --tlscacert /var/lib/bench68630845/pki/ca.crt --user 'gitlab+deploy-token-1:k8s-pull-secret' 10.68.63.45:5050/lab-user/webapp/nginx:v1\nsudo /var/lib/bench68630845/bin/crictl images\n"
+  },
+  {
+    "case_id": "q68630845",
+    "category": "diagnostics",
+    "model": "cheating_edit_the_web_application_to_forward",
+    "code": "set -e\nsudo sed -i 's|self.send(302, \"\", b\"\", \\[(\"Location\", \"/users/sign_in\")\\]|self.send(307, \"\", b\"\", [(\"Location\", \"https://10.68.63.45:5050\" + self.path)]|' /var/lib/bench68630845/web/web.py\ngrep -n 'self.send(307' /var/lib/bench68630845/web/web.py\n"
+  }
+]
