@@ -1,0 +1,68 @@
+[
+  {
+    "case_id": "q64401699",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q64401699/reference_solution.sh"
+  },
+  {
+    "case_id": "q64401699",
+    "category": "diagnostics",
+    "model": "alt_valid_keep_snapshot_flag",
+    "code": "set -e\nsudo cp -p /var/lib/bench64401699/etc/containerd.toml /var/lib/bench64401699/etc/containerd.toml.orig\nsudo sed -i 's|^disabled_plugins = .*|disabled_plugins = [\"io.containerd.grpc.v1.cri\"]|' /var/lib/bench64401699/etc/containerd.toml\nsudo /var/lib/bench64401699/bin/nodectl start\nsudo /var/lib/bench64401699/bin/ctr -n k8s.io containers ls -q | while read -r id; do sudo /var/lib/bench64401699/bin/ctr -n k8s.io containers info \"$id\" | python3 -c \"\nimport base64, json, sys\ni = json.load(sys.stdin)\ne = i['Extensions'].get('io.cri-containerd.sandbox.metadata')\nif e: print(i['ID'], json.loads(base64.b64decode(e['value']))['Metadata']['Name'])\"; done | sort -k2 > /tmp/sb.txt\nSNAPS=$(sudo /var/lib/bench64401699/bin/ctr -n k8s.io snapshots ls | awk 'NR>1 {print $1}')\nTWIN=$(awk '{print $1}' /tmp/sb.txt | while read -r i; do echo \"$SNAPS\" | grep -qx \"$i\" || echo \"$i\"; done | head -1)\nNAME=$(awk -v t=\"$TWIN\" '$1==t {print $2}' /tmp/sb.txt)\nREAL=$(awk -v n=\"$NAME\" -v t=\"$TWIN\" '$2==n && $1!=t {print $1}' /tmp/sb.txt)\nsudo /var/lib/bench64401699/bin/ctr -n k8s.io containers rm --keep-snapshot \"$TWIN\"\nsudo /var/lib/bench64401699/bin/nodectl stop\nsudo mv /var/lib/bench64401699/etc/containerd.toml.orig /var/lib/bench64401699/etc/containerd.toml\nsudo /var/lib/bench64401699/bin/nodectl start\nsudo /var/lib/bench64401699/bin/crictl pods\n"
+  },
+  {
+    "case_id": "q64401699",
+    "category": "diagnostics",
+    "model": "alt_valid_containerd_by_hand_with_a_copy_of_the_configuration",
+    "code": "set -e\nsed 's|^disabled_plugins = .*|disabled_plugins = [\"io.containerd.grpc.v1.cri\"]|' /var/lib/bench64401699/etc/containerd.toml | sudo tee /var/lib/bench64401699/etc/nocri.toml >/dev/null\nsudo rm -f /run/bench64401699/containerd.sock /run/bench64401699/containerd.sock.ttrpc\nsudo setsid -f env -i PATH=/var/lib/bench64401699/node/bin:/usr/sbin:/usr/bin:/sbin:/bin containerd --config /var/lib/bench64401699/etc/nocri.toml >/tmp/nocri.log 2>&1 </dev/null\nfor i in $(seq 40); do sudo /var/lib/bench64401699/node/bin/ctr -a /run/bench64401699/containerd.sock version >/dev/null 2>&1 && break; sleep 0.5; done\nsudo /var/lib/bench64401699/bin/ctr -n k8s.io containers ls -q | while read -r id; do sudo /var/lib/bench64401699/bin/ctr -n k8s.io containers info \"$id\" | python3 -c \"\nimport base64, json, sys\ni = json.load(sys.stdin)\ne = i['Extensions'].get('io.cri-containerd.sandbox.metadata')\nif e: print(i['ID'], json.loads(base64.b64decode(e['value']))['Metadata']['Name'])\"; done | sort -k2 > /tmp/sb.txt\nSNAPS=$(sudo /var/lib/bench64401699/bin/ctr -n k8s.io snapshots ls | awk 'NR>1 {print $1}')\nTWIN=$(awk '{print $1}' /tmp/sb.txt | while read -r i; do echo \"$SNAPS\" | grep -qx \"$i\" || echo \"$i\"; done | head -1)\nNAME=$(awk -v t=\"$TWIN\" '$1==t {print $2}' /tmp/sb.txt)\nREAL=$(awk -v n=\"$NAME\" -v t=\"$TWIN\" '$2==n && $1!=t {print $1}' /tmp/sb.txt)\nsudo /var/lib/bench64401699/bin/ctr -n k8s.io containers rm \"$TWIN\"\nfor p in $(pgrep -x containerd); do sudo tr '\\0' ' ' < /proc/$p/cmdline | grep -q nocri.toml && sudo kill $p; done\nsleep 3\nsudo rm -f /run/bench64401699/containerd.sock /run/bench64401699/containerd.sock.ttrpc /var/lib/bench64401699/etc/nocri.toml\nsudo /var/lib/bench64401699/bin/nodectl start\nsudo /var/lib/bench64401699/bin/crictl pods\n"
+  },
+  {
+    "case_id": "q64401699",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q64401699",
+    "category": "diagnostics",
+    "model": "wrong_move_the_store_aside_the_threads_answer",
+    "code": "set -e\nsudo /var/lib/bench64401699/bin/nodectl stop || true\nsudo mv /var/lib/bench64401699/containerd /var/lib/bench64401699/_containerd\nsudo /var/lib/bench64401699/bin/nodectl start\nsudo /var/lib/bench64401699/bin/crictl pods\n"
+  },
+  {
+    "case_id": "q64401699",
+    "category": "diagnostics",
+    "model": "wrong_delete_the_id_of_the_message",
+    "code": "set -e\nsudo cp -p /var/lib/bench64401699/etc/containerd.toml /var/lib/bench64401699/etc/containerd.toml.orig\nsudo sed -i 's|^disabled_plugins = .*|disabled_plugins = [\"io.containerd.grpc.v1.cri\"]|' /var/lib/bench64401699/etc/containerd.toml\nsudo /var/lib/bench64401699/bin/nodectl start\nsudo /var/lib/bench64401699/bin/ctr -n k8s.io containers ls -q | while read -r id; do sudo /var/lib/bench64401699/bin/ctr -n k8s.io containers info \"$id\" | python3 -c \"\nimport base64, json, sys\ni = json.load(sys.stdin)\ne = i['Extensions'].get('io.cri-containerd.sandbox.metadata')\nif e: print(i['ID'], json.loads(base64.b64decode(e['value']))['Metadata']['Name'])\"; done | sort -k2 > /tmp/sb.txt\nSNAPS=$(sudo /var/lib/bench64401699/bin/ctr -n k8s.io snapshots ls | awk 'NR>1 {print $1}')\nTWIN=$(awk '{print $1}' /tmp/sb.txt | while read -r i; do echo \"$SNAPS\" | grep -qx \"$i\" || echo \"$i\"; done | head -1)\nNAME=$(awk -v t=\"$TWIN\" '$1==t {print $2}' /tmp/sb.txt)\nREAL=$(awk -v n=\"$NAME\" -v t=\"$TWIN\" '$2==n && $1!=t {print $1}' /tmp/sb.txt)\nsudo /var/lib/bench64401699/bin/ctr -n k8s.io containers rm \"$REAL\"\nsudo /var/lib/bench64401699/bin/nodectl stop\nsudo mv /var/lib/bench64401699/etc/containerd.toml.orig /var/lib/bench64401699/etc/containerd.toml\nsudo /var/lib/bench64401699/bin/nodectl start\nsudo /var/lib/bench64401699/bin/crictl pods\n"
+  },
+  {
+    "case_id": "q64401699",
+    "category": "diagnostics",
+    "model": "wrong_delete_both_sandbox_records",
+    "code": "set -e\nsudo cp -p /var/lib/bench64401699/etc/containerd.toml /var/lib/bench64401699/etc/containerd.toml.orig\nsudo sed -i 's|^disabled_plugins = .*|disabled_plugins = [\"io.containerd.grpc.v1.cri\"]|' /var/lib/bench64401699/etc/containerd.toml\nsudo /var/lib/bench64401699/bin/nodectl start\nsudo /var/lib/bench64401699/bin/ctr -n k8s.io containers ls -q | while read -r id; do sudo /var/lib/bench64401699/bin/ctr -n k8s.io containers info \"$id\" | python3 -c \"\nimport base64, json, sys\ni = json.load(sys.stdin)\ne = i['Extensions'].get('io.cri-containerd.sandbox.metadata')\nif e: print(i['ID'], json.loads(base64.b64decode(e['value']))['Metadata']['Name'])\"; done | sort -k2 > /tmp/sb.txt\nSNAPS=$(sudo /var/lib/bench64401699/bin/ctr -n k8s.io snapshots ls | awk 'NR>1 {print $1}')\nTWIN=$(awk '{print $1}' /tmp/sb.txt | while read -r i; do echo \"$SNAPS\" | grep -qx \"$i\" || echo \"$i\"; done | head -1)\nNAME=$(awk -v t=\"$TWIN\" '$1==t {print $2}' /tmp/sb.txt)\nREAL=$(awk -v n=\"$NAME\" -v t=\"$TWIN\" '$2==n && $1!=t {print $1}' /tmp/sb.txt)\nsudo /var/lib/bench64401699/bin/ctr -n k8s.io containers rm \"$REAL\" \"$TWIN\"\nsudo /var/lib/bench64401699/bin/nodectl stop\nsudo mv /var/lib/bench64401699/etc/containerd.toml.orig /var/lib/bench64401699/etc/containerd.toml\nsudo /var/lib/bench64401699/bin/nodectl start\nsudo /var/lib/bench64401699/bin/crictl pods\n"
+  },
+  {
+    "case_id": "q64401699",
+    "category": "diagnostics",
+    "model": "wrong_cri_left_disabled",
+    "code": "set -e\nsudo cp -p /var/lib/bench64401699/etc/containerd.toml /var/lib/bench64401699/etc/containerd.toml.orig\nsudo sed -i 's|^disabled_plugins = .*|disabled_plugins = [\"io.containerd.grpc.v1.cri\"]|' /var/lib/bench64401699/etc/containerd.toml\nsudo /var/lib/bench64401699/bin/nodectl start\nsudo /var/lib/bench64401699/bin/ctr -n k8s.io containers ls -q | while read -r id; do sudo /var/lib/bench64401699/bin/ctr -n k8s.io containers info \"$id\" | python3 -c \"\nimport base64, json, sys\ni = json.load(sys.stdin)\ne = i['Extensions'].get('io.cri-containerd.sandbox.metadata')\nif e: print(i['ID'], json.loads(base64.b64decode(e['value']))['Metadata']['Name'])\"; done | sort -k2 > /tmp/sb.txt\nSNAPS=$(sudo /var/lib/bench64401699/bin/ctr -n k8s.io snapshots ls | awk 'NR>1 {print $1}')\nTWIN=$(awk '{print $1}' /tmp/sb.txt | while read -r i; do echo \"$SNAPS\" | grep -qx \"$i\" || echo \"$i\"; done | head -1)\nNAME=$(awk -v t=\"$TWIN\" '$1==t {print $2}' /tmp/sb.txt)\nREAL=$(awk -v n=\"$NAME\" -v t=\"$TWIN\" '$2==n && $1!=t {print $1}' /tmp/sb.txt)\nsudo /var/lib/bench64401699/bin/ctr -n k8s.io containers rm \"$TWIN\"\nsudo rm -f /var/lib/bench64401699/etc/containerd.toml.orig\nsudo /var/lib/bench64401699/bin/ctr -n k8s.io containers ls\n"
+  },
+  {
+    "case_id": "q64401699",
+    "category": "diagnostics",
+    "model": "wrong_all_records_of_k8s_io_removed",
+    "code": "set -e\nsudo cp -p /var/lib/bench64401699/etc/containerd.toml /var/lib/bench64401699/etc/containerd.toml.orig\nsudo sed -i 's|^disabled_plugins = .*|disabled_plugins = [\"io.containerd.grpc.v1.cri\"]|' /var/lib/bench64401699/etc/containerd.toml\nsudo /var/lib/bench64401699/bin/nodectl start\nsudo /var/lib/bench64401699/bin/ctr -n k8s.io containers ls -q | xargs -r sudo /var/lib/bench64401699/bin/ctr -n k8s.io containers rm\nsudo /var/lib/bench64401699/bin/nodectl stop\nsudo mv /var/lib/bench64401699/etc/containerd.toml.orig /var/lib/bench64401699/etc/containerd.toml\nsudo /var/lib/bench64401699/bin/nodectl start\nsudo /var/lib/bench64401699/bin/crictl pods\n"
+  },
+  {
+    "case_id": "q64401699",
+    "category": "diagnostics",
+    "model": "wrong_restart_only",
+    "code": "sudo /var/lib/bench64401699/bin/nodectl restart || true\nsudo /var/lib/bench64401699/bin/nodectl restart || true\nsudo /var/lib/bench64401699/bin/nodectl status || true\n"
+  },
+  {
+    "case_id": "q64401699",
+    "category": "diagnostics",
+    "model": "cheating_new_root_in_the_configuration",
+    "code": "set -e\nsudo sed -i 's|^root = .*|root = \"/var/lib/bench64401699/containerd2\"|' /var/lib/bench64401699/etc/containerd.toml\nsudo /var/lib/bench64401699/bin/nodectl restart\nsudo /var/lib/bench64401699/bin/crictl pods\n"
+  }
+]
