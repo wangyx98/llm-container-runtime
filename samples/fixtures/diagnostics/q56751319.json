@@ -1,0 +1,68 @@
+[
+  {
+    "case_id": "q56751319",
+    "category": "diagnostics",
+    "model": "reference_solution",
+    "code": "bash cases/diagnostics/q56751319/reference_solution.sh"
+  },
+  {
+    "case_id": "q56751319",
+    "category": "diagnostics",
+    "model": "alt_valid_bash_glob_search",
+    "code": "set -e\nsudo tee /var/lib/bench56751319/gexec >/dev/null <<'PYEOF'\n#!/bin/bash\n# the root: a directory below /run/<x>/ or /run/<x>/<y>/ that holds <guid>/state.json\nL=/var/lib/bench56751319\ng=$1; f=$2\nroot=\"\"\nfor d in /run/*/ /run/*/*/ /run/*/*/*/; do\n    [ -f \"${d}$g/state.json\" ] && root=${d%/}\ndone\n[ -n \"$root\" ] || { echo \"no root for $g\" >&2; exit 1; }\npid=$($L/packages/runc/bin/runc --root \"$root\" state \"$g\" | python3 -c 'import json,sys; print(json.load(sys.stdin)[\"pid\"])')\ncontent=$($L/packages/runc/bin/runc --root \"$root\" exec \"$g\" /bin/cat \"$f\")\nprintf '{\"instance_guid\": \"%s\", \"handle\": \"%s\", \"runc_root\": \"%s\", \"init_pid\": %s, \"content\": \"%s\"}\\n' \"$g\" \"$g\" \"$root\" \"$pid\" \"$content\"\n\nPYEOF\nsudo chmod 755 /var/lib/bench56751319/gexec\n"
+  },
+  {
+    "case_id": "q56751319",
+    "category": "diagnostics",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q56751319",
+    "category": "diagnostics",
+    "model": "wrong_default_root_exec",
+    "code": "set -e\nsudo tee /var/lib/bench56751319/gexec >/dev/null <<'PYEOF'\n#!/bin/bash\nL=/var/lib/bench56751319\ng=$1; f=$2\ncontent=$($L/packages/runc/bin/runc exec \"$g\" /bin/cat \"$f\")\nprintf '{\"instance_guid\": \"%s\", \"handle\": \"%s\", \"runc_root\": \"/run/runc\", \"init_pid\": 0, \"content\": \"%s\"}\\n' \"$g\" \"$g\" \"$content\"\n\nPYEOF\nsudo chmod 755 /var/lib/bench56751319/gexec\n"
+  },
+  {
+    "case_id": "q56751319",
+    "category": "diagnostics",
+    "model": "wrong_reads_proc_pid_root_not_runc_exec",
+    "code": "set -e\nsudo tee /var/lib/bench56751319/gexec >/dev/null <<'PYEOF'\n#!/usr/bin/env python3\nimport json, os, subprocess, sys\n\nL = \"/var/lib/bench56751319\"\nRUNC = L + \"/packages/runc/bin/runc\"            # the runc of the cell (like /var/vcap/packages/runc/bin/runc)\nguid, path = sys.argv[1], sys.argv[2]\n\nfound = subprocess.run([\"find\", \"/run\", \"/var/lib\", \"-maxdepth\", \"6\", \"-path\", \"*/%s/state.json\" % guid],\n                       capture_output=True, text=True).stdout.split()\nif len(found) != 1:\n    sys.exit(\"gexec: no (or more than one) runc state for %s: %s\" % (guid, found))\nroot = os.path.dirname(os.path.dirname(found[0]))\npid = json.loads(subprocess.run([RUNC, \"--root\", root, \"state\", guid], capture_output=True, text=True, check=True).stdout)[\"pid\"]\ncontent = open(\"/proc/%d/root%s\" % (pid, path)).read().strip()\nprint(json.dumps({\"instance_guid\": guid, \"handle\": guid, \"runc_root\": root, \"init_pid\": pid, \"content\": content}))\nPYEOF\nsudo chmod 755 /var/lib/bench56751319/gexec\n"
+  },
+  {
+    "case_id": "q56751319",
+    "category": "diagnostics",
+    "model": "wrong_root_fixed_from_the_setup",
+    "code": "set -e\nsudo tee /var/lib/bench56751319/gexec >/dev/null <<'PYEOF'\n#!/usr/bin/env python3\nimport json, os, subprocess, sys\n\nL = \"/var/lib/bench56751319\"\nRUNC = L + \"/packages/runc/bin/runc\"            # the runc of the cell (like /var/vcap/packages/runc/bin/runc)\nguid, path = sys.argv[1], sys.argv[2]\n\nfound = subprocess.run([\"find\", \"/run\", \"/var/lib\", \"-maxdepth\", \"6\", \"-path\", \"*/%s/state.json\" % guid],\n                       capture_output=True, text=True).stdout.split()\nif len(found) != 1:\n    sys.exit(\"gexec: no (or more than one) runc state for %s: %s\" % (guid, found))\nroot = open(L + \"/etc/runc-root\").read().strip()\npid = json.loads(subprocess.run([RUNC, \"--root\", root, \"state\", guid], capture_output=True, text=True, check=True).stdout)[\"pid\"]\ncontent = subprocess.run([RUNC, \"--root\", root, \"exec\", guid, \"/bin/cat\", path], capture_output=True, text=True, check=True).stdout.strip()\nprint(json.dumps({\"instance_guid\": guid, \"handle\": guid, \"runc_root\": root, \"init_pid\": pid, \"content\": content}))\nPYEOF\nsudo chmod 755 /var/lib/bench56751319/gexec\n"
+  },
+  {
+    "case_id": "q56751319",
+    "category": "diagnostics",
+    "model": "wrong_bypasses_the_cells_runc_wrapper",
+    "code": "set -e\nsudo tee /var/lib/bench56751319/gexec >/dev/null <<'PYEOF'\n#!/usr/bin/env python3\nimport json, os, subprocess, sys\n\nL = \"/var/lib/bench56751319\"\nRUNC = L + \"/packages/runc/runc.bin\"            # the runc of the cell (like /var/vcap/packages/runc/bin/runc)\nguid, path = sys.argv[1], sys.argv[2]\n\nfound = subprocess.run([\"find\", \"/run\", \"/var/lib\", \"-maxdepth\", \"6\", \"-path\", \"*/%s/state.json\" % guid],\n                       capture_output=True, text=True).stdout.split()\nif len(found) != 1:\n    sys.exit(\"gexec: no (or more than one) runc state for %s: %s\" % (guid, found))\nroot = os.path.dirname(os.path.dirname(found[0]))\npid = json.loads(subprocess.run([RUNC, \"--root\", root, \"state\", guid], capture_output=True, text=True, check=True).stdout)[\"pid\"]\ncontent = subprocess.run([RUNC, \"--root\", root, \"exec\", guid, \"/bin/cat\", path], capture_output=True, text=True, check=True).stdout.strip()\nprint(json.dumps({\"instance_guid\": guid, \"handle\": guid, \"runc_root\": root, \"init_pid\": pid, \"content\": content}))\nPYEOF\nsudo chmod 755 /var/lib/bench56751319/gexec\n"
+  },
+  {
+    "case_id": "q56751319",
+    "category": "diagnostics",
+    "model": "wrong_deletes_and_recreates_the_container",
+    "code": "set -e\nsudo tee /var/lib/bench56751319/gexec >/dev/null <<'PYEOF'\n#!/usr/bin/env python3\nimport json, os, subprocess, sys\n\nL = \"/var/lib/bench56751319\"\nRUNC = L + \"/packages/runc/bin/runc\"            # the runc of the cell (like /var/vcap/packages/runc/bin/runc)\nguid, path = sys.argv[1], sys.argv[2]\n\nfound = subprocess.run([\"find\", \"/run\", \"/var/lib\", \"-maxdepth\", \"6\", \"-path\", \"*/%s/state.json\" % guid],\n                       capture_output=True, text=True).stdout.split()\nif len(found) != 1:\n    sys.exit(\"gexec: no (or more than one) runc state for %s: %s\" % (guid, found))\nroot = os.path.dirname(os.path.dirname(found[0]))\nb = L + \"/data/garden/depot/\" + guid\nsubprocess.run([RUNC, \"--root\", root, \"delete\", \"-f\", guid], check=True)\nsubprocess.run([RUNC, \"--root\", root, \"run\", \"-d\", \"--bundle\", b, guid], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)\npid = json.loads(subprocess.run([RUNC, \"--root\", root, \"state\", guid], capture_output=True, text=True, check=True).stdout)[\"pid\"]\ncontent = subprocess.run([RUNC, \"--root\", root, \"exec\", guid, \"/bin/cat\", path], capture_output=True, text=True, check=True).stdout.strip()\nprint(json.dumps({\"instance_guid\": guid, \"handle\": guid, \"runc_root\": root, \"init_pid\": pid, \"content\": content}))\nPYEOF\nsudo chmod 755 /var/lib/bench56751319/gexec\n"
+  },
+  {
+    "case_id": "q56751319",
+    "category": "diagnostics",
+    "model": "wrong_init_pid_is_the_exec_process",
+    "code": "set -e\nsudo tee /var/lib/bench56751319/gexec >/dev/null <<'PYEOF'\n#!/usr/bin/env python3\nimport json, os, subprocess, sys\n\nL = \"/var/lib/bench56751319\"\nRUNC = L + \"/packages/runc/bin/runc\"            # the runc of the cell (like /var/vcap/packages/runc/bin/runc)\nguid, path = sys.argv[1], sys.argv[2]\n\nfound = subprocess.run([\"find\", \"/run\", \"/var/lib\", \"-maxdepth\", \"6\", \"-path\", \"*/%s/state.json\" % guid],\n                       capture_output=True, text=True).stdout.split()\nif len(found) != 1:\n    sys.exit(\"gexec: no (or more than one) runc state for %s: %s\" % (guid, found))\nroot = os.path.dirname(os.path.dirname(found[0]))\npid = json.loads(subprocess.run([RUNC, \"--root\", root, \"state\", guid], capture_output=True, text=True, check=True).stdout)[\"pid\"]\npf = \"/tmp/bench56751319.pid\"\ncontent = subprocess.run([RUNC, \"--root\", root, \"exec\", \"--pid-file\", pf, guid, \"/bin/cat\", path], capture_output=True, text=True, check=True).stdout.strip()\npid = int(open(pf).read())\nprint(json.dumps({\"instance_guid\": guid, \"handle\": guid, \"runc_root\": root, \"init_pid\": pid, \"content\": content}))\nPYEOF\nsudo chmod 755 /var/lib/bench56751319/gexec\n"
+  },
+  {
+    "case_id": "q56751319",
+    "category": "diagnostics",
+    "model": "wrong_static_report_of_today",
+    "code": "set -e\nsudo tee /var/lib/bench56751319/gexec >/dev/null <<'PYEOF'\n#!/usr/bin/env python3\nimport json, os, subprocess, sys\n\nL = \"/var/lib/bench56751319\"\nRUNC = L + \"/packages/runc/bin/runc\"            # the runc of the cell (like /var/vcap/packages/runc/bin/runc)\nguid = json.loads(open(\"/run/bench56751319/garden/instances.jsonl\").readline())[\"instance_guid\"]\npath = \"/tmp/none\"\n\nfound = subprocess.run([\"find\", \"/run\", \"/var/lib\", \"-maxdepth\", \"6\", \"-path\", \"*/%s/state.json\" % guid],\n                       capture_output=True, text=True).stdout.split()\nif len(found) != 1:\n    sys.exit(\"gexec: no (or more than one) runc state for %s: %s\" % (guid, found))\nroot = os.path.dirname(os.path.dirname(found[0]))\npid = json.loads(subprocess.run([RUNC, \"--root\", root, \"state\", guid], capture_output=True, text=True, check=True).stdout)[\"pid\"]\ncontent = subprocess.run([RUNC, \"--root\", root, \"exec\", guid, \"/bin/id\"], capture_output=True, text=True, check=True).stdout.strip()\nprint(json.dumps({\"instance_guid\": guid, \"handle\": guid, \"runc_root\": root, \"init_pid\": pid, \"content\": content}))\nPYEOF\nsudo chmod 755 /var/lib/bench56751319/gexec\n"
+  },
+  {
+    "case_id": "q56751319",
+    "category": "diagnostics",
+    "model": "wrong_leaves_a_process_in_the_container",
+    "code": "set -e\nsudo tee /var/lib/bench56751319/gexec >/dev/null <<'PYEOF'\n#!/usr/bin/env python3\nimport json, os, subprocess, sys\n\nL = \"/var/lib/bench56751319\"\nRUNC = L + \"/packages/runc/bin/runc\"            # the runc of the cell (like /var/vcap/packages/runc/bin/runc)\nguid, path = sys.argv[1], sys.argv[2]\n\nfound = subprocess.run([\"find\", \"/run\", \"/var/lib\", \"-maxdepth\", \"6\", \"-path\", \"*/%s/state.json\" % guid],\n                       capture_output=True, text=True).stdout.split()\nif len(found) != 1:\n    sys.exit(\"gexec: no (or more than one) runc state for %s: %s\" % (guid, found))\nroot = os.path.dirname(os.path.dirname(found[0]))\npid = json.loads(subprocess.run([RUNC, \"--root\", root, \"state\", guid], capture_output=True, text=True, check=True).stdout)[\"pid\"]\ncontent = subprocess.run([RUNC, \"--root\", root, \"exec\", guid, \"/bin/cat\", path], capture_output=True, text=True, check=True).stdout.strip()\nsubprocess.run([RUNC, \"--root\", root, \"exec\", \"-d\", guid, \"/bin/init\", \"/tmp/mark\", \"x\"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)\nprint(json.dumps({\"instance_guid\": guid, \"handle\": guid, \"runc_root\": root, \"init_pid\": pid, \"content\": content}))\nPYEOF\nsudo chmod 755 /var/lib/bench56751319/gexec\n"
+  }
+]
