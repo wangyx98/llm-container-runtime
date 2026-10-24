@@ -1,0 +1,50 @@
+[
+  {
+    "case_id": "q65917162",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q65917162/reference_solution.sh"
+  },
+  {
+    "case_id": "q65917162",
+    "category": "filesystem",
+    "model": "alt_valid_keys_removed_from_the_spec",
+    "code": "set -e\nsudo tee /var/lib/bench65917162/mkct >/dev/null <<'PYEOF'\n#!/usr/bin/env python3\nimport json, os, subprocess, sys\n\nL = \"/var/lib/bench65917162\"\nname = sys.argv[1]\ncfg = json.load(open(L + \"/bundles/bad/config.json\"))\ncfg[\"linux\"].pop(\"maskedPaths\", None)\ncfg[\"linux\"].pop(\"readonlyPaths\", None)\ncfg[\"linux\"][\"cgroupsPath\"] = \"/bench65917162/\" + name\nbundle = \"%s/bundles/%s\" % (L, name)\nos.makedirs(bundle)\njson.dump(cfg, open(bundle + \"/config.json\", \"w\"), indent=1)\nsubprocess.run([L + \"/runc\", \"--root\", \"/run/bench65917162/runc\", \"run\", \"-d\", \"--bundle\", bundle, name],\n               stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)\nPYEOF\nsudo chmod 755 /var/lib/bench65917162/mkct\n"
+  },
+  {
+    "case_id": "q65917162",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q65917162",
+    "category": "filesystem",
+    "model": "wrong_only_readonly_paths_emptied",
+    "code": "set -e\nsudo tee /var/lib/bench65917162/mkct >/dev/null <<'PYEOF'\n#!/usr/bin/env python3\nimport json, os, subprocess, sys\n\nL = \"/var/lib/bench65917162\"\nname = sys.argv[1]\ncfg = json.load(open(L + \"/bundles/bad/config.json\"))\ncfg[\"linux\"][\"readonlyPaths\"] = []\ncfg[\"linux\"][\"cgroupsPath\"] = \"/bench65917162/\" + name\nbundle = \"%s/bundles/%s\" % (L, name)\nos.makedirs(bundle)\njson.dump(cfg, open(bundle + \"/config.json\", \"w\"), indent=1)\nsubprocess.run([L + \"/runc\", \"--root\", \"/run/bench65917162/runc\", \"run\", \"-d\", \"--bundle\", bundle, name],\n               stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)\nPYEOF\nsudo chmod 755 /var/lib/bench65917162/mkct\n"
+  },
+  {
+    "case_id": "q65917162",
+    "category": "filesystem",
+    "model": "wrong_only_masked_paths_emptied",
+    "code": "set -e\nsudo tee /var/lib/bench65917162/mkct >/dev/null <<'PYEOF'\n#!/usr/bin/env python3\nimport json, os, subprocess, sys\n\nL = \"/var/lib/bench65917162\"\nname = sys.argv[1]\ncfg = json.load(open(L + \"/bundles/bad/config.json\"))\ncfg[\"linux\"][\"maskedPaths\"] = []\ncfg[\"linux\"][\"cgroupsPath\"] = \"/bench65917162/\" + name\nbundle = \"%s/bundles/%s\" % (L, name)\nos.makedirs(bundle)\njson.dump(cfg, open(bundle + \"/config.json\", \"w\"), indent=1)\nsubprocess.run([L + \"/runc\", \"--root\", \"/run/bench65917162/runc\", \"run\", \"-d\", \"--bundle\", bundle, name],\n               stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)\nPYEOF\nsudo chmod 755 /var/lib/bench65917162/mkct\n"
+  },
+  {
+    "case_id": "q65917162",
+    "category": "filesystem",
+    "model": "wrong_privileged_like_sys_rw",
+    "code": "set -e\nsudo tee /var/lib/bench65917162/mkct >/dev/null <<'PYEOF'\n#!/usr/bin/env python3\nimport json, os, subprocess, sys\n\nL = \"/var/lib/bench65917162\"\nname = sys.argv[1]\ncfg = json.load(open(L + \"/bundles/bad/config.json\"))\ncfg[\"linux\"][\"maskedPaths\"] = []\ncfg[\"linux\"][\"readonlyPaths\"] = []\nfor m in cfg[\"mounts\"]:\n    if m[\"destination\"] == \"/sys\":\n        m[\"options\"] = [o for o in m[\"options\"] if o != \"ro\"] + [\"rw\"]\ncfg[\"linux\"][\"cgroupsPath\"] = \"/bench65917162/\" + name\nbundle = \"%s/bundles/%s\" % (L, name)\nos.makedirs(bundle)\njson.dump(cfg, open(bundle + \"/config.json\", \"w\"), indent=1)\nsubprocess.run([L + \"/runc\", \"--root\", \"/run/bench65917162/runc\", \"run\", \"-d\", \"--bundle\", bundle, name],\n               stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)\nPYEOF\nsudo chmod 755 /var/lib/bench65917162/mkct\n"
+  },
+  {
+    "case_id": "q65917162",
+    "category": "filesystem",
+    "model": "wrong_edits_the_bad_bundle_in_place",
+    "code": "set -e\nsudo tee /var/lib/bench65917162/mkct >/dev/null <<'PYEOF'\n#!/usr/bin/env python3\nimport json, os, subprocess, sys\n\nL = \"/var/lib/bench65917162\"\nname = sys.argv[1]\ncfg = json.load(open(L + \"/bundles/bad/config.json\"))\ncfg[\"linux\"][\"maskedPaths\"] = []\ncfg[\"linux\"][\"readonlyPaths\"] = []\ncfg[\"linux\"][\"cgroupsPath\"] = \"/bench65917162/\" + name\nbundle = L + \"/bundles/bad\"\njson.dump(cfg, open(bundle + \"/config.json\", \"w\"), indent=1)\nsubprocess.run([L + \"/runc\", \"--root\", \"/run/bench65917162/runc\", \"run\", \"-d\", \"--bundle\", bundle, name],\n               stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)\nPYEOF\nsudo chmod 755 /var/lib/bench65917162/mkct\n"
+  },
+  {
+    "case_id": "q65917162",
+    "category": "filesystem",
+    "model": "wrong_creates_nothing",
+    "code": "set -e\nsudo tee /var/lib/bench65917162/mkct >/dev/null <<'PYEOF'\n#!/bin/bash\nexit 0\nPYEOF\nsudo chmod 755 /var/lib/bench65917162/mkct\n"
+  }
+]
