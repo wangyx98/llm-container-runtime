@@ -1,0 +1,56 @@
+[
+  {
+    "case_id": "q59812500",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q59812500/reference_solution.sh"
+  },
+  {
+    "case_id": "q59812500",
+    "category": "filesystem",
+    "model": "alt_valid_chroot_and_chdir_in_the_process_with_errno_checks",
+    "code": "set -e\npython3 - <<'PY'\nimport re\np = '/var/lib/bench59812500/daemon/main.go'\ns = open(p).read()\nold = '\\t\\tChroot:     rootfs,\\n\\t}\\n'\nnew = '\\t}\\n\\tif err := syscall.Chroot(rootfs); err != nil {\\n\\t\\tpanic(err)\\n\\t}\\n\\tif err := syscall.Chdir(\"/\"); err != nil {\\n\\t\\tpanic(err)\\n\\t}\\n'\nassert s.count(old) == 1, 'pattern'\nopen(p, 'w').write(s.replace(old, new))\nPY\ncd /var/lib/bench59812500/daemon && /var/lib/bench59812500/go/bin/go build -o daemon .\n"
+  },
+  {
+    "case_id": "q59812500",
+    "category": "filesystem",
+    "model": "alt_valid_chdir_into_the_rootfs_before_the_field_chroot",
+    "code": "set -e\npython3 - <<'PY'\nimport re\np = '/var/lib/bench59812500/daemon/main.go'\ns = open(p).read()\nold = '\\tsyscall.Sethostname([]byte(\"container\"))\\n'\nnew = '\\tsyscall.Sethostname([]byte(\"container\"))\\n\\tif err := os.Chdir(rootfs); err != nil {\\n\\t\\tpanic(err)\\n\\t}\\n'\nassert s.count(old) == 1, 'pattern'\nopen(p, 'w').write(s.replace(old, new))\nPY\ncd /var/lib/bench59812500/daemon && /var/lib/bench59812500/go/bin/go build -o daemon .\n"
+  },
+  {
+    "case_id": "q59812500",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": "true"
+  },
+  {
+    "case_id": "q59812500",
+    "category": "filesystem",
+    "model": "wrong_error_hidden_stderr_discarded_cwd_still_outside",
+    "code": "set -e\npython3 - <<'PY'\nimport re\np = '/var/lib/bench59812500/daemon/main.go'\ns = open(p).read()\nold = '\\tcmd.Stderr = os.Stderr\\n\\tcmd.SysProcAttr = &syscall.SysProcAttr{\\n\\t\\tCloneflags: syscall.CLONE_NEWUTS,\\n\\t\\tChroot:'\nnew = '\\tcmd.SysProcAttr = &syscall.SysProcAttr{\\n\\t\\tCloneflags: syscall.CLONE_NEWUTS,\\n\\t\\tChroot:'\nassert s.count(old) == 1, 'pattern'\nopen(p, 'w').write(s.replace(old, new))\nPY\ncd /var/lib/bench59812500/daemon && /var/lib/bench59812500/go/bin/go build -o daemon .\n"
+  },
+  {
+    "case_id": "q59812500",
+    "category": "filesystem",
+    "model": "wrong_chroot_to_the_host_root_not_the_rootfs",
+    "code": "set -e\npython3 - <<'PY'\nimport re\np = '/var/lib/bench59812500/daemon/main.go'\ns = open(p).read()\nold = '\\t\\tChroot:     rootfs,\\n'\nnew = '\\t\\tChroot:     \"/\",\\n'\nassert s.count(old) == 1, 'pattern'\nopen(p, 'w').write(s.replace(old, new))\nPY\ncd /var/lib/bench59812500/daemon && /var/lib/bench59812500/go/bin/go build -o daemon .\n"
+  },
+  {
+    "case_id": "q59812500",
+    "category": "filesystem",
+    "model": "wrong_chdir_with_the_host_path_after_the_chroot",
+    "code": "set -e\npython3 - <<'PY'\nimport re\np = '/var/lib/bench59812500/daemon/main.go'\ns = open(p).read()\nold = '\\t\\tChroot:     rootfs,\\n\\t}\\n'\nnew = '\\t}\\n\\tsyscall.Chroot(rootfs)\\n\\tsyscall.Chdir(rootfs)\\n'\nassert s.count(old) == 1, 'pattern'\nopen(p, 'w').write(s.replace(old, new))\nPY\ncd /var/lib/bench59812500/daemon && /var/lib/bench59812500/go/bin/go build -o daemon .\n"
+  },
+  {
+    "case_id": "q59812500",
+    "category": "filesystem",
+    "model": "wrong_a_directory_like_the_start_directory_made_in_the_rootfs",
+    "code": "set -e\nsudo mkdir -p /var/lib/bench59812500/rootfs/var/lib/bench59812500/daemon\n"
+  },
+  {
+    "case_id": "q59812500",
+    "category": "filesystem",
+    "model": "cheating_calls_the_chroot_program",
+    "code": "set -e\npython3 - <<'PY'\nimport re\np = '/var/lib/bench59812500/daemon/main.go'\ns = open(p).read()\nold = '\\tcmd := exec.Command(os.Args[2], os.Args[3:]...)\\n'\nnew = '\\tcmd := exec.Command(\"chroot\", append([]string{rootfs, os.Args[2]}, os.Args[3:]...)...)\\n'\nassert s.count(old) == 1, 'pattern'\nopen(p, 'w').write(s.replace(old, new))\nPY\npython3 - <<'PY'\nimport re\np = '/var/lib/bench59812500/daemon/main.go'\ns = open(p).read()\nold = '\\t\\tChroot:     rootfs,\\n'\nnew = '\\t\\t// Chroot is done by chroot(8)\\n'\nassert s.count(old) == 1, 'pattern'\nopen(p, 'w').write(s.replace(old, new))\nPY\ncd /var/lib/bench59812500/daemon && /var/lib/bench59812500/go/bin/go build -o daemon .\n"
+  }
+]

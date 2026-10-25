@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q65298023",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q65298023/reference_solution.sh"
+  },
+  {
+    "case_id": "q65298023",
+    "category": "filesystem",
+    "model": "alt_valid_tmpfs_owned_by_999",
+    "code": "set -e\nsudo /var/lib/bench65298023/bin/ctr tasks rm sql1 2>/dev/null || true\nsudo /var/lib/bench65298023/bin/ctr containers rm sql1\nsudo /var/lib/bench65298023/bin/ctr run -d --mount type=bind,src=/var/lib/bench65298023/context,dst=/context,options=rbind:ro --mount type=tmpfs,src=tmpfs,dst=/run/mysqld,options=nosuid:nodev:uid=999:gid=999:mode=0750  --env MYSQL_ROOT_PASSWORD=test123 bench65298023.local/mysql:8.0.22 sql1\n"
+  },
+  {
+    "case_id": "q65298023",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q65298023",
+    "category": "filesystem",
+    "model": "wrong_the_answer_s_777_directory",
+    "code": "set -e\nsudo /var/lib/bench65298023/bin/ctr tasks rm sql1 2>/dev/null || true\nsudo /var/lib/bench65298023/bin/ctr containers rm sql1\nsudo install -d -m 777  /var/lib/bench65298023/mysqld-run\nsudo /var/lib/bench65298023/bin/ctr run -d --mount type=bind,src=/var/lib/bench65298023/context,dst=/context,options=rbind:ro --mount type=bind,src=/var/lib/bench65298023/mysqld-run,dst=/run/mysqld,options=rbind:rw  --env MYSQL_ROOT_PASSWORD=test123 bench65298023.local/mysql:8.0.22 sql1\n"
+  },
+  {
+    "case_id": "q65298023",
+    "category": "filesystem",
+    "model": "wrong_privileged",
+    "code": "set -e\nsudo /var/lib/bench65298023/bin/ctr tasks rm sql1 2>/dev/null || true\nsudo /var/lib/bench65298023/bin/ctr containers rm sql1\nsudo install -d -m 750 -o 999 -g 999 /var/lib/bench65298023/mysqld-run\nsudo /var/lib/bench65298023/bin/ctr run -d --mount type=bind,src=/var/lib/bench65298023/context,dst=/context,options=rbind:ro --mount type=bind,src=/var/lib/bench65298023/mysqld-run,dst=/run/mysqld,options=rbind:rw  --env MYSQL_ROOT_PASSWORD=test123 --privileged bench65298023.local/mysql:8.0.22 sql1\n"
+  },
+  {
+    "case_id": "q65298023",
+    "category": "filesystem",
+    "model": "wrong_directory_owned_by_root",
+    "code": "set -e\nsudo /var/lib/bench65298023/bin/ctr tasks rm sql1 2>/dev/null || true\nsudo /var/lib/bench65298023/bin/ctr containers rm sql1\nsudo install -d -m 755 -o 0 -g 0 /var/lib/bench65298023/mysqld-run\nsudo /var/lib/bench65298023/bin/ctr run -d --mount type=bind,src=/var/lib/bench65298023/context,dst=/context,options=rbind:ro --mount type=bind,src=/var/lib/bench65298023/mysqld-run,dst=/run/mysqld,options=rbind:rw  --env MYSQL_ROOT_PASSWORD=test123 bench65298023.local/mysql:8.0.22 sql1\n"
+  },
+  {
+    "case_id": "q65298023",
+    "category": "filesystem",
+    "model": "wrong_directory_made_for_the_host_s_uid_1000",
+    "code": "set -e\nsudo /var/lib/bench65298023/bin/ctr tasks rm sql1 2>/dev/null || true\nsudo /var/lib/bench65298023/bin/ctr containers rm sql1\nsudo install -d -m 750 -o 1000 -g 1000 /var/lib/bench65298023/mysqld-run\nsudo /var/lib/bench65298023/bin/ctr run -d --mount type=bind,src=/var/lib/bench65298023/context,dst=/context,options=rbind:ro --mount type=bind,src=/var/lib/bench65298023/mysqld-run,dst=/run/mysqld,options=rbind:rw  --env MYSQL_ROOT_PASSWORD=test123 bench65298023.local/mysql:8.0.22 sql1\n"
+  },
+  {
+    "case_id": "q65298023",
+    "category": "filesystem",
+    "model": "wrong_tmpfs_without_the_uid",
+    "code": "set -e\nsudo /var/lib/bench65298023/bin/ctr tasks rm sql1 2>/dev/null || true\nsudo /var/lib/bench65298023/bin/ctr containers rm sql1\nsudo /var/lib/bench65298023/bin/ctr run -d --mount type=bind,src=/var/lib/bench65298023/context,dst=/context,options=rbind:ro --mount type=tmpfs,src=tmpfs,dst=/run/mysqld,options=nosuid:nodev:mode=0755  --env MYSQL_ROOT_PASSWORD=test123 bench65298023.local/mysql:8.0.22 sql1\n"
+  },
+  {
+    "case_id": "q65298023",
+    "category": "filesystem",
+    "model": "wrong_net_host_only",
+    "code": "set -e\nsudo /var/lib/bench65298023/bin/ctr tasks rm sql1 2>/dev/null || true\nsudo /var/lib/bench65298023/bin/ctr containers rm sql1\nsudo /var/lib/bench65298023/bin/ctr run -d --mount type=bind,src=/var/lib/bench65298023/context,dst=/context,options=rbind:ro  --env MYSQL_ROOT_PASSWORD=test123 --net-host bench65298023.local/mysql:8.0.22 sql1\n"
+  },
+  {
+    "case_id": "q65298023",
+    "category": "filesystem",
+    "model": "wrong_context_mount_dropped",
+    "code": "set -e\nsudo /var/lib/bench65298023/bin/ctr tasks rm sql1 2>/dev/null || true\nsudo /var/lib/bench65298023/bin/ctr containers rm sql1\nsudo install -d -m 750 -o 999 -g 999 /var/lib/bench65298023/mysqld-run\nsudo /var/lib/bench65298023/bin/ctr run -d --mount type=bind,src=/var/lib/bench65298023/mysqld-run,dst=/run/mysqld,options=rbind:rw  --env MYSQL_ROOT_PASSWORD=test123 bench65298023.local/mysql:8.0.22 sql1\n"
+  }
+]
