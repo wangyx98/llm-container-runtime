@@ -1,0 +1,56 @@
+[
+  {
+    "case_id": "q66960498",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q66960498/reference_solution.sh"
+  },
+  {
+    "case_id": "q66960498",
+    "category": "filesystem",
+    "model": "alt_valid_ctr_listing_then_crictl_rmi_by_name",
+    "code": "set -e\nsudo tee /var/lib/bench66960498/job/purge-images.sh >/dev/null <<'JOB'\n#!/bin/bash\nset -e\nnode=/var/lib/bench66960498/bin/crictl\npod=$(\"$node\" pods --name '^purger$' --state ready -q)\ncid=$(\"$node\" ps --pod \"$pod\" --state running -q)\nin_pod() { \"$node\" exec \"$cid\" /crictl -r unix:///run/containerd/containerd.sock \"$@\"; }\nnames=$(\"$node\" exec \"$cid\" /ctr -a /run/containerd/containerd.sock -n k8s.io images ls -q | grep '^bench66960498.local/scratch/' || true)\nused=$(in_pod ps -a -o json | python3 -c 'import json,sys; print(\" \".join(c[\"image\"][\"image\"] for c in json.load(sys.stdin)[\"containers\"]))')\nfor n in $names; do case \" $used \" in *\" $n \"*) ;; *) in_pod rmi \"$n\" >/dev/null || true ;; esac; done\nJOB\nsudo chmod 755 /var/lib/bench66960498/job/purge-images.sh\nsudo /var/lib/bench66960498/job/purge-images.sh\n"
+  },
+  {
+    "case_id": "q66960498",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q66960498",
+    "category": "filesystem",
+    "model": "wrong_ctr_in_the_default_namespace",
+    "code": "set -e\nsudo tee /var/lib/bench66960498/job/purge-images.sh >/dev/null <<'JOB'\n#!/bin/bash\nset -e\nnode=/var/lib/bench66960498/bin/crictl\npod=$(\"$node\" pods --name '^purger$' --state ready -q)\ncid=$(\"$node\" ps --pod \"$pod\" --state running -q)\nin_pod() { \"$node\" exec \"$cid\" /crictl -r unix:///run/containerd/containerd.sock \"$@\"; }\nfor n in $(\"$node\" exec \"$cid\" /ctr -a /run/containerd/containerd.sock images ls -q | grep '^bench66960498.local/scratch/' || true); do\n    \"$node\" exec \"$cid\" /ctr -a /run/containerd/containerd.sock images rm \"$n\"\ndone\nJOB\nsudo chmod 755 /var/lib/bench66960498/job/purge-images.sh\nsudo /var/lib/bench66960498/job/purge-images.sh\n"
+  },
+  {
+    "case_id": "q66960498",
+    "category": "filesystem",
+    "model": "wrong_rmi_prune_removes_every_unused_image",
+    "code": "set -e\nsudo tee /var/lib/bench66960498/job/purge-images.sh >/dev/null <<'JOB'\n#!/bin/bash\nset -e\nnode=/var/lib/bench66960498/bin/crictl\npod=$(\"$node\" pods --name '^purger$' --state ready -q)\ncid=$(\"$node\" ps --pod \"$pod\" --state running -q)\nin_pod() { \"$node\" exec \"$cid\" /crictl -r unix:///run/containerd/containerd.sock \"$@\"; }\nin_pod rmi --prune >/dev/null\nJOB\nsudo chmod 755 /var/lib/bench66960498/job/purge-images.sh\nsudo /var/lib/bench66960498/job/purge-images.sh\n"
+  },
+  {
+    "case_id": "q66960498",
+    "category": "filesystem",
+    "model": "wrong_scope_images_removed_even_in_use",
+    "code": "set -e\nsudo tee /var/lib/bench66960498/job/purge-images.sh >/dev/null <<'JOB'\n#!/bin/bash\nset -e\nnode=/var/lib/bench66960498/bin/crictl\npod=$(\"$node\" pods --name '^purger$' --state ready -q)\ncid=$(\"$node\" ps --pod \"$pod\" --state running -q)\nin_pod() { \"$node\" exec \"$cid\" /crictl -r unix:///run/containerd/containerd.sock \"$@\"; }\nids=$(python3 - \"$(in_pod images -o json)\" \"$(in_pod ps -a -o json)\" <<'PY'\nimport json, sys\nused = {c[\"imageRef\"] for c in json.loads(sys.argv[2])[\"containers\"]}\nfor i in json.loads(sys.argv[1])[\"images\"]:\n    if any(t.startswith(\"bench66960498.local/scratch/\") for t in i[\"repoTags\"]) and True:\n        print(i[\"id\"])\nPY\n)\nfor id in $ids; do in_pod rmi \"$id\" >/dev/null || true; done\nJOB\nsudo chmod 755 /var/lib/bench66960498/job/purge-images.sh\nsudo /var/lib/bench66960498/job/purge-images.sh\n"
+  },
+  {
+    "case_id": "q66960498",
+    "category": "filesystem",
+    "model": "wrong_fixed_names_of_today_s_images",
+    "code": "set -e\nsudo tee /var/lib/bench66960498/job/purge-images.sh >/dev/null <<'JOB'\n#!/bin/bash\nset -e\nnode=/var/lib/bench66960498/bin/crictl\npod=$(\"$node\" pods --name '^purger$' --state ready -q)\ncid=$(\"$node\" ps --pod \"$pod\" --state running -q)\nin_pod() { \"$node\" exec \"$cid\" /crictl -r unix:///run/containerd/containerd.sock \"$@\"; }\nin_pod rmi bench66960498.local/scratch/old:1 bench66960498.local/scratch/old:2 >/dev/null || true\nJOB\nsudo chmod 755 /var/lib/bench66960498/job/purge-images.sh\nsudo /var/lib/bench66960498/job/purge-images.sh\n"
+  },
+  {
+    "case_id": "q66960498",
+    "category": "filesystem",
+    "model": "wrong_node_crictl_used_directly_not_the_pod",
+    "code": "set -e\nsudo tee /var/lib/bench66960498/job/purge-images.sh >/dev/null <<'JOB'\n#!/bin/bash\nset -e\nnode=/var/lib/bench66960498/bin/crictl\nids=$(python3 - \"$(\"$node\" images -o json)\" \"$(\"$node\" ps -a -o json)\" <<'PY'\nimport json, sys\nused = {c[\"imageRef\"] for c in json.loads(sys.argv[2])[\"containers\"]}\nfor i in json.loads(sys.argv[1])[\"images\"]:\n    if any(t.startswith(\"bench66960498.local/scratch/\") for t in i[\"repoTags\"]) and i[\"id\"] not in used:\n        print(i[\"id\"])\nPY\n)\nfor id in $ids; do \"$node\" rmi \"$id\" >/dev/null || true; done\nJOB\nsudo chmod 755 /var/lib/bench66960498/job/purge-images.sh\nsudo /var/lib/bench66960498/job/purge-images.sh\n"
+  },
+  {
+    "case_id": "q66960498",
+    "category": "filesystem",
+    "model": "wrong_exits_1_when_there_is_nothing_to_purge",
+    "code": "set -e\nsudo tee /var/lib/bench66960498/job/purge-images.sh >/dev/null <<'JOB'\n#!/bin/bash\nset -e\nnode=/var/lib/bench66960498/bin/crictl\npod=$(\"$node\" pods --name '^purger$' --state ready -q)\ncid=$(\"$node\" ps --pod \"$pod\" --state running -q)\nin_pod() { \"$node\" exec \"$cid\" /crictl -r unix:///run/containerd/containerd.sock \"$@\"; }\nids=$(python3 - \"$(in_pod images -o json)\" \"$(in_pod ps -a -o json)\" <<'PY'\nimport json, sys\nused = {c[\"imageRef\"] for c in json.loads(sys.argv[2])[\"containers\"]}\nfor i in json.loads(sys.argv[1])[\"images\"]:\n    if any(t.startswith(\"bench66960498.local/scratch/\") for t in i[\"repoTags\"]) and i[\"id\"] not in used:\n        print(i[\"id\"])\nPY\n)\n[ -n \"$ids\" ] || { echo nothing to purge; exit 1; }\nfor id in $ids; do in_pod rmi \"$id\" >/dev/null; done\nJOB\nsudo chmod 755 /var/lib/bench66960498/job/purge-images.sh\nsudo /var/lib/bench66960498/job/purge-images.sh\n"
+  }
+]
