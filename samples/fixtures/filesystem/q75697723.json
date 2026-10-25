@@ -1,0 +1,80 @@
+[
+  {
+    "case_id": "q75697723",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q75697723/reference_solution.sh"
+  },
+  {
+    "case_id": "q75697723",
+    "category": "filesystem",
+    "model": "alt_valid_ctr_containers_info_no_pause",
+    "code": "set -e\nsudo tee /var/lib/bench75697723/commitctr >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess, sys\n\nLIB = \"/var/lib/bench75697723\"\nif len(sys.argv) != 3:\n    sys.exit(\"usage: commitctr CONTAINER_ID NEW_REF\")\ncid, ref = sys.argv[1:3]\nspec = json.loads(subprocess.run([LIB + \"/bin/ctr\", \"containers\", \"info\", cid], capture_output=True, text=True, check=True).stdout)\nargs = spec[\"Spec\"][\"process\"][\"args\"]\nsubprocess.run([LIB + \"/bin/nerdctl\", \"commit\", \"--pause=false\", \"-c\", \"ENTRYPOINT \" + json.dumps(args), \"-c\", \"CMD []\", cid, ref], check=True)\nPY_EOF\nsudo chmod 755 /var/lib/bench75697723/commitctr\n"
+  },
+  {
+    "case_id": "q75697723",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q75697723",
+    "category": "filesystem",
+    "model": "wrong_default_commit_keeps_the_base_entrypoint",
+    "code": "set -e\nsudo tee /var/lib/bench75697723/commitctr >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess, sys\n\nLIB = \"/var/lib/bench75697723\"\nif len(sys.argv) != 3:\n    sys.exit(\"usage: commitctr CONTAINER_ID NEW_REF\")\ncid, ref = sys.argv[1:3]\nspec = json.loads(subprocess.run([LIB + \"/bin/crictl\", \"inspect\", cid], capture_output=True, text=True, check=True).stdout)\nargs = spec[\"info\"][\"runtimeSpec\"][\"process\"][\"args\"]\nsubprocess.run([LIB + \"/bin/nerdctl\", \"commit\", cid, ref], check=True)\nPY_EOF\nsudo chmod 755 /var/lib/bench75697723/commitctr\n"
+  },
+  {
+    "case_id": "q75697723",
+    "category": "filesystem",
+    "model": "wrong_commits_the_newest_container",
+    "code": "set -e\nsudo tee /var/lib/bench75697723/commitctr >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess, sys\n\nLIB = \"/var/lib/bench75697723\"\nif len(sys.argv) != 3:\n    sys.exit(\"usage: commitctr CONTAINER_ID NEW_REF\")\nref = sys.argv[2]\ncid = subprocess.run([LIB + \"/bin/crictl\", \"ps\", \"-q\", \"--no-trunc\"], capture_output=True, text=True).stdout.split()[0]\nspec = json.loads(subprocess.run([LIB + \"/bin/crictl\", \"inspect\", cid], capture_output=True, text=True, check=True).stdout)\nargs = spec[\"info\"][\"runtimeSpec\"][\"process\"][\"args\"]\nsubprocess.run([LIB + \"/bin/nerdctl\", \"commit\", \"-c\", \"ENTRYPOINT \" + json.dumps(args), \"-c\", \"CMD []\", cid, ref], check=True)\nPY_EOF\nsudo chmod 755 /var/lib/bench75697723/commitctr\n"
+  },
+  {
+    "case_id": "q75697723",
+    "category": "filesystem",
+    "model": "wrong_commits_a_new_nerdctl_container",
+    "code": "set -e\nsudo tee /var/lib/bench75697723/commitctr >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess, sys\n\nLIB = \"/var/lib/bench75697723\"\nif len(sys.argv) != 3:\n    sys.exit(\"usage: commitctr CONTAINER_ID NEW_REF\")\ncid, ref = sys.argv[1:3]\nspec = json.loads(subprocess.run([LIB + \"/bin/crictl\", \"inspect\", cid], capture_output=True, text=True, check=True).stdout)\nargs = spec[\"info\"][\"runtimeSpec\"][\"process\"][\"args\"]\nsubprocess.run([LIB + \"/bin/nerdctl\", \"run\", \"-d\", \"--network\", \"host\", \"--name\", \"tmp-\" + cid[:8], \"bench75697723.local/rundeck:1\", *args[1:]], check=True, stdout=subprocess.DEVNULL)\nimport time\ntime.sleep(2)\nsubprocess.run([LIB + \"/bin/nerdctl\", \"commit\", \"-c\", \"ENTRYPOINT \" + json.dumps(args), \"-c\", \"CMD []\", \"tmp-\" + cid[:8], ref], check=True)\nPY_EOF\nsudo chmod 755 /var/lib/bench75697723/commitctr\n"
+  },
+  {
+    "case_id": "q75697723",
+    "category": "filesystem",
+    "model": "wrong_filesystem_tar_imported_as_an_image",
+    "code": "set -e\nsudo tee /var/lib/bench75697723/commitctr >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess, sys\n\nLIB = \"/var/lib/bench75697723\"\nif len(sys.argv) != 3:\n    sys.exit(\"usage: commitctr CONTAINER_ID NEW_REF\")\ncid, ref = sys.argv[1:3]\nspec = json.loads(subprocess.run([LIB + \"/bin/crictl\", \"inspect\", cid], capture_output=True, text=True, check=True).stdout)\nargs = spec[\"info\"][\"runtimeSpec\"][\"process\"][\"args\"]\npid = spec[\"info\"][\"pid\"]\nsubprocess.run([\"tar\", \"-C\", \"/proc/%d/root\" % pid, \"--exclude=./proc\", \"--exclude=./sys\", \"--exclude=./dev\", \"-cf\", \"/tmp/rootfs-%s.tar\" % cid[:8], \".\"], check=True)\nsubprocess.run([LIB + \"/bin/ctr\", \"images\", \"import\", \"--base-name\", ref.rsplit(\":\", 1)[0], \"/tmp/rootfs-%s.tar\" % cid[:8]], check=True)\nPY_EOF\nsudo chmod 755 /var/lib/bench75697723/commitctr\n"
+  },
+  {
+    "case_id": "q75697723",
+    "category": "filesystem",
+    "model": "wrong_volume_data_copied_into_the_writable_layer",
+    "code": "set -e\nsudo tee /var/lib/bench75697723/commitctr >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess, sys\n\nLIB = \"/var/lib/bench75697723\"\nif len(sys.argv) != 3:\n    sys.exit(\"usage: commitctr CONTAINER_ID NEW_REF\")\ncid, ref = sys.argv[1:3]\nspec = json.loads(subprocess.run([LIB + \"/bin/crictl\", \"inspect\", cid], capture_output=True, text=True, check=True).stdout)\nargs = spec[\"info\"][\"runtimeSpec\"][\"process\"][\"args\"]\nimport re, shutil, os\nvol = [m[\"source\"] for m in spec[\"info\"][\"runtimeSpec\"][\"mounts\"] if m[\"destination\"] == \"/data\"][0]\nupper = None\nfor line in open(\"/proc/self/mountinfo\"):\n    f = line.split()\n    if f[4].endswith(\"/\" + cid + \"/rootfs\"):\n        upper = re.search(\"upperdir=([^,]*)\", line).group(1)\nos.makedirs(upper + \"/data\", exist_ok=True)\nfor n in os.listdir(vol):\n    shutil.copy2(vol + \"/\" + n, upper + \"/data/\" + n)\nsubprocess.run([LIB + \"/bin/nerdctl\", \"commit\", \"-c\", \"ENTRYPOINT \" + json.dumps(args), \"-c\", \"CMD []\", cid, ref], check=True)\nPY_EOF\nsudo chmod 755 /var/lib/bench75697723/commitctr\n"
+  },
+  {
+    "case_id": "q75697723",
+    "category": "filesystem",
+    "model": "wrong_stops_the_source_container_after_the_commit",
+    "code": "set -e\nsudo tee /var/lib/bench75697723/commitctr >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess, sys\n\nLIB = \"/var/lib/bench75697723\"\nif len(sys.argv) != 3:\n    sys.exit(\"usage: commitctr CONTAINER_ID NEW_REF\")\ncid, ref = sys.argv[1:3]\nspec = json.loads(subprocess.run([LIB + \"/bin/crictl\", \"inspect\", cid], capture_output=True, text=True, check=True).stdout)\nargs = spec[\"info\"][\"runtimeSpec\"][\"process\"][\"args\"]\nsubprocess.run([LIB + \"/bin/nerdctl\", \"commit\", \"-c\", \"ENTRYPOINT \" + json.dumps(args), \"-c\", \"CMD []\", cid, ref], check=True)\nsubprocess.run([LIB + \"/bin/crictl\", \"stop\", cid], check=True)\nPY_EOF\nsudo chmod 755 /var/lib/bench75697723/commitctr\n"
+  },
+  {
+    "case_id": "q75697723",
+    "category": "filesystem",
+    "model": "wrong_arguments_taken_from_the_first_pod",
+    "code": "set -e\nsudo tee /var/lib/bench75697723/commitctr >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess, sys\n\nLIB = \"/var/lib/bench75697723\"\nif len(sys.argv) != 3:\n    sys.exit(\"usage: commitctr CONTAINER_ID NEW_REF\")\ncid, ref = sys.argv[1:3]\nspec = json.loads(subprocess.run([LIB + \"/bin/crictl\", \"inspect\", cid], capture_output=True, text=True, check=True).stdout)\nargs = [\"/app\", \"serve\", \"fixed-token\"]\nsubprocess.run([LIB + \"/bin/nerdctl\", \"commit\", \"-c\", \"ENTRYPOINT \" + json.dumps(args), \"-c\", \"CMD []\", cid, ref], check=True)\nPY_EOF\nsudo chmod 755 /var/lib/bench75697723/commitctr\n"
+  },
+  {
+    "case_id": "q75697723",
+    "category": "filesystem",
+    "model": "wrong_nerdctl_in_the_default_namespace",
+    "code": "set -e\nsudo tee /var/lib/bench75697723/commitctr >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess, sys\n\nLIB = \"/var/lib/bench75697723\"\nif len(sys.argv) != 3:\n    sys.exit(\"usage: commitctr CONTAINER_ID NEW_REF\")\ncid, ref = sys.argv[1:3]\nspec = json.loads(subprocess.run([LIB + \"/bin/crictl\", \"inspect\", cid], capture_output=True, text=True, check=True).stdout)\nargs = spec[\"info\"][\"runtimeSpec\"][\"process\"][\"args\"]\nsubprocess.run([LIB + \"/bin/nerdctl\", \"--namespace\", \"default\", \"commit\", \"-c\", \"ENTRYPOINT \" + json.dumps(args), \"-c\", \"CMD []\", cid, ref], check=True)\nPY_EOF\nsudo chmod 755 /var/lib/bench75697723/commitctr\n"
+  },
+  {
+    "case_id": "q75697723",
+    "category": "filesystem",
+    "model": "wrong_base_image_retagged",
+    "code": "set -e\nsudo tee /var/lib/bench75697723/commitctr >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess, sys\n\nLIB = \"/var/lib/bench75697723\"\nif len(sys.argv) != 3:\n    sys.exit(\"usage: commitctr CONTAINER_ID NEW_REF\")\ncid, ref = sys.argv[1:3]\nspec = json.loads(subprocess.run([LIB + \"/bin/crictl\", \"inspect\", cid], capture_output=True, text=True, check=True).stdout)\nargs = spec[\"info\"][\"runtimeSpec\"][\"process\"][\"args\"]\nsubprocess.run([LIB + \"/bin/ctr\", \"images\", \"tag\", \"bench75697723.local/rundeck:1\", ref], check=True)\nPY_EOF\nsudo chmod 755 /var/lib/bench75697723/commitctr\n"
+  },
+  {
+    "case_id": "q75697723",
+    "category": "filesystem",
+    "model": "wrong_rootfs_flattened_into_a_single_layer_image",
+    "code": "set -e\nsudo tee /var/lib/bench75697723/commitctr >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess, sys\n\nLIB = \"/var/lib/bench75697723\"\nif len(sys.argv) != 3:\n    sys.exit(\"usage: commitctr CONTAINER_ID NEW_REF\")\ncid, ref = sys.argv[1:3]\nspec = json.loads(subprocess.run([LIB + \"/bin/crictl\", \"inspect\", cid], capture_output=True, text=True, check=True).stdout)\nargs = spec[\"info\"][\"runtimeSpec\"][\"process\"][\"args\"]\nimport hashlib, io, os, platform, tarfile\npid = spec[\"info\"][\"pid\"]\nT = 1700000000\ndef sha(b): return \"sha256:\" + hashlib.sha256(b).hexdigest()\nbuf = io.BytesIO()\nwith tarfile.open(fileobj=buf, mode=\"w\", format=tarfile.PAX_FORMAT) as t:\n    for d in (\"etc\", \"opt\", \"work\", \"tmp\"):\n        t.add(\"/proc/%d/root/%s\" % (pid, d), arcname=d)\n    for f in (\"app\", \"pause\"):\n        t.add(\"/proc/%d/root/%s\" % (pid, f), arcname=f)\n    ti = tarfile.TarInfo(\"data/\"); ti.type = tarfile.DIRTYPE; ti.mode = 0o755; t.addfile(ti)\nlayer = buf.getvalue()\ncfg = json.dumps({\"architecture\": {\"x86_64\": \"amd64\", \"aarch64\": \"arm64\"}[platform.machine()], \"os\": \"linux\", \"config\": {\"Entrypoint\": args}, \"rootfs\": {\"type\": \"layers\", \"diff_ids\": [sha(layer)]}}).encode()\nman = json.dumps({\"schemaVersion\": 2, \"mediaType\": \"application/vnd.oci.image.manifest.v1+json\", \"config\": {\"mediaType\": \"application/vnd.oci.image.config.v1+json\", \"digest\": sha(cfg), \"size\": len(cfg)}, \"layers\": [{\"mediaType\": \"application/vnd.oci.image.layer.v1.tar\", \"digest\": sha(layer), \"size\": len(layer)}]}).encode()\nidx = json.dumps({\"schemaVersion\": 2, \"manifests\": [{\"mediaType\": \"application/vnd.oci.image.manifest.v1+json\", \"digest\": sha(man), \"size\": len(man), \"annotations\": {\"io.containerd.image.name\": ref}}]}).encode()\nout = \"/tmp/flat-%s.tar\" % cid[:8]\nwith tarfile.open(out, \"w\") as t:\n    for n, b in ((\"oci-layout\", b'{\"imageLayoutVersion\":\"1.0.0\"}'), (\"index.json\", idx), (\"blobs/sha256/\" + sha(cfg)[7:], cfg), (\"blobs/sha256/\" + sha(man)[7:], man), (\"blobs/sha256/\" + sha(layer)[7:], layer)):\n        ti = tarfile.TarInfo(n); ti.size = len(b); ti.mtime = T; t.addfile(ti, io.BytesIO(b))\nsubprocess.run([LIB + \"/bin/ctr\", \"images\", \"import\", out], check=True)\nPY_EOF\nsudo chmod 755 /var/lib/bench75697723/commitctr\n"
+  }
+]
