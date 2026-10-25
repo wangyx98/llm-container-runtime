@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q65357072",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q65357072/reference_solution.sh"
+  },
+  {
+    "case_id": "q65357072",
+    "category": "filesystem",
+    "model": "alt_valid_three_of_the_four_idle_images_by_name",
+    "code": "set -e\nfor i in a b c; do sudo /var/lib/bench65357072/bin/crictl rmi bench65357072.local/old/$i:1; done\n"
+  },
+  {
+    "case_id": "q65357072",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q65357072",
+    "category": "filesystem",
+    "model": "wrong_content_and_snapshot_files_deleted_by_hand",
+    "code": "set -e\nsudo find /var/lib/bench65357072/containerd/io.containerd.content.v1.content/blobs -type f -size +9M -delete\nsudo find /var/lib/bench65357072/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots -type f -name blob.bin -size +9M -delete\n"
+  },
+  {
+    "case_id": "q65357072",
+    "category": "filesystem",
+    "model": "wrong_rmi_prune_removes_the_protected_image",
+    "code": "sudo /var/lib/bench65357072/bin/crictl rmi --prune\n"
+  },
+  {
+    "case_id": "q65357072",
+    "category": "filesystem",
+    "model": "wrong_the_image_in_use_removed",
+    "code": "sudo /var/lib/bench65357072/bin/crictl rmi bench65357072.local/app/web:1 || true\nsudo /var/lib/bench65357072/bin/crictl rmi bench65357072.local/old/a:1 bench65357072.local/old/b:1 bench65357072.local/old/c:1 || true\n"
+  },
+  {
+    "case_id": "q65357072",
+    "category": "filesystem",
+    "model": "wrong_the_workload_pod_deleted_to_free_its_data",
+    "code": "set -e\nP=$(sudo /var/lib/bench65357072/bin/crictl pods --name '^web$' -q)\nsudo /var/lib/bench65357072/bin/crictl stopp $P\nsudo /var/lib/bench65357072/bin/crictl rmp $P\nfor i in a b c d; do sudo /var/lib/bench65357072/bin/crictl rmi bench65357072.local/old/$i:1; done\n"
+  },
+  {
+    "case_id": "q65357072",
+    "category": "filesystem",
+    "model": "wrong_ctr_images_rm_by_name_only",
+    "code": "set -e\nfor i in a b c d; do sudo /var/lib/bench65357072/bin/ctr images rm bench65357072.local/old/$i:1; done\n"
+  },
+  {
+    "case_id": "q65357072",
+    "category": "filesystem",
+    "model": "wrong_backing_file_grown_but_not_the_file_system",
+    "code": "set -e\nsudo truncate -s 400M /var/lib/bench65357072/containerd.img\nsudo losetup -c $(sudo losetup -j /var/lib/bench65357072/containerd.img -O NAME -n)\n"
+  },
+  {
+    "case_id": "q65357072",
+    "category": "filesystem",
+    "model": "wrong_remount_with_a_size_option",
+    "code": "sudo mount -o remount,size=1G /var/lib/bench65357072/containerd || true\nsudo mount -o remount,size=1G /run/bench65357072/containerd || true\n"
+  }
+]
