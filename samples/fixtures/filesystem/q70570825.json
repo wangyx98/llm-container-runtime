@@ -1,0 +1,74 @@
+[
+  {
+    "case_id": "q70570825",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q70570825/reference_solution.sh"
+  },
+  {
+    "case_id": "q70570825",
+    "category": "filesystem",
+    "model": "alt_valid_new_directory_with_both_files",
+    "code": "set -e\nD=/var/lib/bench70570825/deploy\nsudo mkdir -p /tmp/dep && sudo cp $D/pod.json /tmp/dep/\nsudo python3 - <<'PY'\nimport json\nc = json.load(open('/var/lib/bench70570825/deploy/ctr.json'))\nc['mounts'] = [{\"container_path\": \"/docker\", \"host_path\": \"/run/bench70570825/vol/share\", \"readonly\": True}, {\"container_path\": \"/data\", \"host_path\": \"/run/bench70570825/vol/data\"}]\njson.dump(c, open('/tmp/dep/ctr.json', 'w'))\nPY\nsudo $D/launch.sh /tmp/dep\nsudo rm -rf /tmp/dep\n"
+  },
+  {
+    "case_id": "q70570825",
+    "category": "filesystem",
+    "model": "alt_valid_replace_only_the_container_in_the_same_pod",
+    "code": "set -e\nD=/var/lib/bench70570825/deploy\nC=/var/lib/bench70570825/bin/crictl\nsudo python3 - <<'PY'\nimport json\nc = json.load(open('/var/lib/bench70570825/deploy/ctr.json'))\nc['mounts'] = [{\"container_path\": \"/docker\", \"host_path\": \"/run/bench70570825/vol/share\", \"readonly\": True}, {\"container_path\": \"/data\", \"host_path\": \"/run/bench70570825/vol/data\"}]\njson.dump(c, open('/tmp/ctr2.json', 'w'))\nPY\nPOD=$(sudo $C pods --name '^svc$' -q)\nsudo $C stop $(sudo $C ps -q --pod $POD) >/dev/null\nsudo $C rm $(sudo $C ps -a -q --pod $POD) >/dev/null\nID=$(sudo $C create $POD /tmp/ctr2.json $D/pod.json)\nsudo $C start $ID\nsudo rm -f /tmp/ctr2.json\n"
+  },
+  {
+    "case_id": "q70570825",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q70570825",
+    "category": "filesystem",
+    "model": "wrong_the_question_s_fix_mounts_with_cri_keys_in_pod_json",
+    "code": "set -e\nD=/var/lib/bench70570825/deploy\nsudo python3 - \"$D\" <<'PY'\nimport json, sys\nd = sys.argv[1]\np = json.load(open(d + \"/pod.json\"))\np[\"mounts\"] = [{\"container_path\": \"/docker\", \"host_path\": \"/run/bench70570825/vol/share\", \"readonly\": True}, {\"container_path\": \"/data\", \"host_path\": \"/run/bench70570825/vol/data\"}]\njson.dump(p, open(d + \"/pod.json\", \"w\"), indent=2)\nPY\nsudo \"$D/launch.sh\"\n"
+  },
+  {
+    "case_id": "q70570825",
+    "category": "filesystem",
+    "model": "wrong_source_with_a_leading_space",
+    "code": "set -e\nD=/var/lib/bench70570825/deploy\nsudo python3 - \"$D\" <<'PY'\nimport json, sys, shutil, os\nd = sys.argv[1]\nc = json.load(open(d + \"/ctr.json\"))\n\nc[\"mounts\"] = [{\"container_path\": \"/docker\", \"host_path\": \" /run/bench70570825/vol/share\", \"readonly\": True}, {\"container_path\": \"/data\", \"host_path\": \"/run/bench70570825/vol/data\"}]\njson.dump(c, open(d + \"/ctr.json\", \"w\"), indent=2)\nPY\nsudo \"$D/launch.sh\"\n"
+  },
+  {
+    "case_id": "q70570825",
+    "category": "filesystem",
+    "model": "wrong_files_copied_into_the_container",
+    "code": "set -e\nD=/var/lib/bench70570825/deploy\nC=/var/lib/bench70570825/bin/crictl\nPID=$(sudo $C inspect $(sudo $C ps -q) | python3 -c 'import json,sys; print(json.load(sys.stdin)[\"info\"][\"pid\"])')\nsudo mkdir -p /proc/$PID/root/docker\nsudo cp -a /run/bench70570825/vol/share/. /proc/$PID/root/docker/\n"
+  },
+  {
+    "case_id": "q70570825",
+    "category": "filesystem",
+    "model": "wrong_docker_not_read_only",
+    "code": "set -e\nD=/var/lib/bench70570825/deploy\nsudo python3 - \"$D\" <<'PY'\nimport json, sys, shutil, os\nd = sys.argv[1]\nc = json.load(open(d + \"/ctr.json\"))\n\nc[\"mounts\"] = [{\"container_path\": \"/docker\", \"host_path\": \"/run/bench70570825/vol/share\", \"readonly\": False}, {\"container_path\": \"/data\", \"host_path\": \"/run/bench70570825/vol/data\"}]\njson.dump(c, open(d + \"/ctr.json\", \"w\"), indent=2)\nPY\nsudo \"$D/launch.sh\"\n"
+  },
+  {
+    "case_id": "q70570825",
+    "category": "filesystem",
+    "model": "wrong_data_read_only",
+    "code": "set -e\nD=/var/lib/bench70570825/deploy\nsudo python3 - \"$D\" <<'PY'\nimport json, sys, shutil, os\nd = sys.argv[1]\nc = json.load(open(d + \"/ctr.json\"))\n\nc[\"mounts\"] = [{\"container_path\": \"/docker\", \"host_path\": \"/run/bench70570825/vol/share\", \"readonly\": True}, {\"container_path\": \"/data\", \"host_path\": \"/run/bench70570825/vol/data\", \"readonly\": True}]\njson.dump(c, open(d + \"/ctr.json\", \"w\"), indent=2)\nPY\nsudo \"$D/launch.sh\"\n"
+  },
+  {
+    "case_id": "q70570825",
+    "category": "filesystem",
+    "model": "wrong_mounts_a_copy_of_the_share_directory",
+    "code": "set -e\nD=/var/lib/bench70570825/deploy\nsudo python3 - \"$D\" <<'PY'\nimport json, sys, shutil, os\nd = sys.argv[1]\nc = json.load(open(d + \"/ctr.json\"))\nshutil.copytree(\"/run/bench70570825/vol/share\", \"/tmp/share-copy\")\nc[\"mounts\"] = [{\"container_path\": \"/docker\", \"host_path\": \"/tmp/share-copy\", \"readonly\": True}, {\"container_path\": \"/data\", \"host_path\": \"/run/bench70570825/vol/data\"}]\njson.dump(c, open(d + \"/ctr.json\", \"w\"), indent=2)\nPY\nsudo \"$D/launch.sh\"\nsudo rm -rf /tmp/share-copy\n"
+  },
+  {
+    "case_id": "q70570825",
+    "category": "filesystem",
+    "model": "wrong_extra_mount_of_the_host_etc",
+    "code": "set -e\nD=/var/lib/bench70570825/deploy\nsudo python3 - \"$D\" <<'PY'\nimport json, sys, shutil, os\nd = sys.argv[1]\nc = json.load(open(d + \"/ctr.json\"))\n\nc[\"mounts\"] = [{\"container_path\": \"/docker\", \"host_path\": \"/run/bench70570825/vol/share\", \"readonly\": True}, {\"container_path\": \"/data\", \"host_path\": \"/run/bench70570825/vol/data\"}, {\"container_path\": \"/host-etc\", \"host_path\": \"/etc\", \"readonly\": True}]\njson.dump(c, open(d + \"/ctr.json\", \"w\"), indent=2)\nPY\nsudo \"$D/launch.sh\"\n"
+  },
+  {
+    "case_id": "q70570825",
+    "category": "filesystem",
+    "model": "wrong_second_pod_svc_old_one_kept",
+    "code": "set -e\nD=/var/lib/bench70570825/deploy\nC=/var/lib/bench70570825/bin/crictl\nsudo python3 - <<'PY'\nimport json\nc = json.load(open('/var/lib/bench70570825/deploy/ctr.json'))\nc['mounts'] = [{\"container_path\": \"/docker\", \"host_path\": \"/run/bench70570825/vol/share\", \"readonly\": True}, {\"container_path\": \"/data\", \"host_path\": \"/run/bench70570825/vol/data\"}]\njson.dump(c, open('/tmp/ctr2.json', 'w'))\np = json.load(open('/var/lib/bench70570825/deploy/pod.json'))\np['metadata']['uid'] = 'second-uid'\njson.dump(p, open('/tmp/pod2.json', 'w'))\nPY\nPOD=$(sudo $C runp /tmp/pod2.json)\nID=$(sudo $C create $POD /tmp/ctr2.json /tmp/pod2.json)\nsudo $C start $ID\nsudo rm -f /tmp/ctr2.json /tmp/pod2.json\n"
+  }
+]

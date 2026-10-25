@@ -1,0 +1,68 @@
+[
+  {
+    "case_id": "q71901193",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q71901193/reference_solution.sh"
+  },
+  {
+    "case_id": "q71901193",
+    "category": "filesystem",
+    "model": "alt_valid_containers_one_by_one_with_inspect_digest_refs_resolved",
+    "code": "set -e\nLIB=/var/lib/bench71901193\nsudo tee \"$LIB/imgclass\" >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess\n\nCRICTL = \"/var/lib/bench71901193/bin/crictl\"\n\n\ndef crictl(*a):\n    return json.loads(subprocess.run([CRICTL, *a, \"-o\", \"json\"], capture_output=True, text=True, check=True).stdout)\n\n\nusers = {}\nby_digest = {d: i[\"id\"] for i in crictl(\"images\")[\"images\"] for d in i.get(\"repoDigests\") or []}\nids = subprocess.run([CRICTL, \"ps\", \"-a\", \"-q\", \"--no-trunc\"], capture_output=True, text=True, check=True).stdout.split()\nfor cid in ids:\n    st = json.loads(subprocess.run([CRICTL, \"inspect\", cid], capture_output=True, text=True, check=True).stdout)[\"status\"]\n    users.setdefault(by_digest.get(st[\"imageRef\"], st[\"imageRef\"]), []).append(st[\"id\"])\nimages = []\nfor i in sorted(crictl(\"images\")[\"images\"], key=lambda i: i[\"id\"]):\n    tags, digests = sorted(i.get(\"repoTags\") or []), sorted(i.get(\"repoDigests\") or [])\n    ids = sorted(users.get(i[\"id\"], []))\n    images.append({\"id\": i[\"id\"], \"repo_tags\": tags, \"repo_digests\": digests, \"class\": \"tagged\" if tags else (\"digest_only\" if digests else \"dangling\"),\n                   \"container_ids\": ids, \"in_use\": bool(ids)})\nprint(json.dumps({\"images\": images, \"dangling_ids\": [i[\"id\"] for i in images if i[\"class\"] == \"dangling\"],\n                  \"removable_ids\": [i[\"id\"] for i in images if i[\"class\"] == \"dangling\" and not i[\"in_use\"]]}, indent=1))\nPY_EOF\nsudo chmod 755 \"$LIB/imgclass\"\nsudo \"$LIB/imgclass\"\n"
+  },
+  {
+    "case_id": "q71901193",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q71901193",
+    "category": "filesystem",
+    "model": "wrong_inspect_imageref_taken_as_the_image_id",
+    "code": "set -e\nLIB=/var/lib/bench71901193\nsudo tee \"$LIB/imgclass\" >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess\n\nCRICTL = \"/var/lib/bench71901193/bin/crictl\"\n\n\ndef crictl(*a):\n    return json.loads(subprocess.run([CRICTL, *a, \"-o\", \"json\"], capture_output=True, text=True, check=True).stdout)\n\n\nusers = {}\nids = subprocess.run([CRICTL, \"ps\", \"-a\", \"-q\", \"--no-trunc\"], capture_output=True, text=True, check=True).stdout.split()\nfor cid in ids:\n    st = json.loads(subprocess.run([CRICTL, \"inspect\", cid], capture_output=True, text=True, check=True).stdout)[\"status\"]\n    users.setdefault(st[\"imageRef\"], []).append(st[\"id\"])\nimages = []\nfor i in sorted(crictl(\"images\")[\"images\"], key=lambda i: i[\"id\"]):\n    tags, digests = sorted(i.get(\"repoTags\") or []), sorted(i.get(\"repoDigests\") or [])\n    ids = sorted(users.get(i[\"id\"], []))\n    images.append({\"id\": i[\"id\"], \"repo_tags\": tags, \"repo_digests\": digests, \"class\": \"tagged\" if tags else (\"digest_only\" if digests else \"dangling\"),\n                   \"container_ids\": ids, \"in_use\": bool(ids)})\nprint(json.dumps({\"images\": images, \"dangling_ids\": [i[\"id\"] for i in images if i[\"class\"] == \"dangling\"],\n                  \"removable_ids\": [i[\"id\"] for i in images if i[\"class\"] == \"dangling\" and not i[\"in_use\"]]}, indent=1))\nPY_EOF\nsudo chmod 755 \"$LIB/imgclass\"\nsudo \"$LIB/imgclass\"\n"
+  },
+  {
+    "case_id": "q71901193",
+    "category": "filesystem",
+    "model": "wrong_tool_prunes_the_unused_images_as_the_answer_says",
+    "code": "set -e\nLIB=/var/lib/bench71901193\nsudo tee \"$LIB/imgclass\" >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess\n\nCRICTL = \"/var/lib/bench71901193/bin/crictl\"\n\n\ndef crictl(*a):\n    return json.loads(subprocess.run([CRICTL, *a, \"-o\", \"json\"], capture_output=True, text=True, check=True).stdout)\n\n\nusers = {}\nfor c in crictl(\"ps\", \"-a\")[\"containers\"]:\n    users.setdefault(c[\"imageRef\"], []).append(c[\"id\"])\nimages = []\nfor i in sorted(crictl(\"images\")[\"images\"], key=lambda i: i[\"id\"]):\n    tags, digests = sorted(i.get(\"repoTags\") or []), sorted(i.get(\"repoDigests\") or [])\n    ids = sorted(users.get(i[\"id\"], []))\n    images.append({\"id\": i[\"id\"], \"repo_tags\": tags, \"repo_digests\": digests, \"class\": \"tagged\" if tags else (\"digest_only\" if digests else \"dangling\"),\n                   \"container_ids\": ids, \"in_use\": bool(ids)})\ntry:\n    subprocess.run([CRICTL, \"rmi\", \"--prune\"], capture_output=True, timeout=6)\nexcept subprocess.TimeoutExpired:\n    pass\nprint(json.dumps({\"images\": images, \"dangling_ids\": [i[\"id\"] for i in images if i[\"class\"] == \"dangling\"],\n                  \"removable_ids\": [i[\"id\"] for i in images if i[\"class\"] == \"dangling\" and not i[\"in_use\"]]}, indent=1))\nPY_EOF\nsudo chmod 755 \"$LIB/imgclass\"\n"
+  },
+  {
+    "case_id": "q71901193",
+    "category": "filesystem",
+    "model": "wrong_no_tag_in_the_table_means_dangling",
+    "code": "set -e\nLIB=/var/lib/bench71901193\nsudo tee \"$LIB/imgclass\" >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess\n\nCRICTL = \"/var/lib/bench71901193/bin/crictl\"\n\n\ndef crictl(*a):\n    return json.loads(subprocess.run([CRICTL, *a, \"-o\", \"json\"], capture_output=True, text=True, check=True).stdout)\n\n\nusers = {}\nfor c in crictl(\"ps\", \"-a\")[\"containers\"]:\n    users.setdefault(c[\"imageRef\"], []).append(c[\"id\"])\nimages = []\nfor i in sorted(crictl(\"images\")[\"images\"], key=lambda i: i[\"id\"]):\n    tags, digests = sorted(i.get(\"repoTags\") or []), sorted(i.get(\"repoDigests\") or [])\n    ids = sorted(users.get(i[\"id\"], []))\n    images.append({\"id\": i[\"id\"], \"repo_tags\": tags, \"repo_digests\": digests, \"class\": \"tagged\" if tags else \"dangling\",\n                   \"container_ids\": ids, \"in_use\": bool(ids)})\nprint(json.dumps({\"images\": images, \"dangling_ids\": [i[\"id\"] for i in images if i[\"class\"] == \"dangling\"],\n                  \"removable_ids\": [i[\"id\"] for i in images if i[\"class\"] == \"dangling\" and not i[\"in_use\"]]}, indent=1))\nPY_EOF\nsudo chmod 755 \"$LIB/imgclass\"\nsudo \"$LIB/imgclass\"\n"
+  },
+  {
+    "case_id": "q71901193",
+    "category": "filesystem",
+    "model": "wrong_only_running_containers_count",
+    "code": "set -e\nLIB=/var/lib/bench71901193\nsudo tee \"$LIB/imgclass\" >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess\n\nCRICTL = \"/var/lib/bench71901193/bin/crictl\"\n\n\ndef crictl(*a):\n    return json.loads(subprocess.run([CRICTL, *a, \"-o\", \"json\"], capture_output=True, text=True, check=True).stdout)\n\n\nusers = {}\nfor c in crictl(\"ps\")[\"containers\"]:\n    users.setdefault(c[\"imageRef\"], []).append(c[\"id\"])\nimages = []\nfor i in sorted(crictl(\"images\")[\"images\"], key=lambda i: i[\"id\"]):\n    tags, digests = sorted(i.get(\"repoTags\") or []), sorted(i.get(\"repoDigests\") or [])\n    ids = sorted(users.get(i[\"id\"], []))\n    images.append({\"id\": i[\"id\"], \"repo_tags\": tags, \"repo_digests\": digests, \"class\": \"tagged\" if tags else (\"digest_only\" if digests else \"dangling\"),\n                   \"container_ids\": ids, \"in_use\": bool(ids)})\nprint(json.dumps({\"images\": images, \"dangling_ids\": [i[\"id\"] for i in images if i[\"class\"] == \"dangling\"],\n                  \"removable_ids\": [i[\"id\"] for i in images if i[\"class\"] == \"dangling\" and not i[\"in_use\"]]}, indent=1))\nPY_EOF\nsudo chmod 755 \"$LIB/imgclass\"\nsudo \"$LIB/imgclass\"\n"
+  },
+  {
+    "case_id": "q71901193",
+    "category": "filesystem",
+    "model": "wrong_container_image_taken_by_the_name_it_was_made_with",
+    "code": "set -e\nLIB=/var/lib/bench71901193\nsudo tee \"$LIB/imgclass\" >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess\n\nCRICTL = \"/var/lib/bench71901193/bin/crictl\"\n\n\ndef crictl(*a):\n    return json.loads(subprocess.run([CRICTL, *a, \"-o\", \"json\"], capture_output=True, text=True, check=True).stdout)\n\n\nusers = {}\nfor c in crictl(\"ps\", \"-a\")[\"containers\"]:\n    users.setdefault(c[\"image\"][\"image\"], []).append(c[\"id\"])\nimages = []\nfor i in sorted(crictl(\"images\")[\"images\"], key=lambda i: i[\"id\"]):\n    tags, digests = sorted(i.get(\"repoTags\") or []), sorted(i.get(\"repoDigests\") or [])\n    ids = sorted({x for n in tags + digests for x in users.get(n, [])})\n    images.append({\"id\": i[\"id\"], \"repo_tags\": tags, \"repo_digests\": digests, \"class\": \"tagged\" if tags else (\"digest_only\" if digests else \"dangling\"),\n                   \"container_ids\": ids, \"in_use\": bool(ids)})\nprint(json.dumps({\"images\": images, \"dangling_ids\": [i[\"id\"] for i in images if i[\"class\"] == \"dangling\"],\n                  \"removable_ids\": [i[\"id\"] for i in images if i[\"class\"] == \"dangling\" and not i[\"in_use\"]]}, indent=1))\nPY_EOF\nsudo chmod 755 \"$LIB/imgclass\"\nsudo \"$LIB/imgclass\"\n"
+  },
+  {
+    "case_id": "q71901193",
+    "category": "filesystem",
+    "model": "wrong_removable_is_every_dangling_image",
+    "code": "set -e\nLIB=/var/lib/bench71901193\nsudo tee \"$LIB/imgclass\" >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess\n\nCRICTL = \"/var/lib/bench71901193/bin/crictl\"\n\n\ndef crictl(*a):\n    return json.loads(subprocess.run([CRICTL, *a, \"-o\", \"json\"], capture_output=True, text=True, check=True).stdout)\n\n\nusers = {}\nfor c in crictl(\"ps\", \"-a\")[\"containers\"]:\n    users.setdefault(c[\"imageRef\"], []).append(c[\"id\"])\nimages = []\nfor i in sorted(crictl(\"images\")[\"images\"], key=lambda i: i[\"id\"]):\n    tags, digests = sorted(i.get(\"repoTags\") or []), sorted(i.get(\"repoDigests\") or [])\n    ids = sorted(users.get(i[\"id\"], []))\n    images.append({\"id\": i[\"id\"], \"repo_tags\": tags, \"repo_digests\": digests, \"class\": \"tagged\" if tags else (\"digest_only\" if digests else \"dangling\"),\n                   \"container_ids\": ids, \"in_use\": bool(ids)})\nprint(json.dumps({\"images\": images, \"dangling_ids\": [i[\"id\"] for i in images if i[\"class\"] == \"dangling\"],\n                  \"removable_ids\": [i[\"id\"] for i in images if i[\"class\"] == \"dangling\"]}, indent=1))\nPY_EOF\nsudo chmod 755 \"$LIB/imgclass\"\nsudo \"$LIB/imgclass\"\n"
+  },
+  {
+    "case_id": "q71901193",
+    "category": "filesystem",
+    "model": "wrong_removable_includes_the_digest_only_images",
+    "code": "set -e\nLIB=/var/lib/bench71901193\nsudo tee \"$LIB/imgclass\" >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess\n\nCRICTL = \"/var/lib/bench71901193/bin/crictl\"\n\n\ndef crictl(*a):\n    return json.loads(subprocess.run([CRICTL, *a, \"-o\", \"json\"], capture_output=True, text=True, check=True).stdout)\n\n\nusers = {}\nfor c in crictl(\"ps\", \"-a\")[\"containers\"]:\n    users.setdefault(c[\"imageRef\"], []).append(c[\"id\"])\nimages = []\nfor i in sorted(crictl(\"images\")[\"images\"], key=lambda i: i[\"id\"]):\n    tags, digests = sorted(i.get(\"repoTags\") or []), sorted(i.get(\"repoDigests\") or [])\n    ids = sorted(users.get(i[\"id\"], []))\n    images.append({\"id\": i[\"id\"], \"repo_tags\": tags, \"repo_digests\": digests, \"class\": \"tagged\" if tags else (\"digest_only\" if digests else \"dangling\"),\n                   \"container_ids\": ids, \"in_use\": bool(ids)})\nprint(json.dumps({\"images\": images, \"dangling_ids\": [i[\"id\"] for i in images if i[\"class\"] == \"dangling\"],\n                  \"removable_ids\": [i[\"id\"] for i in images if i[\"class\"] != \"tagged\" and not i[\"in_use\"]]}, indent=1))\nPY_EOF\nsudo chmod 755 \"$LIB/imgclass\"\nsudo \"$LIB/imgclass\"\n"
+  },
+  {
+    "case_id": "q71901193",
+    "category": "filesystem",
+    "model": "wrong_ids_as_the_table_prints_them",
+    "code": "set -e\nLIB=/var/lib/bench71901193\nsudo tee \"$LIB/imgclass\" >/dev/null <<'PY_EOF'\n#!/usr/bin/env python3\nimport json, subprocess\n\nCRICTL = \"/var/lib/bench71901193/bin/crictl\"\n\n\ndef crictl(*a):\n    return json.loads(subprocess.run([CRICTL, *a, \"-o\", \"json\"], capture_output=True, text=True, check=True).stdout)\n\n\nusers = {}\nfor c in crictl(\"ps\", \"-a\")[\"containers\"]:\n    users.setdefault(c[\"imageRef\"], []).append(c[\"id\"])\nimages = []\nfor i in sorted(crictl(\"images\")[\"images\"], key=lambda i: i[\"id\"]):\n    tags, digests = sorted(i.get(\"repoTags\") or []), sorted(i.get(\"repoDigests\") or [])\n    ids = sorted(users.get(i[\"id\"], []))\n    images.append({\"id\": i[\"id\"].split(\":\")[1][:13], \"repo_tags\": tags, \"repo_digests\": digests, \"class\": \"tagged\" if tags else (\"digest_only\" if digests else \"dangling\"),\n                   \"container_ids\": ids, \"in_use\": bool(ids)})\nprint(json.dumps({\"images\": images, \"dangling_ids\": [i[\"id\"] for i in images if i[\"class\"] == \"dangling\"],\n                  \"removable_ids\": [i[\"id\"] for i in images if i[\"class\"] == \"dangling\" and not i[\"in_use\"]]}, indent=1))\nPY_EOF\nsudo chmod 755 \"$LIB/imgclass\"\nsudo \"$LIB/imgclass\"\n"
+  }
+]
