@@ -1,0 +1,68 @@
+[
+  {
+    "case_id": "q72990088",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q72990088/reference_solution.sh"
+  },
+  {
+    "case_id": "q72990088",
+    "category": "filesystem",
+    "model": "alt_valid_absolute_symlink_to_the_file",
+    "code": "set -e\nD=/var/lib/bench72990088/deploy\nsudo python3 - \"$D\" <<'PY'\nimport json, sys, shutil, os\nd = sys.argv[1]\nc = json.load(open(d + \"/ctr.json\"))\nm = [x for x in c[\"mounts\"] if x[\"container_path\"] == \"/app/config/local.json\"][0]\nos.symlink(d + \"/host_dir/config/services-config.json\", d + \"/svc-config\")\nm[\"host_path\"] = d + \"/svc-config\"\njson.dump(c, open(d + \"/ctr.json\", \"w\"), indent=2)\nPY\nsudo \"$D/launch.sh\"\n"
+  },
+  {
+    "case_id": "q72990088",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q72990088",
+    "category": "filesystem",
+    "model": "wrong_apply_again_from_the_deployment_directory",
+    "code": "cd /var/lib/bench72990088/deploy && sudo ./launch.sh\n"
+  },
+  {
+    "case_id": "q72990088",
+    "category": "filesystem",
+    "model": "wrong_mounts_a_copy_of_the_file",
+    "code": "set -e\nD=/var/lib/bench72990088/deploy\nsudo python3 - \"$D\" <<'PY'\nimport json, sys, shutil, os\nd = sys.argv[1]\nc = json.load(open(d + \"/ctr.json\"))\nm = [x for x in c[\"mounts\"] if x[\"container_path\"] == \"/app/config/local.json\"][0]\nshutil.copy(d + \"/host_dir/config/services-config.json\", \"/tmp/svc-config-copy.json\")\nm[\"host_path\"] = \"/tmp/svc-config-copy.json\"\njson.dump(c, open(d + \"/ctr.json\", \"w\"), indent=2)\nPY\nsudo \"$D/launch.sh\"\n"
+  },
+  {
+    "case_id": "q72990088",
+    "category": "filesystem",
+    "model": "wrong_mounts_the_stale_copy_found_by_a_guessed_path",
+    "code": "set -e\nD=/var/lib/bench72990088/deploy\nsudo python3 - \"$D\" <<'PY'\nimport json, sys, shutil, os\nd = sys.argv[1]\nc = json.load(open(d + \"/ctr.json\"))\nm = [x for x in c[\"mounts\"] if x[\"container_path\"] == \"/app/config/local.json\"][0]\nm[\"host_path\"] = \"/var/lib/bench72990088/host_dir/config/services-config.json\"\njson.dump(c, open(d + \"/ctr.json\", \"w\"), indent=2)\nPY\nsudo \"$D/launch.sh\"\n"
+  },
+  {
+    "case_id": "q72990088",
+    "category": "filesystem",
+    "model": "wrong_mounts_the_directory_instead_of_the_file",
+    "code": "set -e\nD=/var/lib/bench72990088/deploy\nsudo python3 - \"$D\" <<'PY'\nimport json, sys, shutil, os\nd = sys.argv[1]\nc = json.load(open(d + \"/ctr.json\"))\nm = [x for x in c[\"mounts\"] if x[\"container_path\"] == \"/app/config/local.json\"][0]\nm[\"host_path\"] = d + \"/host_dir/config\"\njson.dump(c, open(d + \"/ctr.json\", \"w\"), indent=2)\nPY\nsudo \"$D/launch.sh\"\n"
+  },
+  {
+    "case_id": "q72990088",
+    "category": "filesystem",
+    "model": "wrong_absolute_path_with_a_typo_gives_a_directory",
+    "code": "set -e\nD=/var/lib/bench72990088/deploy\nsudo python3 - \"$D\" <<'PY'\nimport json, sys, shutil, os\nd = sys.argv[1]\nc = json.load(open(d + \"/ctr.json\"))\nm = [x for x in c[\"mounts\"] if x[\"container_path\"] == \"/app/config/local.json\"][0]\nm[\"host_path\"] = d + \"/host_dir/config/services-config.jsn\"\njson.dump(c, open(d + \"/ctr.json\", \"w\"), indent=2)\nPY\nsudo \"$D/launch.sh\"\n"
+  },
+  {
+    "case_id": "q72990088",
+    "category": "filesystem",
+    "model": "wrong_extra_mount_dropped_with_the_fix",
+    "code": "set -e\nD=/var/lib/bench72990088/deploy\nsudo python3 - \"$D\" <<'PY'\nimport json, sys, shutil, os\nd = sys.argv[1]\nc = json.load(open(d + \"/ctr.json\"))\nm = [x for x in c[\"mounts\"] if x[\"container_path\"] == \"/app/config/local.json\"][0]\nm[\"host_path\"] = d + \"/\" + m[\"host_path\"]\nc[\"mounts\"] = [x for x in c[\"mounts\"] if x[\"container_path\"] != \"/etc/extra.conf\"]\njson.dump(c, open(d + \"/ctr.json\", \"w\"), indent=2)\nPY\nsudo \"$D/launch.sh\"\n"
+  },
+  {
+    "case_id": "q72990088",
+    "category": "filesystem",
+    "model": "wrong_read_only_flag_dropped_with_the_fix",
+    "code": "set -e\nD=/var/lib/bench72990088/deploy\nsudo python3 - \"$D\" <<'PY'\nimport json, sys, shutil, os\nd = sys.argv[1]\nc = json.load(open(d + \"/ctr.json\"))\nm = [x for x in c[\"mounts\"] if x[\"container_path\"] == \"/app/config/local.json\"][0]\nm[\"host_path\"] = d + \"/\" + m[\"host_path\"]\nfor x in c[\"mounts\"]:\n    x.pop(\"readonly\", None)\njson.dump(c, open(d + \"/ctr.json\", \"w\"), indent=2)\nPY\nsudo \"$D/launch.sh\"\n"
+  },
+  {
+    "case_id": "q72990088",
+    "category": "filesystem",
+    "model": "wrong_pod_renamed_instead_of_replaced",
+    "code": "set -e\nD=/var/lib/bench72990088/deploy\nsudo python3 - \"$D\" <<'PY'\nimport json, sys, shutil, os\nd = sys.argv[1]\nc = json.load(open(d + \"/ctr.json\"))\nm = [x for x in c[\"mounts\"] if x[\"container_path\"] == \"/app/config/local.json\"][0]\nm[\"host_path\"] = d + \"/\" + m[\"host_path\"]\njson.dump(c, open(d + \"/ctr.json\", \"w\"), indent=2)\nPY\nsudo sed -i 's/\"name\": \"svc\"/\"name\": \"svc-v2\"/' \"$D/pod.json\"\nsudo \"$D/launch.sh\"\n"
+  }
+]
