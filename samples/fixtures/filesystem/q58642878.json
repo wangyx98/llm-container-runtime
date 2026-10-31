@@ -1,0 +1,56 @@
+[
+  {
+    "case_id": "q58642878",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "bash cases/filesystem/q58642878/reference_solution.sh"
+  },
+  {
+    "case_id": "q58642878",
+    "category": "filesystem",
+    "model": "alt_valid_bind_mount_of_the_containerd_directory",
+    "code": "set -e\nL=/var/lib/bench58642878\nD=/mnt/bench58642878-disk\nsudo $L/bin/k3sctl stop\nsudo mkdir -p $D/containerd\nsudo cp -a $L/k3s/agent/containerd/. $D/containerd/\nsudo mount --bind $D/containerd $L/k3s/agent/containerd\nsudo $L/bin/k3sctl start\n"
+  },
+  {
+    "case_id": "q58642878",
+    "category": "filesystem",
+    "model": "alt_valid_symlink_to_the_disk_as_the_answer_says",
+    "code": "set -e\nL=/var/lib/bench58642878\nD=/mnt/bench58642878-disk\nsudo $L/bin/k3sctl stop\nsudo mv $L/k3s/agent/containerd $D/containerd\nsudo ln -s $D/containerd $L/k3s/agent/containerd\nsudo $L/bin/k3sctl start\n"
+  },
+  {
+    "case_id": "q58642878",
+    "category": "filesystem",
+    "model": "alt_valid_disk_bind_mounted_over_the_data_dir",
+    "code": "set -e\nL=/var/lib/bench58642878\nD=/mnt/bench58642878-disk\nsudo $L/bin/k3sctl stop\nsudo cp -a $L/k3s/. $D/\nsudo mount --bind $D $L/k3s\nsudo $L/bin/k3sctl start\n"
+  },
+  {
+    "case_id": "q58642878",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": "true"
+  },
+  {
+    "case_id": "q58642878",
+    "category": "filesystem",
+    "model": "wrong_root_written_in_the_generated_toml_only",
+    "code": "set -e\nL=/var/lib/bench58642878\nD=/mnt/bench58642878-disk\nsudo $L/bin/k3sctl stop\nsudo mkdir -p $D/containerd\nsudo cp -a $L/k3s/agent/containerd/. $D/containerd/\nsudo sed -i \"1i root = \\\"$D/containerd\\\"\" $L/k3s/agent/etc/containerd/config.toml\nsudo $L/bin/k3sctl start\n"
+  },
+  {
+    "case_id": "q58642878",
+    "category": "filesystem",
+    "model": "wrong_empty_disk_mounted_over_the_containerd_directory",
+    "code": "set -e\nL=/var/lib/bench58642878\nD=/mnt/bench58642878-disk\nsudo $L/bin/k3sctl stop\nsudo mkdir -p $D/containerd\nsudo mount --bind $D/containerd $L/k3s/agent/containerd\nsudo $L/bin/k3sctl start\n"
+  },
+  {
+    "case_id": "q58642878",
+    "category": "filesystem",
+    "model": "wrong_data_dir_changed_without_the_cluster_state",
+    "code": "set -e\nL=/var/lib/bench58642878\nD=/mnt/bench58642878-disk\nsudo $L/bin/k3sctl stop\nsudo mkdir -p $D/k3s\nsudo sed -i \"s|^data-dir:.*|data-dir: $D/k3s|\" $L/etc/config.yaml\nsudo $L/bin/k3sctl start\n"
+  },
+  {
+    "case_id": "q58642878",
+    "category": "filesystem",
+    "model": "wrong_images_exported_to_the_disk_root_unchanged",
+    "code": "set -e\nL=/var/lib/bench58642878\nD=/mnt/bench58642878-disk\nsudo mkdir -p $D/backup\nsudo $L/bin/k3s ctr images export $D/backup/images.tar bench.local/seed:1 bench.local/pause:1\n"
+  }
+]
