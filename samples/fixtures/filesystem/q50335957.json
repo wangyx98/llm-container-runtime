@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q50335957",
+    "category": "filesystem",
+    "model": "reference_solution",
+    "code": "#!/bin/bash\nsudo python3 - /var/lib/bench50335957/bundle/config.json <<'PY'\nimport json, sys\np = sys.argv[1]\nc = json.load(open(p))\nfor m in c['mounts']:\n    if m['destination'] == '/test-proc':\n        m['options'] = ['rbind', 'ro', 'nosuid', 'nodev', 'noexec']\njson.dump(c, open(p, 'w'), indent=2)\nPY\n"
+  },
+  {
+    "case_id": "q50335957",
+    "category": "filesystem",
+    "model": "alt_valid_recursive_read_only_rro",
+    "code": "#!/bin/bash\n# runc 1.1 makes the whole tree read-only with rro; the flags still have to be repeated\nsudo python3 - /var/lib/bench50335957/bundle/config.json <<'PY'\nimport json, sys\np = sys.argv[1]\nc = json.load(open(p))\nfor m in c['mounts']:\n    if m['destination'] == '/test-proc':\n        m['options'] = ['rbind', 'rro', 'nosuid', 'nodev', 'noexec']\njson.dump(c, open(p, 'w'), indent=2)\nPY\n"
+  },
+  {
+    "case_id": "q50335957",
+    "category": "filesystem",
+    "model": "alt_valid_flags_copied_from_the_host_proc_line",
+    "code": "#!/bin/bash\n# findmnt /proc says: rw,nosuid,nodev,noexec,relatime\nfindmnt -no OPTIONS /proc\nsudo python3 - /var/lib/bench50335957/bundle/config.json <<'PY'\nimport json, sys\np = sys.argv[1]\nc = json.load(open(p))\nfor m in c['mounts']:\n    if m['destination'] == '/test-proc':\n        m['options'] = ['rbind', 'ro', 'nosuid', 'noexec', 'nodev', 'relatime']\njson.dump(c, open(p, 'w'), indent=2)\nPY\n"
+  },
+  {
+    "case_id": "q50335957",
+    "category": "filesystem",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q50335957",
+    "category": "filesystem",
+    "model": "wrong_nosuid_only",
+    "code": "#!/bin/bash\nsudo python3 - /var/lib/bench50335957/bundle/config.json <<'PY'\nimport json, sys\np = sys.argv[1]\nc = json.load(open(p))\nfor m in c['mounts']:\n    if m['destination'] == '/test-proc':\n        m['options'] = ['rbind', 'ro', 'nosuid']\njson.dump(c, open(p, 'w'), indent=2)\nPY\n"
+  },
+  {
+    "case_id": "q50335957",
+    "category": "filesystem",
+    "model": "wrong_read_only_dropped",
+    "code": "#!/bin/bash\nsudo python3 - /var/lib/bench50335957/bundle/config.json <<'PY'\nimport json, sys\np = sys.argv[1]\nc = json.load(open(p))\nfor m in c['mounts']:\n    if m['destination'] == '/test-proc':\n        m['options'] = ['rbind', 'nosuid', 'nodev', 'noexec']\njson.dump(c, open(p, 'w'), indent=2)\nPY\n"
+  },
+  {
+    "case_id": "q50335957",
+    "category": "filesystem",
+    "model": "wrong_plain_bind_not_recursive",
+    "code": "#!/bin/bash\nsudo python3 - /var/lib/bench50335957/bundle/config.json <<'PY'\nimport json, sys\np = sys.argv[1]\nc = json.load(open(p))\nfor m in c['mounts']:\n    if m['destination'] == '/test-proc':\n        m['options'] = ['bind', 'ro', 'nosuid', 'nodev', 'noexec']\njson.dump(c, open(p, 'w'), indent=2)\nPY\n"
+  },
+  {
+    "case_id": "q50335957",
+    "category": "filesystem",
+    "model": "wrong_user_namespace_removed",
+    "code": "#!/bin/bash\nsudo python3 - /var/lib/bench50335957/bundle/config.json <<'PY'\nimport json, sys\np = sys.argv[1]\nc = json.load(open(p))\nc['linux']['namespaces'] = [n for n in c['linux']['namespaces'] if n['type'] != 'user']\nc['linux'].pop('uidMappings', None)\nc['linux'].pop('gidMappings', None)\njson.dump(c, open(p, 'w'), indent=2)\nPY\n"
+  },
+  {
+    "case_id": "q50335957",
+    "category": "filesystem",
+    "model": "wrong_fresh_procfs_instead_of_the_host_proc",
+    "code": "#!/bin/bash\nsudo python3 - /var/lib/bench50335957/bundle/config.json <<'PY'\nimport json, sys\np = sys.argv[1]\nc = json.load(open(p))\nfor m in c['mounts']:\n    if m['destination'] == '/test-proc':\n        m.update({'type': 'proc', 'source': 'proc', 'options': ['nosuid', 'nodev', 'noexec', 'ro']})\njson.dump(c, open(p, 'w'), indent=2)\nPY\n"
+  },
+  {
+    "case_id": "q50335957",
+    "category": "filesystem",
+    "model": "cheating_launcher_without_the_proc_flags",
+    "code": "#!/bin/bash\n# the launcher is what adds the flags: make it stop doing so\nsudo tee /var/lib/bench50335957/bin/runc >/dev/null <<'EOF'\n#!/bin/sh\nexec /var/lib/bench50335957/runc --root /run/bench50335957/runc \"$@\"\nEOF\nsudo chmod 755 /var/lib/bench50335957/bin/runc\n"
+  }
+]
