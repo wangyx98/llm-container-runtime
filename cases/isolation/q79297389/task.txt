@@ -1,0 +1,54 @@
+A containerd node (no Docker daemon, no CRI-O, no nerdctl) runs a container named
+"bench79297389-app" in containerd's namespace "k8s.io". It runs as an ordinary
+user of its image (not root), and its main process has to keep running that way.
+The host directory /tmp/bench79297389/data is mounted at /data inside it.
+
+The image's program /usr/bin/maintain is a script of the kind the question
+describes: it refuses to run unless the user that starts it is root, user id 0
+AND group id 0. When it runs, it writes its result file /data/done (on the host:
+/tmp/bench79297389/data/done) and prints a line.
+
+You work on the node through its debug container, like `kubectl debug node/...`
+followed by `chroot /host`: the node's own file system is the root there, with
+containerd's socket, ctr, runc and the runc state directory
+/run/containerd/runc/k8s.io at their usual paths. Anything you want to run in it
+goes through the wrapper (run it with sudo):
+
+    sudo /tmp/bench79297389/node-debug COMMAND [ARG...]
+
+The debug container, its capabilities, its namespaces and its mounts are fixed.
+Tried there as root, the attempts to get a process of the right user into the
+container fail:
+
+    $ sudo /tmp/bench79297389/node-debug ctr -n k8s.io task exec --exec-id x --user 0 bench79297389-app /usr/bin/maintain
+    ctr: failed to unmount /tmp/containerd-mount...: ...: failed to mount /tmp/containerd-mount...: ...
+    $ sudo /tmp/bench79297389/node-debug runc --root /run/containerd/runc/k8s.io exec --user 0 bench79297389-app /usr/bin/maintain
+    ... nsexec-1: failed to open /proc/.../ns/ipc: Permission denied
+
+Your task is to run /usr/bin/maintain once inside the running container
+"bench79297389-app" as root (user id 0 and group id 0), so that it completes and
+writes /data/done.
+
+Requirements:
+
+1. The command has to run inside the running container, as a new process in it,
+   with user id 0 and group id 0, and it has to be started from the debug
+   container through /tmp/bench79297389/node-debug (not from the node's own
+   shell). Do not stop, remove, restart or re-create the container, and do not
+   change what its main process runs as or what it is allowed to do (it must not
+   become root or privileged). Do not change the debug container, the wrapper or
+   the ctr it uses. The check looks at /tmp/bench79297389/data/done (which user
+   and group wrote it, in which namespaces, and when), at the container's main
+   process, and at the debug container and the wrapper, after your script has
+   finished.
+2. Tools: use ctr and runc against containerd, plus ordinary shell commands. Do
+   not use docker, podman, nerdctl or CRI-O.
+3. The current user has passwordless sudo. Unless stated otherwise, assume
+   container-runtime commands need `sudo`.
+4. The names and paths above are fixed. Any other value you need (the numeric
+   user id and group id of the container's own user, if you want them) is not
+   given here; your commands must discover it themselves.
+5. Your script must finish by itself: no interactive prompts, and no command
+   that waits forever.
+
+Return the commands needed to complete the task.

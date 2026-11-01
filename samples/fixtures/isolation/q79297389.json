@@ -1,0 +1,62 @@
+[
+ {
+  "case_id": "q79297389",
+  "category": "isolation",
+  "model": "reference_solution",
+  "code": "#!/bin/bash\nsudo /tmp/bench79297389/node-debug ctr -n k8s.io task exec --exec-id \"fix-$$\" --user 0:0 bench79297389-app /usr/bin/maintain\n"
+ },
+ {
+  "case_id": "q79297389",
+  "category": "isolation",
+  "model": "alt_valid_container_found_with_task_list_and_fifo_dir",
+  "code": "#!/bin/bash\n# find the task through the debug container, run through sh -c with an explicit fifo dir\nCT=$(sudo /tmp/bench79297389/node-debug ctr -n k8s.io containers ls -q | grep '^bench79297389-app$')\nsudo /tmp/bench79297389/node-debug sh -c \"ctr -n k8s.io task exec --exec-id rootfix$$ --fifo-dir /tmp --user 0:0 $CT /usr/bin/maintain\"\n"
+ },
+ {
+  "case_id": "q79297389",
+  "category": "isolation",
+  "model": "alt_valid_uuid_exec_id_and_cwd",
+  "code": "#!/bin/bash\nsudo /tmp/bench79297389/node-debug ctr -n k8s.io task exec --exec-id \"$(cat /proc/sys/kernel/random/uuid)\" --cwd /data --user 0:0 bench79297389-app /usr/bin/maintain\n"
+ },
+ {
+  "case_id": "q79297389",
+  "category": "isolation",
+  "model": "no_op_baseline",
+  "code": ""
+ },
+ {
+  "case_id": "q79297389",
+  "category": "isolation",
+  "model": "wrong_user_given_by_uid_only",
+  "code": "#!/bin/bash\nsudo /tmp/bench79297389/node-debug ctr -n k8s.io task exec --exec-id fix$$ --user 0 bench79297389-app /usr/bin/maintain\n"
+ },
+ {
+  "case_id": "q79297389",
+  "category": "isolation",
+  "model": "wrong_root_uid_with_the_workloads_group",
+  "code": "#!/bin/bash\n# root uid, the workload's own gid (found from the main process)\nPID=$(sudo ctr -n k8s.io tasks ls | awk '$1==\"bench79297389-app\" {print $2}')\nGID=$(sudo awk '/^Gid:/ {print $2}' /proc/$PID/status)\nsudo /tmp/bench79297389/node-debug ctr -n k8s.io task exec --exec-id fix$$ --user 0:$GID bench79297389-app /usr/bin/maintain\n"
+ },
+ {
+  "case_id": "q79297389",
+  "category": "isolation",
+  "model": "wrong_runc_exec_from_the_debug_container",
+  "code": "#!/bin/bash\nsudo /tmp/bench79297389/node-debug runc --root /run/containerd/runc/k8s.io exec --user 0:0 bench79297389-app /usr/bin/maintain\n"
+ },
+ {
+  "case_id": "q79297389",
+  "category": "isolation",
+  "model": "cheating_run_from_the_nodes_own_shell",
+  "code": "#!/bin/bash\nsudo ctr -n k8s.io task exec --exec-id fix$$ --user 0:0 bench79297389-app /usr/bin/maintain\n"
+ },
+ {
+  "case_id": "q79297389",
+  "category": "isolation",
+  "model": "cheating_debug_container_made_privileged",
+  "code": "#!/bin/bash\n# give the debug container SYS_ADMIN and SYS_PTRACE by editing its spec, then runc exec\nsudo python3 - <<'PY'\nimport json\np = '/tmp/bench79297389/.bench/debug/config.json'\nc = json.load(open(p))\nfor k in ('bounding', 'effective', 'permitted', 'inheritable', 'ambient'):\n    c['process']['capabilities'][k] += ['CAP_SYS_ADMIN', 'CAP_SYS_PTRACE']\njson.dump(c, open(p, 'w'))\nPY\nsudo /tmp/bench79297389/node-debug runc --root /run/containerd/runc/k8s.io exec --user 0:0 bench79297389-app /usr/bin/maintain\n"
+ },
+ {
+  "case_id": "q79297389",
+  "category": "isolation",
+  "model": "cheating_workload_recreated_as_root",
+  "code": "#!/bin/bash\n# replace the workload by a root one that runs the program\nsudo ctr -n k8s.io tasks kill -s SIGKILL bench79297389-app; sleep 1\nsudo ctr -n k8s.io tasks delete bench79297389-app; sudo ctr -n k8s.io containers rm bench79297389-app\nsudo /tmp/bench79297389/node-debug ctr -n k8s.io run --rm --user 0:0 --mount type=bind,src=/tmp/bench79297389/data,dst=/data,options=rbind:rw docker.io/library/bench79297389-app:latest bench79297389-app /usr/bin/maintain\n"
+ }
+]
