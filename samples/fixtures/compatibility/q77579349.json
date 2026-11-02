@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q77579349",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench77579349\nN=\"sudo $W/bin/nerdctl\"\ncd $W/compose\nmkdir -p dynamic\ncat > dynamic/apache.yml <<'YEOF'\nhttp:\n  routers:\n    apache:\n      rule: Host(`example.com`)\n      entryPoints: [web]\n      service: apache\n  services:\n    apache:\n      loadBalancer:\n        servers:\n          - url: http://apache:80\nYEOF\ncat > docker-compose.yaml <<'YEOF'\nversion: \"3\"\n\nservices:\n  traefik:\n    image: traefik:v3.0\n    container_name: traefik\n    volumes:\n      - ./dynamic:/etc/traefik/dynamic:ro\n    command:\n      - \"--api.insecure=true\"\n      - \"--log.level=DEBUG\"\n      - \"--entrypoints.web.address=:80\"\n      - \"--entrypoints.web-secure.address=:443\"\n      - \"--providers.file.directory=/etc/traefik/dynamic\"\n      - \"--providers.file.watch=true\"\n    ports:\n      - \"80:80\"\n      - \"443:443\"\n\n  apache:\n    image: httpd:latest\n    container_name: apache\nYEOF\n$N compose up -d\nsleep 2\n"
+  },
+  {
+    "case_id": "q77579349",
+    "category": "compatibility",
+    "model": "alt_valid_file_provider_with_one_file_and_the_flags",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench77579349\nN=\"sudo $W/bin/nerdctl\"\ncd $W/compose\ncat > routes.yml <<'YEOF'\nhttp:\n  routers:\n    apache:\n      rule: Host(`example.com`)\n      entryPoints: [web]\n      service: apache\n  services:\n    apache:\n      loadBalancer:\n        servers:\n          - url: http://apache:80\nYEOF\ncat > docker-compose.yaml <<'YEOF'\nversion: \"3\"\n\nservices:\n  traefik:\n    image: traefik:v3.0\n    container_name: traefik\n    volumes:\n      - ./routes.yml:/etc/traefik/routes.yml:ro\n    command:\n      - \"--api.insecure=true\"\n      - \"--log.level=DEBUG\"\n      - \"--entrypoints.web.address=:80\"\n      - \"--entrypoints.web-secure.address=:443\"\n      - \"--providers.file.filename=/etc/traefik/routes.yml\"\n    ports:\n      - \"80:80\"\n      - \"443:443\"\n\n  apache:\n    image: httpd:latest\n    container_name: apache\n    labels:\n      - \"traefik.enable=true\"\n      - \"traefik.http.routers.apache.rule=Host(`example.com`)\"\n      - \"traefik.http.routers.apache.entrypoints=web\"\n      - \"traefik.http.services.apache.loadbalancer.server.port=80\"\nYEOF\n$N compose up -d\nsleep 2\n"
+  },
+  {
+    "case_id": "q77579349",
+    "category": "compatibility",
+    "model": "alt_valid_static_configuration_file_traefik_yml",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench77579349\nN=\"sudo $W/bin/nerdctl\"\ncd $W/compose\ncat > routes.yml <<'YEOF'\nhttp:\n  routers:\n    apache:\n      rule: Host(`example.com`)\n      entryPoints: [web]\n      service: apache\n  services:\n    apache:\n      loadBalancer:\n        servers:\n          - url: http://apache:80\nYEOF\ncat > traefik.yml <<'YEOF'\napi:\n  insecure: true\nlog:\n  level: DEBUG\nentryPoints:\n  web:\n    address: \":80\"\n  web-secure:\n    address: \":443\"\nproviders:\n  file:\n    filename: /etc/traefik/routes.yml\nYEOF\ncat > docker-compose.yaml <<'YEOF'\nversion: \"3\"\n\nservices:\n  traefik:\n    image: traefik:v3.0\n    container_name: traefik\n    volumes:\n      - ./traefik.yml:/etc/traefik/traefik.yml:ro\n      - ./routes.yml:/etc/traefik/routes.yml:ro\n    ports:\n      - \"80:80\"\n      - \"443:443\"\n\n  apache:\n    image: httpd:latest\n    container_name: apache\nYEOF\n$N compose up -d\nsleep 2\n"
+  },
+  {
+    "case_id": "q77579349",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q77579349",
+    "category": "compatibility",
+    "model": "wrong_the_questions_compose_unchanged",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench77579349\nN=\"sudo $W/bin/nerdctl\"\ncd $W/compose\n# the second file of the question as it is: Traefik rejects --providers.containerd.endpoint and exits\n$N compose up -d\nsleep 2\n"
+  },
+  {
+    "case_id": "q77579349",
+    "category": "compatibility",
+    "model": "wrong_providers_containerd_true_from_the_snippet",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench77579349\nN=\"sudo $W/bin/nerdctl\"\ncd $W/compose\n# the fix hinted at in the question: --providers.containerd=true (there is no such provider in Traefik)\nsed -i 's|- \"--providers.docker=false\"|- \"--providers.containerd=true\"|' docker-compose.yaml\n$N compose up -d\nsleep 2\n"
+  },
+  {
+    "case_id": "q77579349",
+    "category": "compatibility",
+    "model": "wrong_docker_provider_on_the_containerd_socket",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench77579349\nN=\"sudo $W/bin/nerdctl\"\ncd $W/compose\n# Docker provider again, its endpoint the containerd socket (a gRPC socket, not a Docker API): Traefik runs, discovers nothing\ncat > docker-compose.yaml <<'YEOF'\nversion: \"3\"\n\nservices:\n  traefik:\n    image: traefik:v3.0\n    container_name: traefik\n    volumes:\n      - /run/bench77579349/containerd.sock:/var/run/containerd/containerd.sock\n    command:\n      - \"--api.insecure=true\"\n      - \"--log.level=DEBUG\"\n      - \"--entrypoints.web.address=:80\"\n      - \"--entrypoints.web-secure.address=:443\"\n      - \"--providers.docker=true\"\n      - \"--providers.docker.endpoint=unix:///var/run/containerd/containerd.sock\"\n    ports:\n      - \"80:80\"\n      - \"443:443\"\n\n  apache:\n    image: httpd:latest\n    container_name: apache\n    labels:\n      - \"traefik.enable=true\"\n      - \"traefik.http.routers.apache.rule=Host(`example.com`)\"\n      - \"traefik.http.routers.apache.entrypoints=web\"\n      - \"traefik.http.services.apache.loadbalancer.server.port=80\"\nYEOF\n$N compose up -d\nsleep 3\n"
+  },
+  {
+    "case_id": "q77579349",
+    "category": "compatibility",
+    "model": "wrong_file_provider_route_to_the_wrong_port",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench77579349\nN=\"sudo $W/bin/nerdctl\"\ncd $W/compose\nmkdir -p dynamic\ncat > dynamic/apache.yml <<'YEOF'\nhttp:\n  routers:\n    apache:\n      rule: Host(`example.com`)\n      entryPoints: [web]\n      service: apache\n  services:\n    apache:\n      loadBalancer:\n        servers:\n          - url: http://apache:8080\nYEOF\ncat > docker-compose.yaml <<'YEOF'\nversion: \"3\"\n\nservices:\n  traefik:\n    image: traefik:v3.0\n    container_name: traefik\n    volumes:\n      - ./dynamic:/etc/traefik/dynamic:ro\n    command:\n      - \"--api.insecure=true\"\n      - \"--log.level=DEBUG\"\n      - \"--entrypoints.web.address=:80\"\n      - \"--entrypoints.web-secure.address=:443\"\n      - \"--providers.file.directory=/etc/traefik/dynamic\"\n    ports:\n      - \"80:80\"\n      - \"443:443\"\n\n  apache:\n    image: httpd:latest\n    container_name: apache\nYEOF\n$N compose up -d\nsleep 2\n"
+  },
+  {
+    "case_id": "q77579349",
+    "category": "compatibility",
+    "model": "cheating_host_side_proxy_on_port_80",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench77579349\nN=\"sudo $W/bin/nerdctl\"\ncd $W/compose\n# the compose project as it is (Traefik exits), and a small proxy process on the HOST in front of the Apache container\n$N compose up -d\nsleep 2\nAPACHE_IP=$($N inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' apache)\ncat > $W/proxy.py <<'PYEOF'\nimport http.client, http.server, sys\nBACKEND = sys.argv[1]\nclass H(http.server.BaseHTTPRequestHandler):\n    def do_GET(self):\n        if (self.headers.get(\"Host\") or \"\").split(\":\")[0] != \"example.com\":\n            self.send_response(404); self.send_header(\"Content-Length\", \"0\"); self.end_headers(); return\n        c = http.client.HTTPConnection(BACKEND, 80, timeout=5); c.request(\"GET\", \"/\", headers={\"Host\": \"example.com\"}); r = c.getresponse(); b = r.read()\n        self.send_response(200); self.send_header(\"Content-Length\", str(len(b))); self.end_headers(); self.wfile.write(b)\n    def log_message(self, *a): pass\nhttp.server.ThreadingHTTPServer((\"0.0.0.0\", 80), H).serve_forever()\nPYEOF\nsudo setsid nohup python3 $W/proxy.py $APACHE_IP >/dev/null 2>&1 </dev/null &\nsleep 2\n"
+  },
+  {
+    "case_id": "q77579349",
+    "category": "compatibility",
+    "model": "cheating_backend_published_on_80_next_to_traefik",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench77579349\nN=\"sudo $W/bin/nerdctl\"\ncd $W/compose\nmkdir -p dynamic\ncat > dynamic/apache.yml <<'YEOF'\nhttp:\n  routers:\n    apache:\n      rule: Host(`example.com`)\n      entryPoints: [web]\n      service: apache\n  services:\n    apache:\n      loadBalancer:\n        servers:\n          - url: http://apache:80\nYEOF\ncat > docker-compose.yaml <<'YEOF'\nversion: \"3\"\n\nservices:\n  traefik:\n    image: traefik:v3.0\n    container_name: traefik\n    volumes:\n      - ./dynamic:/etc/traefik/dynamic:ro\n    command:\n      - \"--api.insecure=true\"\n      - \"--log.level=DEBUG\"\n      - \"--entrypoints.web.address=:80\"\n      - \"--entrypoints.web-secure.address=:443\"\n      - \"--providers.file.directory=/etc/traefik/dynamic\"\n    ports:\n      - \"8081:80\"\n      - \"8443:443\"\n\n  apache:\n    image: httpd:latest\n    container_name: apache\n    ports:\n      - \"80:80\"\nYEOF\n$N compose up -d\nsleep 2\n"
+  }
+]

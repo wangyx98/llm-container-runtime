@@ -1,0 +1,40 @@
+A team ran a Traefik reverse proxy and an Apache web server with Docker Compose. Traefik used its Docker
+provider: it read the labels of the Apache container from the Docker API and routed the host name
+example.com to it. The team moved to containerd and nerdctl, whose `nerdctl compose` reads the same kind of
+YAML file. This host has no Docker daemon at all: only a containerd of this lab, and its nerdctl:
+
+    sudo /tmp/bench77579349/bin/nerdctl compose ...
+
+(run it from /tmp/bench77579349/compose, where the compose file of the migration is:
+/tmp/bench77579349/compose/docker-compose.yaml). Started with `compose up -d`, both containers are created,
+but the site does not work: a request to port 80 of this host with the header "Host: example.com" gets no
+answer, while the Apache container itself is fine.
+
+Adaptation (stated on purpose): Docker Hub is not used. The images "traefik:v3.0" and "httpd:latest" are
+loaded in the node's containerd already: the first is the real Traefik v3.0.4, the second is a minimal HTTP
+server standing in for Apache. It answers every request with one line that holds a value of this run and the
+Host header it received. The compose file mounts this lab's containerd socket where the question used
+/var/run/containerd/containerd.sock.
+
+Your task is to make the site work with nerdctl and containerd.
+
+Requirements:
+
+1. End state, created by `nerdctl compose` (the containers carry its project labels): one running container
+   named "traefik" (image traefik:v3.0) and one running container named "apache" (image httpd:latest), kept
+   by those names. Traefik must still be the real Traefik of that image, still publish host ports 80 and 443,
+   and still have its API enabled (`--api.insecure=true`, port 8080 inside; it is not published): a check
+   reads Traefik's own API.
+2. From this host, a request to this host's own non-loopback address, port 80, with "Host: example.com" must
+   be answered by the Apache container's page, through Traefik. A request with any other Host header must be
+   answered by Traefik itself (its 404), not by the Apache container.
+3. Do not assume that the containerd socket speaks the Docker API. Do not use a Docker daemon, a docker.sock
+   or Traefik's Docker provider. Routes may be declared in any other way Traefik supports; discovering
+   containers on its own (as the Docker provider did) is not required.
+4. Do not run a reverse proxy on the host, do not publish the Apache container's port, and do not change the
+   loaded images or the nerdctl wrapper. Use nerdctl compose, not ctr.
+5. The current user has passwordless sudo; assume container-runtime commands need `sudo`. Working files go
+   into /tmp/bench77579349.
+6. Your script must finish by itself: no interactive prompts, and no command that waits forever.
+
+Return the commands needed to complete the task.
