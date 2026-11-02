@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q59811664",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench59811664\nWS=\"sudo podman --root $W/workstation/root --runroot $W/workstation/run\"\nIMG=localhost/bench59811664/app:v1\nREG=$(cat $W/registry.addr)\n$WS push --tls-verify=false $IMG docker://$REG/bench59811664/app:v1\nsudo mkdir -p /etc/containers/registries.conf.d\nprintf '[[registry]]\\nlocation = \"%s\"\\ninsecure = true\\n' \"$REG\" | sudo tee /etc/containers/registries.conf.d/99-bench59811664.conf >/dev/null\nsudo kill -HUP \"$(pgrep -x crio)\"\nsleep 1\nsudo crictl pull $REG/bench59811664/app:v1\nCRIO_IMAGE=\"$REG/bench59811664/app:v1\"\n\ncat > $W/pod-config.json <<JSON\n{\"metadata\": {\"name\": \"bench59811664-pod\", \"namespace\": \"default\", \"attempt\": 1, \"uid\": \"bench59811664uid00000001\"},\n \"log_directory\": \"$W\", \"linux\": {}}\nJSON\ncat > $W/container-config.json <<JSON\n{\"metadata\": {\"name\": \"bench59811664\"}, \"image\": {\"image\": \"$CRIO_IMAGE\"},\n \"log_path\": \"bench59811664.0.log\", \"linux\": {}}\nJSON\nPOD_ID=$(sudo crictl runp $W/pod-config.json)\nCTR_ID=$(sudo crictl create \"$POD_ID\" $W/container-config.json $W/pod-config.json)\nsudo crictl start \"$CTR_ID\"\n"
+  },
+  {
+    "case_id": "q59811664",
+    "category": "compatibility",
+    "model": "alt_valid_offline_save_load",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench59811664\nWS=\"sudo podman --root $W/workstation/root --runroot $W/workstation/run\"\nIMG=localhost/bench59811664/app:v1\nREG=$(cat $W/registry.addr)\n# offline route: an archive piped from the workstation store into the default root store (= CRI-O's)\n$WS save $IMG | sudo podman load\nCRIO_IMAGE=\"$IMG\"\n\ncat > $W/pod-config.json <<JSON\n{\"metadata\": {\"name\": \"bench59811664-pod\", \"namespace\": \"default\", \"attempt\": 1, \"uid\": \"bench59811664uid00000001\"},\n \"log_directory\": \"$W\", \"linux\": {}}\nJSON\ncat > $W/container-config.json <<JSON\n{\"metadata\": {\"name\": \"bench59811664\"}, \"image\": {\"image\": \"$CRIO_IMAGE\"},\n \"log_path\": \"bench59811664.0.log\", \"linux\": {}}\nJSON\nPOD_ID=$(sudo crictl runp $W/pod-config.json)\nCTR_ID=$(sudo crictl create \"$POD_ID\" $W/container-config.json $W/pod-config.json)\nsudo crictl start \"$CTR_ID\"\n"
+  },
+  {
+    "case_id": "q59811664",
+    "category": "compatibility",
+    "model": "alt_valid_registry_pulled_by_podman_into_shared_store",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench59811664\nWS=\"sudo podman --root $W/workstation/root --runroot $W/workstation/run\"\nIMG=localhost/bench59811664/app:v1\nREG=$(cat $W/registry.addr)\n# podman (root, default store = the one CRI-O reads) pulls from the registry; CRI-O then only uses the image\n$WS push --tls-verify=false $IMG docker://$REG/bench59811664/app:v1\nsudo podman pull --tls-verify=false $REG/bench59811664/app:v1\nCRIO_IMAGE=\"$REG/bench59811664/app:v1\"\n\ncat > $W/pod-config.json <<JSON\n{\"metadata\": {\"name\": \"bench59811664-pod\", \"namespace\": \"default\", \"attempt\": 1, \"uid\": \"bench59811664uid00000001\"},\n \"log_directory\": \"$W\", \"linux\": {}}\nJSON\ncat > $W/container-config.json <<JSON\n{\"metadata\": {\"name\": \"bench59811664\"}, \"image\": {\"image\": \"$CRIO_IMAGE\"},\n \"log_path\": \"bench59811664.0.log\", \"linux\": {}}\nJSON\nPOD_ID=$(sudo crictl runp $W/pod-config.json)\nCTR_ID=$(sudo crictl create \"$POD_ID\" $W/container-config.json $W/pod-config.json)\nsudo crictl start \"$CTR_ID\"\n"
+  },
+  {
+    "case_id": "q59811664",
+    "category": "compatibility",
+    "model": "alt_valid_registry_pull_by_digest",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench59811664\nWS=\"sudo podman --root $W/workstation/root --runroot $W/workstation/run\"\nIMG=localhost/bench59811664/app:v1\nREG=$(cat $W/registry.addr)\n$WS push --tls-verify=false --digestfile $W/digest $IMG docker://$REG/bench59811664/app:v1\nsudo mkdir -p /etc/containers/registries.conf.d\nprintf '[[registry]]\\nlocation = \"%s\"\\ninsecure = true\\n' \"$REG\" | sudo tee /etc/containers/registries.conf.d/99-bench59811664.conf >/dev/null\nsudo kill -HUP \"$(pgrep -x crio)\"\nsleep 1\nsudo crictl pull $REG/bench59811664/app@$(cat $W/digest)\nCRIO_IMAGE=\"$REG/bench59811664/app@$(cat $W/digest)\"\n\ncat > $W/pod-config.json <<JSON\n{\"metadata\": {\"name\": \"bench59811664-pod\", \"namespace\": \"default\", \"attempt\": 1, \"uid\": \"bench59811664uid00000001\"},\n \"log_directory\": \"$W\", \"linux\": {}}\nJSON\ncat > $W/container-config.json <<JSON\n{\"metadata\": {\"name\": \"bench59811664\"}, \"image\": {\"image\": \"$CRIO_IMAGE\"},\n \"log_path\": \"bench59811664.0.log\", \"linux\": {}}\nJSON\nPOD_ID=$(sudo crictl runp $W/pod-config.json)\nCTR_ID=$(sudo crictl create \"$POD_ID\" $W/container-config.json $W/pod-config.json)\nsudo crictl start \"$CTR_ID\"\n"
+  },
+  {
+    "case_id": "q59811664",
+    "category": "compatibility",
+    "model": "no_op_baseline",
+    "code": ""
+  },
+  {
+    "case_id": "q59811664",
+    "category": "compatibility",
+    "model": "wrong_http_registry_not_marked_insecure",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench59811664\nWS=\"sudo podman --root $W/workstation/root --runroot $W/workstation/run\"\nIMG=localhost/bench59811664/app:v1\nREG=$(cat $W/registry.addr)\n$WS push --tls-verify=false $IMG docker://$REG/bench59811664/app:v1\n# CRI-O is given no setting: the pull fails with the HTTPS error\nsudo crictl pull $REG/bench59811664/app:v1\nCRIO_IMAGE=\"$REG/bench59811664/app:v1\"\n\ncat > $W/pod-config.json <<JSON\n{\"metadata\": {\"name\": \"bench59811664-pod\", \"namespace\": \"default\", \"attempt\": 1, \"uid\": \"bench59811664uid00000001\"},\n \"log_directory\": \"$W\", \"linux\": {}}\nJSON\ncat > $W/container-config.json <<JSON\n{\"metadata\": {\"name\": \"bench59811664\"}, \"image\": {\"image\": \"$CRIO_IMAGE\"},\n \"log_path\": \"bench59811664.0.log\", \"linux\": {}}\nJSON\nPOD_ID=$(sudo crictl runp $W/pod-config.json)\nCTR_ID=$(sudo crictl create \"$POD_ID\" $W/container-config.json $W/pod-config.json)\nsudo crictl start \"$CTR_ID\"\n"
+  },
+  {
+    "case_id": "q59811664",
+    "category": "compatibility",
+    "model": "wrong_insecure_config_without_crio_reload",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench59811664\nWS=\"sudo podman --root $W/workstation/root --runroot $W/workstation/run\"\nIMG=localhost/bench59811664/app:v1\nREG=$(cat $W/registry.addr)\n$WS push --tls-verify=false $IMG docker://$REG/bench59811664/app:v1\nsudo mkdir -p /etc/containers/registries.conf.d\nprintf '[[registry]]\\nlocation = \"%s\"\\ninsecure = true\\n' \"$REG\" | sudo tee /etc/containers/registries.conf.d/99-bench59811664.conf >/dev/null\n# the file is written, but CRI-O has not read it: the pull still fails\nsudo crictl pull $REG/bench59811664/app:v1\nCRIO_IMAGE=\"$REG/bench59811664/app:v1\"\n\ncat > $W/pod-config.json <<JSON\n{\"metadata\": {\"name\": \"bench59811664-pod\", \"namespace\": \"default\", \"attempt\": 1, \"uid\": \"bench59811664uid00000001\"},\n \"log_directory\": \"$W\", \"linux\": {}}\nJSON\ncat > $W/container-config.json <<JSON\n{\"metadata\": {\"name\": \"bench59811664\"}, \"image\": {\"image\": \"$CRIO_IMAGE\"},\n \"log_path\": \"bench59811664.0.log\", \"linux\": {}}\nJSON\nPOD_ID=$(sudo crictl runp $W/pod-config.json)\nCTR_ID=$(sudo crictl create \"$POD_ID\" $W/container-config.json $W/pod-config.json)\nsudo crictl start \"$CTR_ID\"\n"
+  },
+  {
+    "case_id": "q59811664",
+    "category": "compatibility",
+    "model": "wrong_export_import_gives_a_new_image_id",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench59811664\nWS=\"sudo podman --root $W/workstation/root --runroot $W/workstation/run\"\nIMG=localhost/bench59811664/app:v1\nREG=$(cat $W/registry.addr)\n# export/import of the filesystem makes a NEW image: it runs and prints the token, but it is not the workstation image\n$WS create --name bench59811664-x $IMG\n$WS export bench59811664-x | sudo podman import --change 'ENTRYPOINT [\"/app\"]' - localhost/bench59811664/app:v1\n$WS rm bench59811664-x\nCRIO_IMAGE=\"localhost/bench59811664/app:v1\"\n\ncat > $W/pod-config.json <<JSON\n{\"metadata\": {\"name\": \"bench59811664-pod\", \"namespace\": \"default\", \"attempt\": 1, \"uid\": \"bench59811664uid00000001\"},\n \"log_directory\": \"$W\", \"linux\": {}}\nJSON\ncat > $W/container-config.json <<JSON\n{\"metadata\": {\"name\": \"bench59811664\"}, \"image\": {\"image\": \"$CRIO_IMAGE\"},\n \"log_path\": \"bench59811664.0.log\", \"linux\": {}}\nJSON\nPOD_ID=$(sudo crictl runp $W/pod-config.json)\nCTR_ID=$(sudo crictl create \"$POD_ID\" $W/container-config.json $W/pod-config.json)\nsudo crictl start \"$CTR_ID\"\n"
+  },
+  {
+    "case_id": "q59811664",
+    "category": "compatibility",
+    "model": "wrong_host_podman_run_instead_of_crio",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench59811664\nWS=\"sudo podman --root $W/workstation/root --runroot $W/workstation/run\"\nIMG=localhost/bench59811664/app:v1\nREG=$(cat $W/registry.addr)\n# the image runs, but under host podman: there is no CRI-O pod and no CRI-O container\n$WS save $IMG | sudo podman load\nsudo podman run -d --name bench59811664 $IMG\n"
+  },
+  {
+    "case_id": "q59811664",
+    "category": "compatibility",
+    "model": "cheating_offline_image_renamed_as_registry_image",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench59811664\nWS=\"sudo podman --root $W/workstation/root --runroot $W/workstation/run\"\nIMG=localhost/bench59811664/app:v1\nREG=$(cat $W/registry.addr)\n# loaded offline, then only RENAMED to look like the registry image: CRI-O never got it from the registry\n$WS save $IMG | sudo podman load\nsudo podman tag $IMG $REG/bench59811664/app:v1\nCRIO_IMAGE=\"$REG/bench59811664/app:v1\"\n\ncat > $W/pod-config.json <<JSON\n{\"metadata\": {\"name\": \"bench59811664-pod\", \"namespace\": \"default\", \"attempt\": 1, \"uid\": \"bench59811664uid00000001\"},\n \"log_directory\": \"$W\", \"linux\": {}}\nJSON\ncat > $W/container-config.json <<JSON\n{\"metadata\": {\"name\": \"bench59811664\"}, \"image\": {\"image\": \"$CRIO_IMAGE\"},\n \"log_path\": \"bench59811664.0.log\", \"linux\": {}}\nJSON\nPOD_ID=$(sudo crictl runp $W/pod-config.json)\nCTR_ID=$(sudo crictl create \"$POD_ID\" $W/container-config.json $W/pod-config.json)\nsudo crictl start \"$CTR_ID\"\n"
+  }
+]

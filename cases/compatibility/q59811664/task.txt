@@ -1,0 +1,45 @@
+A developer builds container images on a workstation with Podman. The cluster side is a single-node
+Kubernetes-style setup that runs the CRI-O container runtime; it is NOT Docker, and a Docker-style
+trick like pointing the client at the cluster's daemon does not exist for it. This host plays both
+roles, kept apart like a workstation and a Minikube VM would be:
+
+- The workstation's own Podman store is in /tmp/bench59811664/workstation. Use it only through
+  `sudo podman --root /tmp/bench59811664/workstation/root --runroot /tmp/bench59811664/workstation/run ...`.
+  It holds one image, "localhost/bench59811664/app:v1". The image contains a file /etc/unique.txt
+  with a content that exists nowhere else, and its entrypoint prints that file once a second.
+- The "cluster" is the CRI-O that runs on this host (endpoint unix:///var/run/crio/crio.sock, already
+  the default of /etc/crictl.yaml). Its image store is the default root store of this host
+  (/var/lib/containers/storage), which is a different store from the workstation's. CRI-O does
+  not have the image, and no pod or container of this case exists.
+- A registry is running on this host as a stand-in for the registry addon of Minikube: plain HTTP
+  (no TLS), API v2, on port 5000 of this host's own (non-loopback) address; the exact HOST:PORT is
+  the content of the file /tmp/bench59811664/registry.addr. It is empty at the start.
+  Nothing sets up trust for it on either side. You may use it, or move the image another way.
+
+Adaptation (stated on purpose): the original question is about a Minikube VM (kvm2 driver) and its
+changing IP address. Here the VM boundary is replaced by the separate stores, and the registry has a
+fixed address on this host.
+
+Your task is to run the workstation's image in CRI-O. It has to be the very image of the workstation
+(the same image ID, i.e. the same config digest), not a rebuilt or re-created lookalike.
+
+Requirements:
+
+1. End state, created with crictl against CRI-O: a pod sandbox named "bench59811664-pod" in state
+   SANDBOX_READY, and a container named "bench59811664" that belongs to that exact pod, in state
+   CONTAINER_RUNNING, created from that image. The container must run the image's own entrypoint
+   (do not override the command), and its process must be alive.
+2. Any way of moving the image is fine, for example through the registry (CRI-O then pulls it from
+   there) or as an archive that is loaded into CRI-O's store. If you give CRI-O an image name that
+   points to the registry, the registry has to have really served that image: the oracle reads the
+   registry's request log.
+3. Do not run the workload with Podman; the pod and the container must be CRI-O objects created with
+   crictl. Do not use docker or ctr. Do not change the workstation's image, and do not remove or
+   change the registry.
+4. The current user has passwordless sudo; assume container-runtime commands need `sudo`.
+5. Names are fixed: "bench59811664-pod" for the pod sandbox and "bench59811664" for the container.
+   Any other value (the pod ID that `sudo crictl runp` returns, a digest) is not given here; your
+   commands must discover it themselves. Working files go in /tmp/bench59811664.
+6. Your script must finish by itself: no interactive prompts, and no command that waits forever.
+
+Return the commands needed to complete the task.
