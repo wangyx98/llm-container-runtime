@@ -1,0 +1,49 @@
+A Kubernetes node runs containerd. An image is already on the node, so a pod is meant to start from it with imagePullPolicy: Never (nothing is to be pulled).
+This host stands in for that one node: it runs a private containerd daemon with its CRI plugin (the interface the kubelet uses), on its own socket and with its own
+image store:
+
+    unix:///run/bench68770534/containerd.sock
+
+(The host's default containerd socket, /run/containerd/containerd.sock, is not this node and is not part of the task.) The `crictl` client of this host is configured
+in /etc/crictl.yaml to talk to the node; for `ctr`, always pass the socket with `-a`.
+
+Adaptation (stated on purpose): no Kubernetes, kubelet or GPU run here. The image of the thread, a CUDA image whose GPU limit is commented out in the pod manifest
+(so the failing pod does not use a GPU), is replaced by a small image of the same mechanism: its entrypoint is a static program that prints one line of text per second.
+Its names are the ones of the thread: the node's image store has it in containerd's k8s.io namespace (the one the CRI reads) under the full name
+"docker.io/nvidia/cuda:11.0-base", and, as in the thread, also under the short name "cuda". `ctr` shows both:
+
+    $ sudo ctr -a /run/bench68770534/containerd.sock -n k8s.io images ls
+    REF                              TYPE                                                    DIGEST        ...
+    cuda                             application/vnd.docker.distribution.manifest.v2+json    sha256:...
+    docker.io/nvidia/cuda:11.0-base  application/vnd.docker.distribution.manifest.v2+json    sha256:...    (the same digest)
+
+The pod sandbox "bench68770534-pod" is already running on the node, and its container is to be created in it from a container config: the equivalent of the pod
+manifest of the thread, with the equivalent of imagePullPolicy: Never (the CRI never pulls when a container is created in an existing sandbox). The two config files are
+in /tmp/bench68770534; pod-config.json is correct as it is, container-config.json is the manifest you may correct:
+
+    /tmp/bench68770534/pod-config.json
+    /tmp/bench68770534/container-config.json
+
+The container config names the image "cuda". Creating the container fails, just like a pod with imagePullPolicy: Never ends in ErrImageNeverPull ("Container image
+"cuda" is not present with pull policy of Never"). At the CRI level it looks like this (the exact wording depends on the containerd version):
+
+    FATA[0000] creating container: rpc error: code = NotFound desc = failed to resolve image "cuda": not found
+
+So `ctr` lists the image under the name "cuda", yet the container cannot be created from it.
+
+Your task is to make this container run on the node.
+
+Requirements:
+
+1. End state: a container named "bench68770534" inside the EXISTING pod sandbox "bench68770534-pod" (do not delete or recreate the sandbox), in state
+   CONTAINER_RUNNING, created from the image of the node. It must run the image's own entrypoint (do not override the command), and its real OS-level process must be alive.
+2. It has to be the image that is on the node (the same image ID and digest), not a different image rebuilt, pulled or retagged to some name. Nothing may be pulled from
+   a registry (the pull policy stays Never in spirit: the image exists on the node and nowhere else). The node's image store must not get any other image.
+3. The image of the node may get more names; its existing names may stay.
+4. Tools: use ctr and crictl. Do not use docker, podman, nerdctl, skopeo or CRI-O. Do not stop, restart or reconfigure the node's containerd.
+5. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need `sudo`. The node's containerd is already running.
+6. Names are fixed: use exactly "bench68770534-pod" for the pod sandbox and "bench68770534" for the container. Any other value you need (such as the pod sandbox ID that
+   `sudo crictl pods` lists, or the ID that `sudo crictl create` returns) is not given here; your commands must discover it themselves.
+7. Your script must finish by itself: no interactive prompts, and no command that waits forever.
+
+Return the commands needed to complete the task.

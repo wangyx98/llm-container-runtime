@@ -1,0 +1,62 @@
+[
+ {
+  "case_id": "q68770534",
+  "category": "compatibility",
+  "model": "reference_solution",
+  "code": "#!/bin/bash\n# The kubelet asks the CRI for the image by the name in the pod manifest, and the CRI normalizes a short name first (\"cuda\" becomes docker.io/library/cuda:latest).\n# The image on the node is stored as docker.io/nvidia/cuda:11.0-base (the short name \"cuda\" that ctr lists is stored as written and is not found). The thread's\n# answer: write the whole name of the image in the manifest; the pull policy stays Never (the CRI does not pull when a container is created in the existing sandbox).\nset -e\nW=/tmp/bench68770534\nSOCK=/run/bench68770534/containerd.sock\nCR=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\n\nsed -i 's#\"image\": \"cuda\"#\"image\": \"docker.io/nvidia/cuda:11.0-base\"#' \"$W/container-config.json\"\ngrep '\"image\"' \"$W/container-config.json\"\nPOD_ID=$($CR pods --name bench68770534-pod -q)\nCTR_ID=$($CR create \"$POD_ID\" \"$W/container-config.json\" \"$W/pod-config.json\")\n$CR start \"$CTR_ID\"\n"
+ },
+ {
+  "case_id": "q68770534",
+  "category": "compatibility",
+  "model": "alt_valid_org_short_name",
+  "code": "#!/bin/bash\n# the name with the organisation but without docker.io: the CRI normalizes it to the full name\n#!/bin/bash\nset -e\nW=/tmp/bench68770534\nSOCK=/run/bench68770534/containerd.sock\nCR=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nCTR=\"sudo ctr -a $SOCK -n k8s.io\"\nsed -i 's#\"image\": \"cuda\"#\"image\": \"nvidia/cuda:11.0-base\"#' \"$W/container-config.json\"\nPOD_ID=$($CR pods --name bench68770534-pod -q)\nCTR_ID=$($CR create \"$POD_ID\" \"$W/container-config.json\" \"$W/pod-config.json\")\n$CR start \"$CTR_ID\"\n"
+ },
+ {
+  "case_id": "q68770534",
+  "category": "compatibility",
+  "model": "alt_valid_ctr_tag_normalized_name",
+  "code": "#!/bin/bash\n# leave the manifest alone: give the image the name the CRI makes of 'cuda' (docker.io/library/cuda:latest)\n#!/bin/bash\nset -e\nW=/tmp/bench68770534\nSOCK=/run/bench68770534/containerd.sock\nCR=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nCTR=\"sudo ctr -a $SOCK -n k8s.io\"\n$CTR images tag docker.io/nvidia/cuda:11.0-base docker.io/library/cuda:latest\nPOD_ID=$($CR pods --name bench68770534-pod -q)\nCTR_ID=$($CR create \"$POD_ID\" \"$W/container-config.json\" \"$W/pod-config.json\")\n$CR start \"$CTR_ID\"\n"
+ },
+ {
+  "case_id": "q68770534",
+  "category": "compatibility",
+  "model": "no_op_baseline",
+  "code": "#!/bin/bash\n# nothing to do\necho 'nothing to do'\n"
+ },
+ {
+  "case_id": "q68770534",
+  "category": "compatibility",
+  "model": "naive_crictl_pull_cuda",
+  "code": "#!/bin/bash\n# pull the image under the name of the manifest (there is no registry that has it)\n#!/bin/bash\nset -e\nW=/tmp/bench68770534\nSOCK=/run/bench68770534/containerd.sock\nCR=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nCTR=\"sudo ctr -a $SOCK -n k8s.io\"\n$CR pull cuda || true\nPOD_ID=$($CR pods --name bench68770534-pod -q)\nCTR_ID=$($CR create \"$POD_ID\" \"$W/container-config.json\" \"$W/pod-config.json\")\n$CR start \"$CTR_ID\"\n"
+ },
+ {
+  "case_id": "q68770534",
+  "category": "compatibility",
+  "model": "naive_full_name_without_tag",
+  "code": "#!/bin/bash\n# the full name of the thread, but without its tag (that is :latest, which the node does not have)\n#!/bin/bash\nset -e\nW=/tmp/bench68770534\nSOCK=/run/bench68770534/containerd.sock\nCR=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nCTR=\"sudo ctr -a $SOCK -n k8s.io\"\nsed -i 's#\"image\": \"cuda\"#\"image\": \"docker.io/nvidia/cuda\"#' \"$W/container-config.json\"\nPOD_ID=$($CR pods --name bench68770534-pod -q)\nCTR_ID=$($CR create \"$POD_ID\" \"$W/container-config.json\" \"$W/pod-config.json\")\n$CR start \"$CTR_ID\"\n"
+ },
+ {
+  "case_id": "q68770534",
+  "category": "compatibility",
+  "model": "wrong_ctr_default_namespace",
+  "code": "#!/bin/bash\n# copy the image to ctr's own default namespace and name it there (the CRI reads k8s.io, not this one)\n#!/bin/bash\nset -e\nW=/tmp/bench68770534\nSOCK=/run/bench68770534/containerd.sock\nCR=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nCTR=\"sudo ctr -a $SOCK -n k8s.io\"\n$CTR images export - docker.io/nvidia/cuda:11.0-base | sudo ctr -a $SOCK -n default images import -\nsudo ctr -a $SOCK -n default images tag docker.io/nvidia/cuda:11.0-base docker.io/library/cuda:latest\nPOD_ID=$($CR pods --name bench68770534-pod -q)\nCTR_ID=$($CR create \"$POD_ID\" \"$W/container-config.json\" \"$W/pod-config.json\")\n$CR start \"$CTR_ID\"\n"
+ },
+ {
+  "case_id": "q68770534",
+  "category": "compatibility",
+  "model": "cheating_retag_pause_image_as_cuda",
+  "code": "#!/bin/bash\n# make the manifest's name resolve by giving it to another image of the node (the pause image)\n#!/bin/bash\nset -e\nW=/tmp/bench68770534\nSOCK=/run/bench68770534/containerd.sock\nCR=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nCTR=\"sudo ctr -a $SOCK -n k8s.io\"\n$CTR images tag docker.io/library/bench68770534-pause:latest docker.io/library/cuda:latest\nPOD_ID=$($CR pods --name bench68770534-pod -q)\nCTR_ID=$($CR create \"$POD_ID\" \"$W/container-config.json\" \"$W/pod-config.json\")\n$CR start \"$CTR_ID\"\n"
+ },
+ {
+  "case_id": "q68770534",
+  "category": "compatibility",
+  "model": "wrong_recreates_pod_sandbox",
+  "code": "#!/bin/bash\n# delete the pod sandbox and start a new one, then run the container with the full name\n#!/bin/bash\nset -e\nW=/tmp/bench68770534\nSOCK=/run/bench68770534/containerd.sock\nCR=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nCTR=\"sudo ctr -a $SOCK -n k8s.io\"\nsed -i 's#\"image\": \"cuda\"#\"image\": \"docker.io/nvidia/cuda:11.0-base\"#' \"$W/container-config.json\"\nOLD=$($CR pods --name bench68770534-pod -q)\n$CR stopp \"$OLD\" >/dev/null; $CR rmp \"$OLD\" >/dev/null\nNEW=$($CR runp \"$W/pod-config.json\")\nCTR_ID=$($CR create \"$NEW\" \"$W/container-config.json\" \"$W/pod-config.json\")\n$CR start \"$CTR_ID\"\n"
+ },
+ {
+  "case_id": "q68770534",
+  "category": "compatibility",
+  "model": "partial_created_not_started",
+  "code": "#!/bin/bash\n# the manifest is fixed and the container is created, but never started\n#!/bin/bash\nset -e\nW=/tmp/bench68770534\nSOCK=/run/bench68770534/containerd.sock\nCR=\"sudo crictl --runtime-endpoint unix://$SOCK --image-endpoint unix://$SOCK\"\nCTR=\"sudo ctr -a $SOCK -n k8s.io\"\nsed -i 's#\"image\": \"cuda\"#\"image\": \"docker.io/nvidia/cuda:11.0-base\"#' \"$W/container-config.json\"\nPOD_ID=$($CR pods --name bench68770534-pod -q)\n$CR create \"$POD_ID\" \"$W/container-config.json\" \"$W/pod-config.json\"\n"
+ }
+]
