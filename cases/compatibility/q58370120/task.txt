@@ -1,0 +1,40 @@
+A web service runs in a gVisor (runsc) sandbox, as in the thread "How to stop Undertow triggering warnings from gVisor in Cloud Run". The platform logs, for a call the service
+makes at start-up, a line like this one (the thread's was `Container Sandbox Limitation: Unsupported syscall setsockopt(0x13,0x1,0xa,...)`, for the option SO_OOBINLINE):
+
+    Unsupported syscall setsockopt(0x3,0x1,0xc,0x7ee24f6ff4d4,0x4,0x0). It is likely that you can safely ignore this message and that this is not the cause of any error. Please, refer to https://gvisor.dev/c/linux/amd64/setsockopt for more information.
+
+The service works (the call returns 0, the sandbox ignores the option), but the asker wants the warning gone. The thread's only answer says: it is not a gVisor problem, there is no way to disable
+the warnings, so the service must not make the call.
+
+Adaptation (stated on purpose): the current runsc already supports SO_OOBINLINE (measured: no warning), so the case cannot use the thread's option. Its stand-in is a small static HTTP server
+(instead of Undertow) that sends another option gVisor does not implement, SO_PRIORITY (0xc), with its DEFAULT value 0, on the listening socket and on every accepted connection: the same
+mechanism as Undertow sending SO_OOBINLINE=false, which is the default. The "platform log" is runsc's own debug log (sandbox: runsc release 20260105.0, no network except the sandbox's loopback).
+The service reads its options from a config file at start and calls setsockopt for every option that is PRESENT in it:
+
+    /tmp/bench58370120/conf/server.conf
+        port = 8080
+        tcp_nodelay = true
+        so_priority = 0
+
+The service is a sandbox of runsc made from the OCI bundle /tmp/bench58370120/bundle. It is NOT running. One wrapper starts and inspects it; it fixes runsc's flags, among them the debug log
+(/var/lib/bench58370120/logs, emptied at every start, readable with sudo):
+
+    /tmp/bench58370120/bin/svc start | stop | status | exec CMD...
+
+`svc exec /client` asks the service for GET /status from inside the sandbox; the answer holds the nonce of this run (`nonce=...`), a request counter, the TCP_NODELAY found on the connection
+and the list of the setsockopt calls the service has made.
+
+Your task is to start the service so that it serves requests and runsc's debug log of this run has no "Unsupported syscall setsockopt" line for the option that the service sends needlessly.
+
+Requirements:
+
+1. End state: the service runs (started with `svc start`, left running), every request through `svc exec /client` is answered correctly (HTTP 200, the nonce of this run, a growing request counter), and the
+   other settings stay as they are: the port is 8080 and TCP_NODELAY is still on the connections.
+2. The warning must disappear because the service no longer makes the call, not because it is hidden: do not change, filter, delete or redirect the debug log, runsc's flags or the wrapper, and
+   do not change the service's program, its client, config.json or runsc. A deliberately unsupported call made after your work (the oracle makes one) must still show up in the log.
+3. Lowering a log level or disabling the debug log does not count as a fix. Edit only what the service is configured with.
+4. Tools: the wrapper, sudo and the usual shell tools. Do not use docker, podman, containerd or runc, and do not start the bundle with another runsc command line.
+5. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need `sudo`.
+6. Your script must finish by itself: no interactive prompts, and no command that waits forever.
+
+Return the commands needed to complete the task.

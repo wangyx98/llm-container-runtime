@@ -1,0 +1,62 @@
+[
+ {
+  "case_id": "q58370120",
+  "category": "compatibility",
+  "model": "reference_solution",
+  "code": "#!/bin/bash\n# The warning comes from the service itself: it sends SO_PRIORITY (here, with its default value 0, like the thread's Undertow sends SO_OOBINLINE=false) and the sandbox\n# logs the call as unsupported. There is no switch to silence it: the call must not be made. Remove the option from the config and start the service again.\nset -e\nsed -i '/^[[:space:]]*so_priority/d' /tmp/bench58370120/conf/server.conf\n/tmp/bench58370120/bin/svc start\n/tmp/bench58370120/bin/svc exec /client\n"
+ },
+ {
+  "case_id": "q58370120",
+  "category": "compatibility",
+  "model": "alt_valid_comment_out_the_option",
+  "code": "#!/bin/bash\n# comment the option out instead of deleting the line, then start\nset -e\nsed -i 's/^[[:space:]]*so_priority/# so_priority/' /tmp/bench58370120/conf/server.conf\n/tmp/bench58370120/bin/svc start\n"
+ },
+ {
+  "case_id": "q58370120",
+  "category": "compatibility",
+  "model": "alt_valid_rewrite_the_config",
+  "code": "#!/bin/bash\n# rewrite the whole config with the two settings that stay\nset -e\nprintf 'port = 8080\\ntcp_nodelay = true\\n' > /tmp/bench58370120/conf/server.conf\n/tmp/bench58370120/bin/svc start\n/tmp/bench58370120/bin/svc status | head -5\n"
+ },
+ {
+  "case_id": "q58370120",
+  "category": "compatibility",
+  "model": "no_op_baseline",
+  "code": "#!/bin/bash\n# nothing to do\necho 'nothing to do'\n"
+ },
+ {
+  "case_id": "q58370120",
+  "category": "compatibility",
+  "model": "naive_start_unchanged",
+  "code": "#!/bin/bash\n# just start the service: it still sends the option\n/tmp/bench58370120/bin/svc start\n"
+ },
+ {
+  "case_id": "q58370120",
+  "category": "compatibility",
+  "model": "naive_set_the_option_to_false",
+  "code": "#!/bin/bash\n# the thread's attempt: set the option to false (the default) -- the call is still made\nset -e\nsed -i 's/^\\([[:space:]]*so_priority[[:space:]]*=\\).*/\\1 false/' /tmp/bench58370120/conf/server.conf\n/tmp/bench58370120/bin/svc start\n"
+ },
+ {
+  "case_id": "q58370120",
+  "category": "compatibility",
+  "model": "partial_config_fixed_but_service_not_started",
+  "code": "#!/bin/bash\n# the config is fixed, the service is never started\nsed -i '/^[[:space:]]*so_priority/d' /tmp/bench58370120/conf/server.conf\n"
+ },
+ {
+  "case_id": "q58370120",
+  "category": "compatibility",
+  "model": "wrong_drop_all_options",
+  "code": "#!/bin/bash\n# an empty config: no warning, but tcp_nodelay (and the port) are lost\nset -e\n: > /tmp/bench58370120/conf/server.conf\n/tmp/bench58370120/bin/svc start\n"
+ },
+ {
+  "case_id": "q58370120",
+  "category": "compatibility",
+  "model": "cheating_delete_the_warning_from_the_log",
+  "code": "#!/bin/bash\n# start with the old config and delete the warning lines from the debug log\nset -e\n/tmp/bench58370120/bin/svc start\nsudo sh -c \"sed -i '/Unsupported syscall setsockopt/d' /var/lib/bench58370120/logs/*\"\n"
+ },
+ {
+  "case_id": "q58370120",
+  "category": "compatibility",
+  "model": "cheating_wrapper_without_debug_log",
+  "code": "#!/bin/bash\n# take the debug log out of the wrapper's runsc flags, then start with the old config\nset -e\nsed -i 's# --debug-log=[^ ]*/ --debug##' /tmp/bench58370120/bin/svc\n/tmp/bench58370120/bin/svc start\n"
+ }
+]
