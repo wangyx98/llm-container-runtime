@@ -1,0 +1,50 @@
+A host runs containerd only: there is no Docker (no dockerd, no Docker socket) on it. A project with a docker-compose file that has a `build:` section is meant to be built
+and started on it ("Building images using docker-compose and containerd"): `docker-compose` speaks the Docker Engine API, which containerd does not have.
+This host stands in for that machine: it runs a private containerd daemon (the node), with its own socket and its own image store:
+
+    unix:///run/bench59759658/containerd.sock
+
+(The host's default containerd socket, /run/containerd/containerd.sock, is not this node and is not part of the task.) For `ctr`, always pass the socket with `-a`.
+
+Adaptation (stated on purpose): the thread has no answer and does not say which tools may be used. The contract of this case is ours: the compose front end that talks to
+containerd instead of Docker is `nerdctl compose` (nerdctl builds through BuildKit); it is a compatible front end, not the `docker-compose` binary talking to containerd's API.
+The service is a small static program with the usual shape of such a project (Dockerfile FROM scratch, `build:` section with a build argument, a file copied into the image):
+it prints one line per second that contains the nonce of this run, which it reads from the file /nonce.txt of its image.
+
+The compose project and the two commands that are on the PATH of this task are here (they run as the current user and call sudo themselves):
+
+    /tmp/bench59759658/app/compose.yaml   (+ Dockerfile, nonce.txt, app)
+    /tmp/bench59759658/bin/docker-compose (docker-compose v2.35.1; it looks for a Docker API at /run/bench59759658/docker.sock, where there is none)
+    /tmp/bench59759658/bin/nerdctl        (nerdctl 2.1.6 pointed at the node: its containerd, its data root, its CNI config dir; BuildKit is expected at
+                                           unix:///run/bench59759658/buildkitd.sock; CNI_PATH is what you set, by default a directory without plugins)
+
+More tools are in /var/lib/bench59759658/bin (buildkitd and buildctl of BuildKit v0.23.2 for this architecture, the nerdctl and docker-compose binaries themselves), and the
+CNI plugins (bridge, portmap, firewall, host-local, loopback, tuning, ...) are in /var/lib/bench59759658/cni. Nothing needs to be downloaded.
+
+Both ways to run the project fail now:
+
+    $ cd /tmp/bench59759658/app && /tmp/bench59759658/bin/docker-compose build
+    Cannot connect to the Docker daemon at unix:///run/bench59759658/docker.sock. Is the docker daemon running?
+
+    $ /tmp/bench59759658/bin/nerdctl compose -f /tmp/bench59759658/app/compose.yaml up -d --build
+    FATA[0000] failed to create default network: needs CNI plugin "bridge" to be installed in CNI_PATH ("..."), see https://github.com/containernetworking/plugins/releases: ...
+
+Your task is to build the image of the compose project with the compose file itself and to run its service on the node, without Docker.
+
+Requirements:
+
+1. The image is built by the compose entry point (`nerdctl compose ... up --build`, or `... build` and then `up`), from the Dockerfile and the build arguments of
+   /tmp/bench59759658/app/compose.yaml, by a BuildKit that uses the containerd worker of THIS node (so the image and the build cache are in the node's containerd). Do not
+   change the project's files. The result is the image "bench59759658-web:local" in the node's containerd namespace "default" (nerdctl's), whose layers hold /nonce.txt with the nonce
+   of this run and /app, and whose labels carry the build argument of the compose file. An image built by hand (nerdctl build, buildctl, ctr import) is not a compose build.
+2. End state: one container of the compose service "web" (name "bench59759658-web", with the labels compose puts on it), in state RUNNING, created from that image, its real
+   OS-level process (/app) alive, and its log shows the nonce of this run. It must run the image's own entrypoint.
+3. Nothing may be pulled from a registry (the Dockerfile is FROM scratch). Tools: nerdctl (the wrapper in /tmp/bench59759658/bin), buildkitd/buildctl and ctr. Do not use
+   docker, dockerd, podman, buildah, kaniko or CRI-O, and do not give this node a Docker API (no dockerd/podman socket, no docker.sock). Do not stop, restart or reconfigure the
+   node's containerd.
+4. BuildKit is not running yet. Start it so that nerdctl finds it at unix:///run/bench59759658/buildkitd.sock, and leave it running (as a background process that your script
+   does not wait for). The service needs no network (`network_mode: none`).
+5. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need `sudo`.
+6. Your script must finish by itself: no interactive prompts, and no command that waits forever.
+
+Return the commands needed to complete the task.

@@ -1,0 +1,62 @@
+[
+ {
+  "case_id": "q59759658",
+  "category": "compatibility",
+  "model": "reference_solution",
+  "code": "#!/bin/bash\n# docker-compose speaks the Docker Engine API, which this node does not have (and must not get: no dockerd). The containerd-native compose front end is `nerdctl compose`:\n# it builds through BuildKit (a buildkitd with the containerd worker of THIS node, at the socket the node's nerdctl expects) and runs the service as a containerd container.\n# nerdctl also needs the CNI plugins (even for a build: it creates its default network first), which are in /var/lib/bench59759658/cni.\nset -e\nW=/tmp/bench59759658\nLIB=/var/lib/bench59759658\nRUN=/run/bench59759658\n\nsudo env PATH=\"$LIB/bin:$PATH\" setsid -f sh -c 'exec buildkitd --addr \"unix://$1/buildkitd.sock\" --root \"$2/buildkit\" --containerd-worker=true --containerd-worker-addr \"$1/containerd.sock\" --oci-worker=false >\"$2/buildkitd.log\" 2>&1 </dev/null' _ \"$RUN\" \"$LIB\"\nfor _ in $(seq 1 40); do\n    sudo \"$LIB/bin/buildctl\" --addr \"unix://$RUN/buildkitd.sock\" debug workers >/dev/null 2>&1 && break\n    sleep 0.5\ndone\nsudo \"$LIB/bin/buildctl\" --addr \"unix://$RUN/buildkitd.sock\" debug workers\n\nCNI_PATH=\"$LIB/cni\" \"$W/bin/nerdctl\" compose -f \"$W/app/compose.yaml\" up -d --build\n\"$W/bin/nerdctl\" ps\n"
+ },
+ {
+  "case_id": "q59759658",
+  "category": "compatibility",
+  "model": "alt_valid_compose_build_then_up",
+  "code": "#!/bin/bash\n# two steps: `compose build`, then `compose up -d` (the image is there, nothing is rebuilt)\n#!/bin/bash\nset -e\nW=/tmp/bench59759658\nLIB=/var/lib/bench59759658\nRUN=/run/bench59759658\nsudo env PATH=\"$LIB/bin:$PATH\" setsid -f sh -c 'exec buildkitd --addr \"unix://$1/buildkitd.sock\" --root \"$2/buildkit\" --containerd-worker=true --containerd-worker-addr \"$1/containerd.sock\" --oci-worker=false >\"$2/buildkitd.log\" 2>&1 </dev/null' _ \"$RUN\" \"$LIB\"\nfor _ in $(seq 1 40); do sudo \"$LIB/bin/buildctl\" --addr \"unix://$RUN/buildkitd.sock\" debug workers >/dev/null 2>&1 && break; sleep 0.5; done\nexport CNI_PATH=\"$LIB/cni\"\n\"$W/bin/nerdctl\" compose -f \"$W/app/compose.yaml\" build\n\"$W/bin/nerdctl\" compose -f \"$W/app/compose.yaml\" up -d\n"
+ },
+ {
+  "case_id": "q59759658",
+  "category": "compatibility",
+  "model": "alt_valid_nohup_buildkitd_cni_env",
+  "code": "#!/bin/bash\n# BuildKit through nohup in the background, the CNI plugins through an exported variable, `compose up --build` from inside the project directory\n#!/bin/bash\nset -e\nW=/tmp/bench59759658\nLIB=/var/lib/bench59759658\nRUN=/run/bench59759658\nsudo sh -c 'nohup \"$2/bin/buildkitd\" --addr \"unix://$1/buildkitd.sock\" --root \"$2/buildkit\" --containerd-worker=true --containerd-worker-addr \"$1/containerd.sock\" --oci-worker=false >\"$2/buildkitd.log\" 2>&1 </dev/null &' _ \"$RUN\" \"$LIB\"\nsleep 1\nfor _ in $(seq 1 40); do sudo \"$LIB/bin/buildctl\" --addr \"unix://$RUN/buildkitd.sock\" debug workers >/dev/null 2>&1 && break; sleep 0.5; done\nexport CNI_PATH=\"$LIB/cni\"\ncd \"$W/app\" && \"$W/bin/nerdctl\" compose up -d --build\n"
+ },
+ {
+  "case_id": "q59759658",
+  "category": "compatibility",
+  "model": "no_op_baseline",
+  "code": "#!/bin/bash\n# nothing to do\necho 'nothing to do'\n"
+ },
+ {
+  "case_id": "q59759658",
+  "category": "compatibility",
+  "model": "naive_docker_compose_up",
+  "code": "#!/bin/bash\n# the command of the thread, as it is\ncd /tmp/bench59759658/app && /tmp/bench59759658/bin/docker-compose up -d --build\n"
+ },
+ {
+  "case_id": "q59759658",
+  "category": "compatibility",
+  "model": "naive_nerdctl_compose_as_is",
+  "code": "#!/bin/bash\n# the containerd front end, with no CNI plugins and no BuildKit\n/tmp/bench59759658/bin/nerdctl compose -f /tmp/bench59759658/app/compose.yaml up -d --build\n"
+ },
+ {
+  "case_id": "q59759658",
+  "category": "compatibility",
+  "model": "wrong_cni_but_no_buildkit",
+  "code": "#!/bin/bash\n# the CNI plugins are given, BuildKit is never started: the build has nothing to build with\n#!/bin/bash\nset -e\nW=/tmp/bench59759658\nLIB=/var/lib/bench59759658\nRUN=/run/bench59759658\nCNI_PATH=\"$LIB/cni\" \"$W/bin/nerdctl\" compose -f \"$W/app/compose.yaml\" up -d --build\n"
+ },
+ {
+  "case_id": "q59759658",
+  "category": "compatibility",
+  "model": "cheating_manual_build_and_run",
+  "code": "#!/bin/bash\n# no compose: build the image by hand and run it by hand (no compose labels, no build argument)\n#!/bin/bash\nset -e\nW=/tmp/bench59759658\nLIB=/var/lib/bench59759658\nRUN=/run/bench59759658\nsudo env PATH=\"$LIB/bin:$PATH\" setsid -f sh -c 'exec buildkitd --addr \"unix://$1/buildkitd.sock\" --root \"$2/buildkit\" --containerd-worker=true --containerd-worker-addr \"$1/containerd.sock\" --oci-worker=false >\"$2/buildkitd.log\" 2>&1 </dev/null' _ \"$RUN\" \"$LIB\"\nfor _ in $(seq 1 40); do sudo \"$LIB/bin/buildctl\" --addr \"unix://$RUN/buildkitd.sock\" debug workers >/dev/null 2>&1 && break; sleep 0.5; done\nexport CNI_PATH=\"$LIB/cni\"\n\"$W/bin/nerdctl\" build -t bench59759658-web:local \"$W/app\"\n\"$W/bin/nerdctl\" run -d --net=none --name bench59759658-web bench59759658-web:local\n"
+ },
+ {
+  "case_id": "q59759658",
+  "category": "compatibility",
+  "model": "partial_build_only_not_started",
+  "code": "#!/bin/bash\n# BuildKit and `compose build` work, but the service is never started\n#!/bin/bash\nset -e\nW=/tmp/bench59759658\nLIB=/var/lib/bench59759658\nRUN=/run/bench59759658\nsudo env PATH=\"$LIB/bin:$PATH\" setsid -f sh -c 'exec buildkitd --addr \"unix://$1/buildkitd.sock\" --root \"$2/buildkit\" --containerd-worker=true --containerd-worker-addr \"$1/containerd.sock\" --oci-worker=false >\"$2/buildkitd.log\" 2>&1 </dev/null' _ \"$RUN\" \"$LIB\"\nfor _ in $(seq 1 40); do sudo \"$LIB/bin/buildctl\" --addr \"unix://$RUN/buildkitd.sock\" debug workers >/dev/null 2>&1 && break; sleep 0.5; done\nCNI_PATH=\"$LIB/cni\" \"$W/bin/nerdctl\" compose -f \"$W/app/compose.yaml\" build\n"
+ },
+ {
+  "case_id": "q59759658",
+  "category": "compatibility",
+  "model": "wrong_buildkit_oci_worker",
+  "code": "#!/bin/bash\n# BuildKit with its own OCI worker (own store, not the node's containerd): the build works and the image is loaded, but no build of this node's containerd\n#!/bin/bash\nset -e\nW=/tmp/bench59759658\nLIB=/var/lib/bench59759658\nRUN=/run/bench59759658\nsudo env PATH=\"$LIB/bin:$PATH\" setsid -f sh -c 'exec buildkitd --addr \"unix://$1/buildkitd.sock\" --root \"$2/buildkit\" --oci-worker=true --containerd-worker=false >\"$2/buildkitd.log\" 2>&1 </dev/null' _ \"$RUN\" \"$LIB\"\nfor _ in $(seq 1 40); do sudo \"$LIB/bin/buildctl\" --addr \"unix://$RUN/buildkitd.sock\" debug workers >/dev/null 2>&1 && break; sleep 0.5; done\nCNI_PATH=\"$LIB/cni\" \"$W/bin/nerdctl\" compose -f \"$W/app/compose.yaml\" up -d --build\n"
+ }
+]
