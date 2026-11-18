@@ -1,0 +1,62 @@
+[
+ {
+  "case_id": "q72518766",
+  "category": "compatibility",
+  "model": "reference_solution",
+  "code": "#!/bin/bash\n# Testcontainers speaks the Docker API; the node has only containerd (a gRPC socket), so there is no Docker for it to find (the hostPath of the old Docker socket is gone with\n# dockershim). Give the node a Docker API: run dockerd in the node ON TOP OF the node's containerd (--containerd), at the socket Testcontainers looks at by default, detached so\n# that it outlives this script. The node's daemon.json already has the node's settings (cgroupfs, no bridge).\nset -e\nW=/tmp/bench72518766\nNR=\"$W/bin/node-run\"\n\"$NR\" test -S /run/containerd/containerd.sock\n\"$NR\" sh -c 'setsid -f dockerd --containerd /run/containerd/containerd.sock --host unix:///var/run/docker.sock --pidfile /run/dockerd.pid >/tmp/bench72518766/dockerd.log 2>&1 </dev/null'\nfor _ in $(seq 1 60); do \"$NR\" docker version >/dev/null 2>&1 && break; sleep 1; done\n\"$NR\" docker version --format 'docker server {{.Server.Version}}'\n\"$W/bin/run-test\"\n"
+ },
+ {
+  "case_id": "q72518766",
+  "category": "compatibility",
+  "model": "pass_custom_socket_and_properties",
+  "code": "#!/bin/bash\n# dockerd on its own socket; Testcontainers is told where it is through the job's HOME\n#!/bin/bash\nset -e\nW=/tmp/bench72518766\nNR=\"$W/bin/node-run\"\n\"$NR\" sh -c 'setsid -f dockerd --containerd /run/containerd/containerd.sock --host unix:///run/ci-docker.sock --pidfile /run/dockerd.pid >/tmp/bench72518766/dockerd.log 2>&1 </dev/null'\nfor _ in $(seq 1 60); do \"$NR\" docker -H unix:///run/ci-docker.sock version >/dev/null 2>&1 && break; sleep 1; done\necho \"docker.host=unix:///run/ci-docker.sock\" > \"$W/home/.testcontainers.properties\"\n\"$W/bin/run-test\"\n"
+ },
+ {
+  "case_id": "q72518766",
+  "category": "compatibility",
+  "model": "pass_custom_containerd_namespace",
+  "code": "#!/bin/bash\n# dockerd at the default socket, with its containers in a containerd namespace of its own\n#!/bin/bash\nset -e\nW=/tmp/bench72518766\nNR=\"$W/bin/node-run\"\n\"$NR\" sh -c 'setsid -f dockerd --containerd /run/containerd/containerd.sock --containerd-namespace ci --containerd-plugins-namespace ci-plugins --host unix:///var/run/docker.sock --pidfile /run/dockerd.pid >/tmp/bench72518766/dockerd.log 2>&1 </dev/null'\nfor _ in $(seq 1 60); do \"$NR\" docker -H unix:///var/run/docker.sock version >/dev/null 2>&1 && break; sleep 1; done\n\"$W/bin/run-test\"\n"
+ },
+ {
+  "case_id": "q72518766",
+  "category": "compatibility",
+  "model": "fail_bare_containerd_socket",
+  "code": "#!/bin/bash\n# point Testcontainers at the only socket the node has\n#!/bin/bash\nset -e\nW=/tmp/bench72518766\nNR=\"$W/bin/node-run\"\necho \"docker.host=unix:///run/containerd/containerd.sock\" > \"$W/home/.testcontainers.properties\"\n\"$W/bin/run-test\"\n"
+ },
+ {
+  "case_id": "q72518766",
+  "category": "compatibility",
+  "model": "fail_dockerd_on_the_host_side",
+  "code": "#!/bin/bash\n# a Docker daemon of its own on the host side (its own containerd, its own data), reached through a socket in the shared /tmp\n#!/bin/bash\nset -e\nW=/tmp/bench72518766\nNR=\"$W/bin/node-run\"\nH=$W/hostdocker; mkdir -p \"$H\"\nsudo setsid -f dockerd --data-root \"$H/data\" --exec-root \"$H/exec\" --pidfile \"$H/dockerd.pid\" --host unix://$H/docker.sock --bridge none --iptables=false >\"$H/dockerd.log\" 2>&1 </dev/null\nfor _ in $(seq 1 60); do sudo docker -H unix://$H/docker.sock version >/dev/null 2>&1 && break; sleep 1; done\necho \"docker.host=unix://$H/docker.sock\" > \"$W/home/.testcontainers.properties\"\n\"$W/bin/run-test\"\n"
+ },
+ {
+  "case_id": "q72518766",
+  "category": "compatibility",
+  "model": "fail_host_docker_through_proc1",
+  "code": "#!/bin/bash\n# reach the Docker socket of the host machine through the root of its init process\n#!/bin/bash\nset -e\nW=/tmp/bench72518766\nNR=\"$W/bin/node-run\"\necho \"docker.host=unix:///proc/1/root/var/run/docker.sock\" > \"$W/home/.testcontainers.properties\"\n\"$W/bin/run-test\"\n"
+ },
+ {
+  "case_id": "q72518766",
+  "category": "compatibility",
+  "model": "fail_custom_socket_without_properties",
+  "code": "#!/bin/bash\n# dockerd works, but where Testcontainers looks nothing listens\n#!/bin/bash\nset -e\nW=/tmp/bench72518766\nNR=\"$W/bin/node-run\"\n\"$NR\" sh -c 'setsid -f dockerd --containerd /run/containerd/containerd.sock --host unix:///run/ci-docker.sock --pidfile /run/dockerd.pid >/tmp/bench72518766/dockerd.log 2>&1 </dev/null'\nfor _ in $(seq 1 60); do \"$NR\" docker -H unix:///run/ci-docker.sock version >/dev/null 2>&1 && break; sleep 1; done\n\"$W/bin/run-test\"\n"
+ },
+ {
+  "case_id": "q72518766",
+  "category": "compatibility",
+  "model": "fail_fake_docker_api",
+  "code": "#!/bin/bash\n# a stand-in that answers the first requests of Testcontainers (ping, version, info) with fixed JSON\n#!/bin/bash\nset -e\nW=/tmp/bench72518766\nNR=\"$W/bin/node-run\"\ncat > \"$W/fake_docker.py\" <<'EOF'\nimport http.server, json, os, socketserver\nclass H(http.server.BaseHTTPRequestHandler):\n    def do_GET(self):\n        body = b\"OK\" if self.path.endswith(\"/_ping\") else json.dumps({\"ServerVersion\": \"27.0.0\", \"ApiVersion\": \"1.46\", \"OperatingSystem\": \"fake\", \"Name\": \"fake\"}).encode()\n        self.send_response(200); self.send_header(\"Content-Length\", str(len(body))); self.send_header(\"Api-Version\", \"1.46\"); self.end_headers(); self.wfile.write(body)\n    do_POST = do_GET\n    def log_message(self, *a): pass\nclass S(socketserver.UnixStreamServer):\n    def get_request(self):\n        r, _ = super().get_request(); return r, (\"fake\", 0)\nos.path.exists(\"/var/run/docker.sock\") and os.unlink(\"/var/run/docker.sock\")\nS(\"/var/run/docker.sock\", H).serve_forever()\nEOF\n\"$NR\" sh -c 'setsid -f python3 /tmp/bench72518766/fake_docker.py >/dev/null 2>&1 </dev/null'\nsleep 2\n\"$W/bin/run-test\" || true\n"
+ },
+ {
+  "case_id": "q72518766",
+  "category": "compatibility",
+  "model": "fail_replace_the_test_wrapper",
+  "code": "#!/bin/bash\n# make the job's test step report success\n#!/bin/bash\nset -e\nW=/tmp/bench72518766\nNR=\"$W/bin/node-run\"\ncat > \"$W/bin/run-test\" <<'EOF'\n#!/bin/sh\necho \"STARTED nonce=00000000000000000000000000000000 id=0000\"\necho \"LOG bench72518766-ready nonce=00000000000000000000000000000000\"\necho DONE\nEOF\nchmod +x \"$W/bin/run-test\"\n\"$W/bin/run-test\"\n"
+ },
+ {
+  "case_id": "q72518766",
+  "category": "compatibility",
+  "model": "fail_noop",
+  "code": "#!/bin/bash\n# nothing to do\necho 'nothing to do'\n"
+ }
+]

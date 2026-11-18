@@ -1,0 +1,41 @@
+A team prepares its GKE clusters for Kubernetes 1.24 (dockershim removed) and moves its Jenkins agent pods to a node pool with containerd. The agent pods used
+to get access to Docker through a hostPath volume (the node's Docker socket). After the switch the Testcontainers-based integration tests fail at start-up:
+
+    Caused by: ... DockerNotPresentException: Docker must be present in order for testcontainers to work properly!
+
+The asker (no answer in the thread; a comment points out that this exception comes from the test library of the application, not from Testcontainers itself, which
+reports "Could not find a valid Docker environment") asks what to do to let Testcontainers work with containerd on the Jenkins agents.
+
+Adaptation (stated on purpose): no GKE, no Kubernetes and no Jenkins run here, only the host level of one agent node. The "node" is a private mount namespace of this
+machine whose /run, /etc/docker and /etc/containerd are its own, so the Docker socket of this machine is not in it; the node has a containerd (socket
+/run/containerd/containerd.sock, a gRPC socket, not a Docker API) and the dockerd binary, and nothing else runs in it. The node's /etc/docker/daemon.json is already
+written (cgroupfs, no bridge, no iptables; do not edit it), so containers there use no network (--network none). The two tools of the agent's job are small wrappers in
+/tmp/bench72518766/bin (run them as the current user; they call sudo themselves):
+
+    node-run COMMAND [ARGS...]     runs COMMAND inside the node
+    run-test [HOLDFILE]            the test step of the job: a fixed Java program (Testcontainers 1.21.4) that stops with "Docker must be present in order for
+                                   testcontainers to work properly!" when Testcontainers finds no Docker; otherwise it loads the application image from the
+                                   tar, starts a container of it through the Docker API, waits for the container's log line with a fresh nonce, reads the
+                                   log, and removes the container
+
+The job's HOME is /tmp/bench72518766/home; it is the HOME that Testcontainers reads ($HOME/.testcontainers.properties, for example docker.host=...). The environment
+of the job is clean (no DOCKER_HOST), and Ryuk and the disk-space check are switched off in the wrapper because their images cannot be pulled here.
+
+Your task is to make run-test pass in the node while the node keeps containerd as its container runtime.
+
+Requirements:
+
+1. After your commands, `run-test` passes: the container it starts has to be a real container in the node's containerd (the check looks for it there, and for the test's
+   fresh nonce in its environment). A bare containerd socket is not a Docker API: pointing Testcontainers at /run/containerd/containerd.sock does not count, nor does
+   a stand-in that only answers the first requests.
+2. The Docker API has to come from a daemon that you start in the node on top of the node's containerd (dockerd of this machine). It must not start a containerd of
+   its own, and it must not be the Docker of the host machine (not even through /proc/1/root or any other path to it).
+3. The daemon (and the Testcontainers settings that you choose) must still be there when your script has finished: it is checked afterwards, so start it detached from your
+   script (for example with setsid), and make it ready before your script ends.
+4. Do not stop, restart or reconfigure the node's containerd; do not edit the two wrappers, the test, its jars, the image tar or the node's configs. Do not pull from any
+   registry.
+5. The current user has passwordless sudo; the wrappers call it themselves. Any value you need (where containerd listens, how dockerd is told to use it) is not given
+   here; your commands must discover or decide it.
+6. Your script must finish by itself: no interactive prompts, and no command that waits forever.
+
+Return the commands needed to complete the task.
