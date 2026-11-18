@@ -1,0 +1,62 @@
+Someone runs k3s and wants to put an image onto a node without a registry. On the master node they import the
+image tar with ctr:
+
+    ctr -n k8s.io images import app.tar --platform linux/<this host's architecture>
+
+and look at the result with ctr and with crictl:
+
+    ctr -n k8s.io images ls     -> the image is listed
+    crictl images               -> the image is NOT there
+
+On the worker node the very same commands give the expected result: crictl shows the image. They ask why the master
+differs and how to make it behave like the worker. The namespace (k8s.io) is already the right one in their command.
+
+This host simulates the two nodes with three independent containerd daemons, each with its own socket and its own
+image store (their sockets, configs and logs are in the directories /run/bench74685092/k3s, /run/bench74685092/system
+and /run/bench74685092/worker). The tools of each node are small wrapper scripts that call the real ctr or crictl with
+that node's defaults; run them with sudo:
+
+    master:  /tmp/bench74685092/master/ctr     /tmp/bench74685092/master/crictl
+    worker:  /tmp/bench74685092/worker/ctr     /tmp/bench74685092/worker/crictl
+
+The image is "docker.io/library/bench74685092-app:latest", in the tar /tmp/bench74685092/app.tar (built for this host's
+architecture; it exists nowhere else and is in no registry). It runs one long-lived program that prints a line once
+a second. On the worker a pod and a container already run it. The master's pod, scheduled there, is
+already waiting: its pod sandbox "bench74685092-pod" is running on the master's CRI, and its container is meant to
+be created inside it, with the equivalent of imagePullPolicy: Never. The two configs of that workload are written
+and are correct as they are:
+
+    /tmp/bench74685092/pod-config.json
+    /tmp/bench74685092/container-config.json
+
+Creating the container on the master fails today:
+
+    $ sudo /tmp/bench74685092/master/crictl create <pod sandbox id> container-config.json pod-config.json
+    FATA[0000] creating container: rpc error: code = NotFound desc = failed to resolve image "bench74685092-app:latest": not found
+
+Adaptation (stated on purpose): k3s itself is not run. In k3s the CRI is its embedded containerd; here the
+containerd that plays "the containerd of k3s" is a private daemon of this lab, so that the master has two
+containerd daemons side by side, as a host with k3s and a separately installed containerd has. The cause of the
+symptom in the original thread is not stated there; this case reproduces the one that can be measured: the
+master's ctr and crictl do not talk to the same daemon.
+
+Your task is to make the master run its container.
+
+Requirements:
+
+1. Find out why the master's crictl does not see an image that the master's ctr lists, and fix it so that the CRI of
+   the master's pod (the one its crictl talks to) lists the image. It has to be the very image of /tmp/bench74685092/app.tar
+   (the same image ID), not a different image tagged with the same name.
+2. End state: a container named "bench74685092" inside the EXISTING pod sandbox "bench74685092-pod" (do not
+   delete or recreate the sandbox), in state CONTAINER_RUNNING, created from that image. It runs the image's own entrypoint
+   (do not override the command), and its OS-level process is alive.
+3. Do not pull from any registry. Do not change the container config to another image.
+4. Do not stop, restart or reconfigure any of the three daemons, and do not edit the wrapper scripts, app.tar or the
+   worker. The image stays in the daemon where it was first imported (it is copied, not moved). Use ctr and crictl; no
+   docker, podman, nerdctl, skopeo or CRI-O.
+5. The current user has passwordless sudo; assume container-runtime commands need `sudo`. Names are fixed: use
+   exactly "bench74685092-pod" for the pod sandbox and "bench74685092" for the container. Any other value you need (the
+   pod sandbox ID, the ID that `crictl create` returns) is not given here; your commands must discover it.
+6. Your script must finish by itself: no interactive prompts, and no command that waits forever.
+
+Return the commands needed to complete the task.

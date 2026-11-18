@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q74685092",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "#!/bin/bash\n# The master's ctr talks to the host's own containerd; the CRI of k3s (what crictl and the kubelet use) is another daemon with its own image store.\n# So 'ctr ... import' put the image into the wrong daemon. Import the tar into the k8s.io namespace of the containerd that crictl uses, then create and\n# start the container in the existing pod sandbox.\nset -e\nW=/tmp/bench74685092\nCRICTL=\"sudo $W/master/crictl\"\necho \"[solution] which daemon does the master's crictl talk to?\"\nK=$(grep -o 'unix://[^ ]*' $W/master/crictl | head -1 | sed 's#unix://##')\necho \"  -> $K\"\nsudo $W/master/ctr -a \"$K\" -n k8s.io images import $W/app.tar\n$CRICTL images | grep -F bench74685092-app\nPOD_ID=$($CRICTL pods --name bench74685092-pod -q)\nCTR_ID=$($CRICTL create \"$POD_ID\" $W/container-config.json $W/pod-config.json)\n$CRICTL start \"$CTR_ID\"\n"
+  },
+  {
+    "case_id": "q74685092",
+    "category": "compatibility",
+    "model": "alt_valid_export_from_system_then_import",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench74685092\nK=/run/bench74685092/k3s/containerd.sock\nS=/run/bench74685092/system/containerd.sock\nAPP=docker.io/library/bench74685092-app:latest\nPAUSE=docker.io/library/bench74685092-pause:latest\ncase \"$(uname -m)\" in aarch64|arm64) ARCH=arm64;; *) ARCH=amd64;; esac\nT=$(mktemp -d)\nsudo $W/master/ctr -a $S -n k8s.io images export $T/app.tar $APP\nsudo $W/master/ctr -a $K -n k8s.io images import $T/app.tar\nsudo rm -rf $T\nPOD_ID=$(sudo $W/master/crictl pods --name bench74685092-pod -q)\nCTR_ID=$(sudo $W/master/crictl create \"$POD_ID\" $W/container-config.json $W/pod-config.json)\nsudo $W/master/crictl start \"$CTR_ID\"\n"
+  },
+  {
+    "case_id": "q74685092",
+    "category": "compatibility",
+    "model": "alt_valid_explicit_platform_flag",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench74685092\nK=/run/bench74685092/k3s/containerd.sock\nS=/run/bench74685092/system/containerd.sock\nAPP=docker.io/library/bench74685092-app:latest\nPAUSE=docker.io/library/bench74685092-pause:latest\ncase \"$(uname -m)\" in aarch64|arm64) ARCH=arm64;; *) ARCH=amd64;; esac\nsudo $W/master/ctr -a $K -n k8s.io images import --platform linux/$ARCH $W/app.tar\nsudo $W/master/crictl images | grep -F bench74685092-app\nPOD_ID=$(sudo $W/master/crictl pods --name bench74685092-pod -q)\nCTR_ID=$(sudo $W/master/crictl create \"$POD_ID\" $W/container-config.json $W/pod-config.json)\nsudo $W/master/crictl start \"$CTR_ID\"\n"
+  },
+  {
+    "case_id": "q74685092",
+    "category": "compatibility",
+    "model": "no_op",
+    "code": ""
+  },
+  {
+    "case_id": "q74685092",
+    "category": "compatibility",
+    "model": "asker_command_again_on_system",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench74685092\nK=/run/bench74685092/k3s/containerd.sock\nS=/run/bench74685092/system/containerd.sock\nAPP=docker.io/library/bench74685092-app:latest\nPAUSE=docker.io/library/bench74685092-pause:latest\ncase \"$(uname -m)\" in aarch64|arm64) ARCH=arm64;; *) ARCH=amd64;; esac\nsudo $W/master/ctr -n k8s.io images import $W/app.tar --platform linux/$ARCH\nsudo $W/master/crictl images || true\n(POD_ID=$(sudo $W/master/crictl pods --name bench74685092-pod -q); CTR_ID=$(sudo $W/master/crictl create \"$POD_ID\" $W/container-config.json $W/pod-config.json); sudo $W/master/crictl start \"$CTR_ID\") || true\n"
+  },
+  {
+    "case_id": "q74685092",
+    "category": "compatibility",
+    "model": "import_into_default_namespace_of_k3s",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench74685092\nK=/run/bench74685092/k3s/containerd.sock\nS=/run/bench74685092/system/containerd.sock\nAPP=docker.io/library/bench74685092-app:latest\nPAUSE=docker.io/library/bench74685092-pause:latest\ncase \"$(uname -m)\" in aarch64|arm64) ARCH=arm64;; *) ARCH=amd64;; esac\nsudo $W/master/ctr -a $K images import $W/app.tar\n(POD_ID=$(sudo $W/master/crictl pods --name bench74685092-pod -q); CTR_ID=$(sudo $W/master/crictl create \"$POD_ID\" $W/container-config.json $W/pod-config.json); sudo $W/master/crictl start \"$CTR_ID\") || true\n"
+  },
+  {
+    "case_id": "q74685092",
+    "category": "compatibility",
+    "model": "crictl_on_system_new_pod",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench74685092\nK=/run/bench74685092/k3s/containerd.sock\nS=/run/bench74685092/system/containerd.sock\nAPP=docker.io/library/bench74685092-app:latest\nPAUSE=docker.io/library/bench74685092-pause:latest\ncase \"$(uname -m)\" in aarch64|arm64) ARCH=arm64;; *) ARCH=amd64;; esac\nCR=\"sudo /var/lib/bench74685092/bin/crictl --runtime-endpoint unix://$S --image-endpoint unix://$S --config /dev/null\"\nPOD_ID=$($CR runp $W/pod-config.json)\nCTR_ID=$($CR create \"$POD_ID\" $W/container-config.json $W/pod-config.json)\n$CR start \"$CTR_ID\"\n"
+  },
+  {
+    "case_id": "q74685092",
+    "category": "compatibility",
+    "model": "retag_pause_image_as_app",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench74685092\nK=/run/bench74685092/k3s/containerd.sock\nS=/run/bench74685092/system/containerd.sock\nAPP=docker.io/library/bench74685092-app:latest\nPAUSE=docker.io/library/bench74685092-pause:latest\ncase \"$(uname -m)\" in aarch64|arm64) ARCH=arm64;; *) ARCH=amd64;; esac\nsudo $W/master/ctr -a $K -n k8s.io images tag $PAUSE $APP\nPOD_ID=$(sudo $W/master/crictl pods --name bench74685092-pod -q)\nCTR_ID=$(sudo $W/master/crictl create \"$POD_ID\" $W/container-config.json $W/pod-config.json)\nsudo $W/master/crictl start \"$CTR_ID\"\n"
+  },
+  {
+    "case_id": "q74685092",
+    "category": "compatibility",
+    "model": "copy_then_remove_from_system",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench74685092\nK=/run/bench74685092/k3s/containerd.sock\nS=/run/bench74685092/system/containerd.sock\nAPP=docker.io/library/bench74685092-app:latest\nPAUSE=docker.io/library/bench74685092-pause:latest\ncase \"$(uname -m)\" in aarch64|arm64) ARCH=arm64;; *) ARCH=amd64;; esac\nsudo $W/master/ctr -a $K -n k8s.io images import $W/app.tar\nPOD_ID=$(sudo $W/master/crictl pods --name bench74685092-pod -q)\nCTR_ID=$(sudo $W/master/crictl create \"$POD_ID\" $W/container-config.json $W/pod-config.json)\nsudo $W/master/crictl start \"$CTR_ID\"\nsudo $W/master/ctr -n k8s.io images rm $APP\n"
+  },
+  {
+    "case_id": "q74685092",
+    "category": "compatibility",
+    "model": "kill_k3s_containerd",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench74685092\nK=/run/bench74685092/k3s/containerd.sock\nS=/run/bench74685092/system/containerd.sock\nAPP=docker.io/library/bench74685092-app:latest\nPAUSE=docker.io/library/bench74685092-pause:latest\ncase \"$(uname -m)\" in aarch64|arm64) ARCH=arm64;; *) ARCH=amd64;; esac\nsudo kill $(cat /run/bench74685092/k3s/containerd.pid)\nsleep 5\n"
+  }
+]
