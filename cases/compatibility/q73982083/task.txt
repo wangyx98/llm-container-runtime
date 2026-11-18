@@ -1,0 +1,38 @@
+Someone develops with Rancher Desktop (containerd as the container engine, nerdctl as the client) and wants to run containers from inside a container, for
+example a build tool in a container that starts further containers. With Docker one mounts the host's /var/run/docker.sock into the tool's container. With Rancher
+Desktop there is no such socket on the host: the engine does not run on the host but inside the Rancher Desktop virtual machine (VM). The asker asks how a
+container can then start containers. (The thread shows no command and no error. Its answer says: the containerd socket is inside the VM, the host's nerdctl
+only forwards into the VM, and a client has to be given that VM-side socket.)
+
+Adaptation (stated on purpose): no Rancher Desktop and no hypervisor run here. The VM is a private mount namespace of this machine whose /run, /var/lib and
+/usr/local are its own: the containerd that plays "the containerd of Rancher Desktop" runs inside it, so its socket and its store exist only there and the host
+has none of these paths. The two tools of the host are small wrappers in /tmp/bench73982083/bin (run them as the current user; they call sudo themselves):
+
+    rdctl shell COMMAND [ARGS...]     runs COMMAND inside the VM
+    nerdctl [ARGS...]                 the host's nerdctl: forwarded into the VM, where it talks to the VM's containerd (namespace "default")
+
+The VM's containerd is the only daemon that matters. It already holds the image "bench73982083-image:latest" (it holds a static nerdctl at
+/usr/local/bin/nerdctl and a program /sleeper that sleeps forever and ignores its arguments; it is the same nerdctl that the VM has) and runs one container,
+"bench73982083-marker". This VM has no CNI plugins: containers use --net none (or --net host).
+
+Your task is to start the container of the asker's tool inside the VM so that it can start containers on the VM's containerd.
+
+Requirements:
+
+1. In the VM's containerd (namespace "default") run ONE container named "bench73982083-client" from the image "bench73982083-image:latest", detached and
+   running, with the image's own entrypoint (do not override the command). Its OS-level process must be alive.
+2. That client container manages THE VM's containerd: from inside it, this command (and the same with any other name) has to work exactly as written, without any
+   --address, --cgroup-manager or other flag of the daemon (the container's own environment is yours to set):
+
+       nerdctl run -d --net none --pull never --name <name> bench73982083-image:latest <arg>
+
+   and the containers of the VM's containerd (the marker, the new one) have to be visible and manageable from inside it. The client must not run a daemon of
+   its own (no "inner" containerd/dockerd), and an empty file standing in for a socket does not count.
+3. Do not stop, restart or reconfigure the VM's containerd, do not edit the two wrappers, the VM's configs or client.tar, do not stop or remove the marker.
+   Do not start any other containerd or dockerd, do not use another daemon of this machine, and do not move the VM's socket or store out of the VM (no copy or
+   bind of them onto the host). Do not pull from any registry.
+4. The current user has passwordless sudo; the wrappers call it themselves. Names are fixed: use exactly "bench73982083-client" for the container. Any other value you
+   need (where the VM's containerd listens, where it keeps its store) is not given here; your commands must discover it, for example with rdctl shell.
+5. Your script must finish by itself: no interactive prompts, and no command that waits forever.
+
+Return the commands needed to complete the task.

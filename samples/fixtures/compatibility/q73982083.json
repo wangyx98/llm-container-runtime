@@ -1,0 +1,62 @@
+[
+ {
+  "case_id": "q73982083",
+  "category": "compatibility",
+  "model": "reference_solution",
+  "code": "#!/bin/bash\n# The daemon is inside the VM: the host has no socket to mount (there is no docker.sock, and the VM's containerd socket exists only in the VM). Ask the VM where its\n# containerd listens and keeps its store, then start the client container IN THE VM's daemon with that socket and that store mounted at the SAME paths (the runtime\n# of the VM resolves the paths of what the client asks for, so they have to mean the same thing on both sides), privileged so that the client may mount the\n# snapshots, and with the address in its environment so that a plain 'nerdctl' in it finds the daemon.\nset -e\nW=/tmp/bench73982083\nNC=\"$W/bin/nerdctl\"\nRD=\"$W/bin/rdctl\"\nSOCK=$(\"$RD\" shell sed -n 's/^address *= *\"\\(.*\\)\"/\\1/p' /usr/local/etc/nerdctl/nerdctl.toml)\nROOT=$(\"$RD\" shell sed -n 's/^root *= *\"\\(.*\\)\"/\\1/p' /var/lib/rancher/k3s/agent/etc/containerd/config.toml)\necho \"the VM's containerd: socket $SOCK, store $ROOT\"\n\"$RD\" shell test -S \"$SOCK\"\n\"$NC\" run -d --name bench73982083-client --net none --privileged \\\n    -e CONTAINERD_ADDRESS=\"$SOCK\" -v \"$SOCK:$SOCK\" -v \"$ROOT:$ROOT\" \\\n    bench73982083-image:latest\n\"$NC\" exec bench73982083-client nerdctl ps\n"
+ },
+ {
+  "case_id": "q73982083",
+  "category": "compatibility",
+  "model": "pass_whole_vm_dirs",
+  "code": "#!/bin/bash\n# same idea, whole directories: the VM's /run/k3s, its containerd store and the VM's nerdctl data root, all at their VM paths\n#!/bin/bash\nset -e\nW=/tmp/bench73982083\nNC=\"$W/bin/nerdctl\"\nRD=\"$W/bin/rdctl\"\nSOCK=$(\"$RD\" shell sed -n 's/^address *= *\"\\(.*\\)\"/\\1/p' /usr/local/etc/nerdctl/nerdctl.toml)\nROOT=$(\"$RD\" shell sed -n 's/^root *= *\"\\(.*\\)\"/\\1/p' /var/lib/rancher/k3s/agent/etc/containerd/config.toml)\n\"$NC\" run -d --name bench73982083-client --net none --privileged -e CONTAINERD_ADDRESS=\"$SOCK\" \\\n    -v \"$(dirname \"$SOCK\"):$(dirname \"$SOCK\")\" -v \"$ROOT:$ROOT\" -v /var/lib/nerdctl:/var/lib/nerdctl bench73982083-image:latest\n\"$NC\" exec bench73982083-client nerdctl ps\n"
+ },
+ {
+  "case_id": "q73982083",
+  "category": "compatibility",
+  "model": "fail_docker_sock_habit",
+  "code": "#!/bin/bash\n# the Docker habit: mount docker.sock (there is none; nerdctl makes an empty directory of it)\nset -e\nW=/tmp/bench73982083\n\"$W/bin/nerdctl\" run -d --name bench73982083-client --net none -v /var/run/docker.sock:/var/run/docker.sock bench73982083-image:latest\n"
+ },
+ {
+  "case_id": "q73982083",
+  "category": "compatibility",
+  "model": "fail_default_socket_path",
+  "code": "#!/bin/bash\nset -e\nW=/tmp/bench73982083\nNC=\"$W/bin/nerdctl\"\nRD=\"$W/bin/rdctl\"\nSOCK=$(\"$RD\" shell sed -n 's/^address *= *\"\\(.*\\)\"/\\1/p' /usr/local/etc/nerdctl/nerdctl.toml)\nROOT=$(\"$RD\" shell sed -n 's/^root *= *\"\\(.*\\)\"/\\1/p' /var/lib/rancher/k3s/agent/etc/containerd/config.toml)\n# the VM's socket at nerdctl's default address inside the client, the store at its VM path\n\"$NC\" run -d --name bench73982083-client --net none --privileged -v \"$SOCK:/run/containerd/containerd.sock\" -v \"$ROOT:$ROOT\" bench73982083-image:latest\n\"$NC\" exec bench73982083-client nerdctl ps\n"
+ },
+ {
+  "case_id": "q73982083",
+  "category": "compatibility",
+  "model": "fail_not_privileged",
+  "code": "#!/bin/bash\nset -e\nW=/tmp/bench73982083\nNC=\"$W/bin/nerdctl\"\nRD=\"$W/bin/rdctl\"\nSOCK=$(\"$RD\" shell sed -n 's/^address *= *\"\\(.*\\)\"/\\1/p' /usr/local/etc/nerdctl/nerdctl.toml)\nROOT=$(\"$RD\" shell sed -n 's/^root *= *\"\\(.*\\)\"/\\1/p' /var/lib/rancher/k3s/agent/etc/containerd/config.toml)\n\"$NC\" run -d --name bench73982083-client --net none -e CONTAINERD_ADDRESS=\"$SOCK\" -v \"$SOCK:$SOCK\" -v \"$ROOT:$ROOT\" bench73982083-image:latest\n\"$NC\" exec bench73982083-client nerdctl ps\n"
+ },
+ {
+  "case_id": "q73982083",
+  "category": "compatibility",
+  "model": "fail_no_store_mount",
+  "code": "#!/bin/bash\nset -e\nW=/tmp/bench73982083\nNC=\"$W/bin/nerdctl\"\nRD=\"$W/bin/rdctl\"\nSOCK=$(\"$RD\" shell sed -n 's/^address *= *\"\\(.*\\)\"/\\1/p' /usr/local/etc/nerdctl/nerdctl.toml)\nROOT=$(\"$RD\" shell sed -n 's/^root *= *\"\\(.*\\)\"/\\1/p' /var/lib/rancher/k3s/agent/etc/containerd/config.toml)\n\"$NC\" run -d --name bench73982083-client --net none --privileged -e CONTAINERD_ADDRESS=\"$SOCK\" -v \"$SOCK:$SOCK\" bench73982083-image:latest\n\"$NC\" exec bench73982083-client nerdctl ps\n"
+ },
+ {
+  "case_id": "q73982083",
+  "category": "compatibility",
+  "model": "fail_empty_socket_file",
+  "code": "#!/bin/bash\n# no socket on the host to be found: make a file where one should be and mount it\nset -e\nW=/tmp/bench73982083\nSOCK=/run/k3s/containerd/containerd.sock\ntouch /tmp/bench73982083/fake.sock\n\"$W/bin/nerdctl\" run -d --name bench73982083-client --net none --privileged -e CONTAINERD_ADDRESS=\"$SOCK\" -v /tmp/bench73982083/fake.sock:\"$SOCK\" bench73982083-image:latest\n"
+ },
+ {
+  "case_id": "q73982083",
+  "category": "compatibility",
+  "model": "fail_tcp_route",
+  "code": "#!/bin/bash\nset -e\nW=/tmp/bench73982083\nNC=\"$W/bin/nerdctl\"\nRD=\"$W/bin/rdctl\"\nSOCK=$(\"$RD\" shell sed -n 's/^address *= *\"\\(.*\\)\"/\\1/p' /usr/local/etc/nerdctl/nerdctl.toml)\nROOT=$(\"$RD\" shell sed -n 's/^root *= *\"\\(.*\\)\"/\\1/p' /var/lib/rancher/k3s/agent/etc/containerd/config.toml)\n# the answer's TCP alternative: the daemon is said to listen on TCP, the client reaches it over the host network\n\"$NC\" run -d --name bench73982083-client --net host --privileged -e CONTAINERD_ADDRESS=tcp://127.0.0.1:8080 -v \"$ROOT:$ROOT\" bench73982083-image:latest\n\"$NC\" exec bench73982083-client nerdctl ps\n"
+ },
+ {
+  "case_id": "q73982083",
+  "category": "compatibility",
+  "model": "fail_no_address_env",
+  "code": "#!/bin/bash\nset -e\nW=/tmp/bench73982083\nNC=\"$W/bin/nerdctl\"\nRD=\"$W/bin/rdctl\"\nSOCK=$(\"$RD\" shell sed -n 's/^address *= *\"\\(.*\\)\"/\\1/p' /usr/local/etc/nerdctl/nerdctl.toml)\nROOT=$(\"$RD\" shell sed -n 's/^root *= *\"\\(.*\\)\"/\\1/p' /var/lib/rancher/k3s/agent/etc/containerd/config.toml)\n# everything mounted as in the reference, but the client is only tried with an explicit --address\n\"$NC\" run -d --name bench73982083-client --net none --privileged -v \"$SOCK:$SOCK\" -v \"$ROOT:$ROOT\" bench73982083-image:latest\n\"$NC\" exec bench73982083-client nerdctl --address \"$SOCK\" ps\n"
+ },
+ {
+  "case_id": "q73982083",
+  "category": "compatibility",
+  "model": "fail_noop",
+  "code": "#!/bin/bash\n# nothing to do: Rancher Desktop does it\necho 'nothing to do'\n"
+ }
+]
