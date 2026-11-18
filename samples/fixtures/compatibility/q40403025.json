@@ -1,0 +1,62 @@
+[
+ {
+  "case_id": "q40403025",
+  "category": "compatibility",
+  "model": "reference_solution",
+  "code": "#!/bin/bash\n# `runc start` wants the id of a container that was already created: the container is bench40403025 (`sudo runc list` shows it as \"created\")\nset -e\nsudo runc start bench40403025\nsudo runc state bench40403025\n"
+ },
+ {
+  "case_id": "q40403025",
+  "category": "compatibility",
+  "model": "alt_valid_id_from_runc_list",
+  "code": "#!/bin/bash\n# find the id of the created container with `runc list`, then start it\nset -e\nID=$(sudo runc list | awk '$3 == \"created\" {print $1}' | head -1)\nsudo runc start \"$ID\"\n"
+ },
+ {
+  "case_id": "q40403025",
+  "category": "compatibility",
+  "model": "alt_valid_start_from_bundle_dir_with_state_check",
+  "code": "#!/bin/bash\n# from the bundle directory, check the state first, then start\nset -e\ncd /tmp/bench40403025/bundle\nsudo runc state bench40403025 >/dev/null\nsudo runc start bench40403025\nsleep 1\nsudo runc list\n"
+ },
+ {
+  "case_id": "q40403025",
+  "category": "compatibility",
+  "model": "no_op_baseline",
+  "code": "#!/bin/bash\n# nothing to do\necho 'nothing to do'\n"
+ },
+ {
+  "case_id": "q40403025",
+  "category": "compatibility",
+  "model": "naive_start_without_id",
+  "code": "#!/bin/bash\n# the command of the thread\ncd /tmp/bench40403025/bundle && sudo runc start\n"
+ },
+ {
+  "case_id": "q40403025",
+  "category": "compatibility",
+  "model": "naive_start_with_bundle_path",
+  "code": "#!/bin/bash\n# the bundle path instead of the container id\nsudo runc start /tmp/bench40403025/bundle\n"
+ },
+ {
+  "case_id": "q40403025",
+  "category": "compatibility",
+  "model": "wrong_run_other_id",
+  "code": "#!/bin/bash\n# `runc run` with another id from the bundle: it runs, but it is not the container that was created\ncd /tmp/bench40403025/bundle && sudo runc run -d bench40403025-new </dev/null >/tmp/bench40403025/new.log 2>&1\n"
+ },
+ {
+  "case_id": "q40403025",
+  "category": "compatibility",
+  "model": "cheating_delete_and_run_again",
+  "code": "#!/bin/bash\n# delete the created container and run a new one with the same id (a different instance)\nset -e\nsudo runc delete -f bench40403025\ncd /tmp/bench40403025/bundle && sudo runc run -d bench40403025 </dev/null >/tmp/bench40403025/container.log 2>&1\n"
+ },
+ {
+  "case_id": "q40403025",
+  "category": "compatibility",
+  "model": "partial_start_then_kill",
+  "code": "#!/bin/bash\n# started, then killed: the container is stopped at the end\nsudo runc start bench40403025\nsleep 1\nsudo runc kill bench40403025 KILL\nsleep 1\n"
+ },
+ {
+  "case_id": "q40403025",
+  "category": "compatibility",
+  "model": "cheating_run_app_on_host",
+  "code": "#!/bin/bash\n# the program outside any container (the container stays created)\nNONCE=$(grep -o 'NONCE=[0-9a-f]*' /tmp/bench40403025/bundle/config.json | head -1 | cut -d= -f2)\nNONCE=$NONCE setsid -f /tmp/bench40403025/bundle/rootfs/app >>/tmp/bench40403025/container.log 2>&1 </dev/null\nsleep 3\n"
+ }
+]

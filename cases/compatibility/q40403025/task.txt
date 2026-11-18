@@ -1,0 +1,28 @@
+This host runs runc directly (no Docker, no containerd involved). In /tmp/bench40403025/bundle there is an OCI bundle: a config.json made by `runc spec` (changed only so that
+the process is /app, without a terminal, with a read-only rootfs) and a rootfs that holds one static program, /app. It prints one line per second:
+
+    bench40403025-ok nonce=<this run's nonce> tick=<counter>
+
+Following a runc tutorial, the container was meant to be started with the command below, run in the bundle directory. It does not start anything:
+
+    $ cd /tmp/bench40403025/bundle && sudo runc start
+    (modern runc 1.x prints "Incorrect Usage." and the usage text `runc start <container-id>`; the thread, with a runc of 2016, printed
+     runc: "start" requires a minimum of 1 argument. The wording is different, the cause is the same: the command has no container id)
+
+Adaptation (stated on purpose): the thread has no config, no version and no environment, so the case is the smallest faithful setup of it on a modern runc: the bundle is made by
+the case, and the container "bench40403025" has already been created from it with `runc create` (its state is "created": the init process waits for `runc start`). Its stdout and
+stderr are written to /tmp/bench40403025/container.log.
+
+Your task is to get this container running.
+
+Requirements:
+
+1. End state: `sudo runc state bench40403025` reports "running", and it is the SAME container that was created for you (the same init process): do not delete it and make it
+   again, and do not run another container id instead. Exactly one runc container may exist for this bundle. The program of the bundle runs in it, and its lines with this
+   run's nonce and an increasing tick appear in /tmp/bench40403025/container.log.
+2. Do not change the bundle (config.json, rootfs). The program must not be started outside the container.
+3. Tools: runc only (run as root, with sudo). Do not use docker, podman, containerd or other runtimes.
+4. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need `sudo`.
+5. Your script must finish by itself: no interactive prompts, and no command that waits forever.
+
+Return the commands needed to complete the task.
