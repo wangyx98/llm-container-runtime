@@ -1,0 +1,42 @@
+A team moves its Kubernetes build nodes from Docker to containerd (Kubernetes 1.20 deprecates dockershim). The Jenkins build pods ran Testcontainers-based integration
+tests against the node's Docker (a hostPath volume with the Docker socket). After the move the team has a Docker API on the node again (a dockerd on top of the node's
+containerd), and the tests start their containers, but then fail:
+
+    Could not start container ... Timed out waiting for container port to open (localhost ports: [32768] should be listening)
+
+The asker wants to run Testcontainers on containerd nodes without any error. (The thread also mentions Ryuk, the Testcontainers cleanup container, as a second
+problem; one answer suggests host.docker.internal.)
+
+Adaptation (stated on purpose): no Kubernetes, Jenkins or kubelet run here, only the host level of one node and one pod. The thread does not say where the pod's
+Docker API comes from after the move, so the stand-in is the node's dockerd on the node's containerd, already started by setup (it stays; do not restart it). The
+"node" is a private mount namespace of this machine (its /run, /etc/docker, /etc/containerd are its own) with a containerd and a dockerd (/var/run/docker.sock in the
+node); the node's /etc/docker/daemon.json is written (do not edit it); containers there are on the node's bridge and their ports are published on the node's addresses
+by docker-proxy. The "pod" is a separate network namespace: it has its own loopback, its address is 10.66.71.2 and the node is its default gateway. The tools of the job
+are three small wrappers in /tmp/bench71379578/bin (run them as the current user; they call sudo themselves):
+
+    node-run COMMAND [ARGS...]     runs COMMAND in the node (the node's mount namespace, the host's network)
+    pod-run COMMAND [ARGS...]      runs COMMAND in the pod (the node's mount namespace, the pod's network namespace: like kubectl exec)
+    run-test [HOLDFILE]            the test step of the job, run in the pod: a fixed Java program (Testcontainers 1.21.4) that loads the application image from the
+                                   tar, starts a container of it through the Docker API (published port 8080), waits for the port the way Testcontainers does, asks the
+                                   container over HTTP at the address Testcontainers gives, and removes the container
+
+The job's HOME is /tmp/bench71379578/home; Testcontainers reads $HOME/.testcontainers.properties there (-Duser.home). The environment of the job is clean (no
+DOCKER_HOST) except the lines of the file /tmp/bench71379578/home/job.env (KEY=VALUE, one per line, no spaces in values), which stands for the env: of the pod; the
+wrapper reads that file at every run. Ryuk and the disk-space check are switched off in the wrapper because their images cannot be pulled here.
+
+Your task is to make run-test pass in the pod, with the node keeping containerd and its dockerd as they are.
+
+Requirements:
+
+1. After your commands, `run-test` passes: the container it starts is a real container in the node's containerd (the check looks for it there, and for the test's
+   fresh nonce in its environment), and the test gets its answer over the published port from an address of the NODE. The pod's own localhost does not count: the
+   check rejects a test that still reaches the port at localhost or 127.x (for example through a rule that turns the pod's localhost into the node).
+2. What you change must still be there when your script has finished (the check runs the test again afterwards); the setting has to be something the job's test step
+   reads, and the wrapper only passes the environment of job.env: an export in your own shell does not reach it.
+3. Do not stop, restart or reconfigure the node's containerd or dockerd, and do not replace or edit the wrappers, the test, its jars, the image tar or the node's
+   configs. Do not pull from any registry.
+4. The current user has passwordless sudo; the wrappers call it themselves. Any value you need (the node's address as the pod sees it) is not given here; your commands
+   must discover or decide it.
+5. Your script must finish by itself: no interactive prompts, and no command that waits forever.
+
+Return the commands needed to complete the task.

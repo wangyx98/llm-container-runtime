@@ -1,0 +1,62 @@
+[
+ {
+  "case_id": "q71379578",
+  "category": "compatibility",
+  "model": "reference_solution",
+  "code": "#!/bin/bash\n# The test runs in the pod, where \"localhost\" is the pod's own loopback: Testcontainers reaches the mapped port of the container at localhost, but the port is published on the\n# NODE (docker-proxy). Tell Testcontainers where the Docker host is: TESTCONTAINERS_HOST_OVERRIDE=<the node's IP>, set in the job's environment (job.env, the env: of the pod).\n# The node's IP is what the pod uses as its default gateway (in Kubernetes: status.hostIP through the downward API).\nset -e\nW=/tmp/bench71379578\nNODE_IP=$(\"$W/bin/pod-run\" ip route show default | awk '{print $3}')\n[ -n \"$NODE_IP\" ]\necho \"TESTCONTAINERS_HOST_OVERRIDE=$NODE_IP\" >> \"$W/home/job.env\"\n\"$W/bin/run-test\"\n"
+ },
+ {
+  "case_id": "q71379578",
+  "category": "compatibility",
+  "model": "pass_override_bridge_address",
+  "code": "#!/bin/bash\n# the node has more than one address; the address of the Docker bridge of the node works as well\n#!/bin/bash\nset -e\nW=/tmp/bench71379578\nADDR=$(\"$W/bin/node-run\" ip -4 -o addr show dev bench71br | awk '{print $4}' | cut -d/ -f1)\n[ -n \"$ADDR\" ]\necho \"TESTCONTAINERS_HOST_OVERRIDE=$ADDR\" >> \"$W/home/job.env\"\n\"$W/bin/run-test\"\n"
+ },
+ {
+  "case_id": "q71379578",
+  "category": "compatibility",
+  "model": "fail_ryuk_disabled_only",
+  "code": "#!/bin/bash\n# the second step of the thread: switch Ryuk off (the wrapper has done this already)\n#!/bin/bash\nset -e\nW=/tmp/bench71379578\necho \"TESTCONTAINERS_RYUK_DISABLED=true\" >> \"$W/home/job.env\"\n\"$W/bin/run-test\"\n"
+ },
+ {
+  "case_id": "q71379578",
+  "category": "compatibility",
+  "model": "fail_host_docker_internal",
+  "code": "#!/bin/bash\n# the second answer of the thread: host.docker.internal (a name of Docker Desktop, not of this pod)\n#!/bin/bash\nset -e\nW=/tmp/bench71379578\necho \"TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal\" >> \"$W/home/job.env\"\n\"$W/bin/run-test\"\n"
+ },
+ {
+  "case_id": "q71379578",
+  "category": "compatibility",
+  "model": "fail_override_localhost",
+  "code": "#!/bin/bash\n# the override says what is the default anyway\n#!/bin/bash\nset -e\nW=/tmp/bench71379578\necho \"TESTCONTAINERS_HOST_OVERRIDE=localhost\" >> \"$W/home/job.env\"\n\"$W/bin/run-test\"\n"
+ },
+ {
+  "case_id": "q71379578",
+  "category": "compatibility",
+  "model": "fail_properties_file_host_override",
+  "code": "#!/bin/bash\n# the node's IP is put into the properties file of Testcontainers, which has no such setting\n#!/bin/bash\nset -e\nW=/tmp/bench71379578\nNODE_IP=$(\"$W/bin/pod-run\" ip route show default | awk '{print $3}')\necho \"host.override=$NODE_IP\" > \"$W/home/.testcontainers.properties\"\n\"$W/bin/run-test\"\n"
+ },
+ {
+  "case_id": "q71379578",
+  "category": "compatibility",
+  "model": "fail_export_in_script_only",
+  "code": "#!/bin/bash\n# the variable is exported in this script, but the job's test step starts with a clean environment (the env: of the pod)\n#!/bin/bash\nset -e\nW=/tmp/bench71379578\nexport TESTCONTAINERS_HOST_OVERRIDE=$(\"$W/bin/pod-run\" ip route show default | awk '{print $3}')\n\"$W/bin/run-test\"\n"
+ },
+ {
+  "case_id": "q71379578",
+  "category": "compatibility",
+  "model": "fail_dnat_localhost_in_pod",
+  "code": "#!/bin/bash\n# make the pod's own localhost lead to the node: the test passes, but it still looks at localhost (the pod was changed, not the Testcontainers host)\n#!/bin/bash\nset -e\nW=/tmp/bench71379578\nNODE_IP=$(\"$W/bin/pod-run\" ip route show default | awk '{print $3}')\n\"$W/bin/pod-run\" sh -c \"sysctl -qw net.ipv4.conf.all.route_localnet=1 && iptables -t nat -A OUTPUT -d 127.0.0.1 -p tcp -j DNAT --to-destination $NODE_IP && iptables -t nat -A POSTROUTING -o vb71p -j MASQUERADE\"\n\"$W/bin/run-test\"\n"
+ },
+ {
+  "case_id": "q71379578",
+  "category": "compatibility",
+  "model": "fail_replace_the_test_wrapper",
+  "code": "#!/bin/bash\n# make the job's test step report success\n#!/bin/bash\nset -e\nW=/tmp/bench71379578\ncat > \"$W/bin/run-test\" <<'EOF'\n#!/bin/sh\necho \"STARTED nonce=00000000000000000000000000000000 id=0000 host=10.66.71.1 port=32768\"\necho \"ANSWER bench71379578-ready nonce=00000000000000000000000000000000\"\necho DONE\nEOF\nchmod +x \"$W/bin/run-test\"\n\"$W/bin/run-test\"\n"
+ },
+ {
+  "case_id": "q71379578",
+  "category": "compatibility",
+  "model": "fail_noop",
+  "code": "#!/bin/bash\n# nothing to do\necho 'nothing to do'\n"
+ }
+]
