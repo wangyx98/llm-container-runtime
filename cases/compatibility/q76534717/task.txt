@@ -1,0 +1,38 @@
+Someone wants to call containerd's own gRPC API with grpcurl instead of ctr. Their call to the Containers service,
+
+    grpcurl -plaintext -import-path <dir> -proto containers.proto -d '{}' localhost:8080 containerd.services.containers.v1.Containers/List
+
+fails with "unknown service containerd.services.containers.v1.Containers", although ctr lists the containers
+of the same containerd without any problem.
+
+Setup of this host (a Linux stand-in, see the adaptation below): a containerd 1.7.20 of this lab is running. Its log says
+it serves its gRPC API on the unix socket /run/bench76534717/containerd.sock and, as in the question, on the TCP address
+127.0.0.1:8080. It has one container with a random ID in the namespace "k8s.io" (the namespace of Kubernetes; `ctr -n k8s.io
+containers ls` shows it) and one container in the namespace "default" that must not be shown. containerd does not offer
+gRPC reflection. The lab's grpcurl v1.9.1 is /tmp/bench76534717/bin/grpcurl (the unmodified program behind a small
+wrapper that notes each call) and the proto of the service is /tmp/bench76534717/proto/containers.proto. The unix socket
+is root's: use `sudo` for the container-runtime tools.
+
+Adaptation (stated on purpose): the question is about Windows, where containerd listens on a named pipe; this host is
+Linux, so the unix socket stands in for the pipe and the pipe itself (and whether grpcurl can use it) is not part of
+the case. The proto is a hand-written minimal copy of the Get and List calls of containerd's api/services/containers/v1
+(same package, service name and field numbers, only the fields the case needs), because the real proto tree could not be
+fetched here. The symptom, the log lines and the reply of the 8080 listener are the real ones of containerd 1.7.20.
+
+Your task: write the script /tmp/bench76534717/list.sh. When it is run (as the current user, with no arguments) it must
+call the Containers service of the lab's containerd with grpcurl and print the reply of that call on stdout, so that it
+shows the containers of the namespace "k8s.io" (their IDs and labels) and not those of any other namespace.
+
+Requirements:
+
+1. The reply must come from a real call made by the lab's grpcurl (/tmp/bench76534717/bin/grpcurl) to the Containers
+   service. The script is run again after your session, when other containers exist, so it must report the current
+   state each time; fixed or remembered output does not count. It must not use ctr, nerdctl, crictl or any other
+   container client, nor read containerd's files.
+2. Do not change containerd, its configuration or the objects it holds, and do not restart it. The listener on 8080
+   stays as it is. Do not change the lab's grpcurl, the wrapper or the proto file.
+3. The current user has passwordless sudo; assume container-runtime commands need `sudo`. Working files go into
+   /tmp/bench76534717.
+4. Your script must finish by itself: no interactive prompts, and no command that waits forever.
+
+Return the commands needed to complete the task.

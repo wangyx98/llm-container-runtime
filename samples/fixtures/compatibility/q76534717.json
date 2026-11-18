@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "q76534717",
+    "category": "compatibility",
+    "model": "reference_solution",
+    "code": "#!/bin/bash\n# The question's call goes to the TCP address 127.0.0.1:8080 of containerd, which does not serve the Containers service (it is served on containerd's own\n# socket only). Use that socket (grpcurl's -unix) and give the namespace as a header, since the Containers API is per namespace and ctr's '-n k8s.io' is what\n# the header carries. The proto file is needed because containerd offers no reflection.\nset -e\nW=/tmp/bench76534717\ncat > $W/list.sh <<'LEOF'\n#!/bin/bash\nsudo /tmp/bench76534717/bin/grpcurl -plaintext -unix \\\n    -import-path /tmp/bench76534717/proto -proto containers.proto \\\n    -rpc-header 'containerd-namespace: k8s.io' \\\n    -d '{}' /run/bench76534717/containerd.sock \\\n    containerd.services.containers.v1.Containers/List\nLEOF\nchmod +x $W/list.sh\n$W/list.sh\n"
+  },
+  {
+    "case_id": "q76534717",
+    "category": "compatibility",
+    "model": "variant_h_flag_and_summary_lines",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench76534717\ncat > $W/list.sh <<'LEOF'\n#!/bin/bash\ncd /tmp/bench76534717/proto\nsudo /tmp/bench76534717/bin/grpcurl -plaintext -unix -import-path . -proto containers.proto \\\n    -H 'containerd-namespace: k8s.io' -d '{}' /run/bench76534717/containerd.sock \\\n    containerd.services.containers.v1.Containers/List > /tmp/bench76534717/.list.json.$$\npython3 - /tmp/bench76534717/.list.json.$$ <<'PEOF'\nimport json, sys\nfor c in json.load(open(sys.argv[1])).get('containers', []):\n    print(c['id'], json.dumps(c.get('labels', {}), sort_keys=True))\nPEOF\nrm -f /tmp/bench76534717/.list.json.$$\nLEOF\nchmod +x $W/list.sh\n$W/list.sh\n"
+  },
+  {
+    "case_id": "q76534717",
+    "category": "compatibility",
+    "model": "no_op",
+    "code": ""
+  },
+  {
+    "case_id": "q76534717",
+    "category": "compatibility",
+    "model": "question_call_on_8080",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench76534717\ncat > $W/list.sh <<'LEOF'\n#!/bin/bash\nsudo /tmp/bench76534717/bin/grpcurl -plaintext \\\n    -import-path /tmp/bench76534717/proto -proto containers.proto \\\n    -d '{}' 127.0.0.1:8080 \\\n    containerd.services.containers.v1.Containers/List\nLEOF\nchmod +x $W/list.sh\n$W/list.sh || true\n"
+  },
+  {
+    "case_id": "q76534717",
+    "category": "compatibility",
+    "model": "unix_socket_without_namespace_header",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench76534717\ncat > $W/list.sh <<'LEOF'\n#!/bin/bash\nsudo /tmp/bench76534717/bin/grpcurl -plaintext -unix \\\n    -import-path /tmp/bench76534717/proto -proto containers.proto \\\n    -d '{}' /run/bench76534717/containerd.sock \\\n    containerd.services.containers.v1.Containers/List\nLEOF\nchmod +x $W/list.sh\n$W/list.sh || true\n"
+  },
+  {
+    "case_id": "q76534717",
+    "category": "compatibility",
+    "model": "unix_socket_namespace_default",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench76534717\ncat > $W/list.sh <<'LEOF'\n#!/bin/bash\nsudo /tmp/bench76534717/bin/grpcurl -plaintext -unix \\\n    -import-path /tmp/bench76534717/proto -proto containers.proto \\\n    -rpc-header 'containerd-namespace: default' \\\n    -d '{}' /run/bench76534717/containerd.sock \\\n    containerd.services.containers.v1.Containers/List\nLEOF\nchmod +x $W/list.sh\n$W/list.sh || true\n"
+  },
+  {
+    "case_id": "q76534717",
+    "category": "compatibility",
+    "model": "uses_ctr_instead_of_grpcurl",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench76534717\ncat > $W/list.sh <<'LEOF'\n#!/bin/bash\nsudo /var/lib/bench76534717/bin/ctr -a /run/bench76534717/containerd.sock -n k8s.io containers ls\nLEOF\nchmod +x $W/list.sh\n$W/list.sh || true\n"
+  },
+  {
+    "case_id": "q76534717",
+    "category": "compatibility",
+    "model": "real_grpcurl_not_the_lab_wrapper",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench76534717\ncat > $W/list.sh <<'LEOF'\n#!/bin/bash\nsudo /var/lib/bench76534717/bin/grpcurl -plaintext -unix \\\n    -import-path /tmp/bench76534717/proto -proto containers.proto \\\n    -rpc-header 'containerd-namespace: k8s.io' \\\n    -d '{}' /run/bench76534717/containerd.sock \\\n    containerd.services.containers.v1.Containers/List\nLEOF\nchmod +x $W/list.sh\n$W/list.sh || true\n"
+  },
+  {
+    "case_id": "q76534717",
+    "category": "compatibility",
+    "model": "stored_output_from_solution_time",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench76534717\nsudo $W/bin/grpcurl -plaintext -unix -import-path $W/proto -proto containers.proto -rpc-header 'containerd-namespace: k8s.io' -d '{}' /run/bench76534717/containerd.sock containerd.services.containers.v1.Containers/List > $W/stored.json\nprintf '#!/bin/bash\\ncat /tmp/bench76534717/stored.json\\n' > $W/list.sh\nchmod +x $W/list.sh\n$W/list.sh\n"
+  },
+  {
+    "case_id": "q76534717",
+    "category": "compatibility",
+    "model": "drops_8080_listener_and_restarts_containerd",
+    "code": "#!/bin/bash\nset -e\nW=/tmp/bench76534717\nsudo sed -i '/tcp_address/d' /var/lib/bench76534717/containerd.toml\nsudo kill $(cat /run/bench76534717/containerd.pid)\ncat > $W/list.sh <<'LEOF'\n#!/bin/bash\nsudo /tmp/bench76534717/bin/grpcurl -plaintext -unix \\\n    -import-path /tmp/bench76534717/proto -proto containers.proto \\\n    -rpc-header 'containerd-namespace: k8s.io' \\\n    -d '{}' /run/bench76534717/containerd.sock \\\n    containerd.services.containers.v1.Containers/List\nLEOF\nchmod +x $W/list.sh\n"
+  }
+]
