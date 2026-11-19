@@ -1,0 +1,41 @@
+The thread "CRIO runtime spec for OCI v1alpha1 compliance" asks where the specification of the command line that CRI-O uses towards an OCI runtime is. The asker found that CRI-O runs runc commands and
+flags that the "OCI Runtime Command Line Interface" (1.0.1: create, start, state, kill, delete) does not define, for example `exec`, and that a LXC runtime for CRI-O therefore lacked it. The only
+answer: that is an issue of LXC; OCI relies on commands matching the way runc works. So the contract is not written down anywhere to be found: it has to be read from what CRI-O really does.
+
+Adaptation (stated on purpose): no LXC adapter that CRI-O could use can be obtained for both x86_64 and arm64, so the case does not ask for an adapter. It asks for the contract itself, measured
+on the real CRI-O (v1.34, crictl v1.34.0, cgroupfs): CRI-O never runs the OCI runtime directly, its monitor (conmon) does, and for `exec` CRI-O runs the runtime itself. Setup registers two CRI-O runtime
+handlers whose runtime_path is a thin recording program: it appends the command line it was given (and, for an exec, the process spec file that is given to it) to a hash-chained log and then runs
+the host's default OCI runtime with the same arguments (it records, it is not another runtime implementation). The handler `benchrt` is yours; `benchrt-verify` belongs to the oracle.
+
+What you have (under /tmp/bench62874903):
+
+    pod.json, ctr.json     a host-network pod and a container (image localhost/bench62874903/app:local, already in CRI-O's store; its program /bench-app waits when run without arguments,
+                           `/bench-app echo ARGS` prints ARGS). The names are fixed: remove the pod (crictl stopp, rmp) before a second run.
+    token                  a string of this run
+    /var/lib/bench62874903/rt.log   your handler's log: one JSON object per line (seq, t, argv, for an exec also `process`, prev, h). Readable by everybody; do not edit it.
+
+Your task is to run one lifecycle of crictl operations through the handler benchrt:  runp (crictl runp --runtime benchrt), create, start, exec, stop, rm, stopp, rmp  (with `crictl`, as root/sudo), where the exec
+runs  /bench-app echo <the content of token>  in the container, and to write /tmp/bench62874903/contract.json with what the log shows about what CRI-O ran towards the runtime in that lifecycle:
+
+    {
+      "handler": "benchrt",
+      "global_flags": [...],                  every flag given before the subcommand (the name only, a value or "=value" is not part of it), sorted
+      "commands": [...],                      every runtime subcommand that was run, sorted (state included: CRI-O polls it)
+      "flags": {"<subcommand>": [...], ...},  per subcommand: the flags given after it (names only), sorted; [] when none
+      "operations": {"runp": [...], "create": [...], "start": [...], "exec": [...], "stop": [...], "rm": [...], "stopp": [...], "rmp": [...]},
+                                              per crictl operation: the subcommands it caused, sorted, without `state`
+      "exec_process_keys": [...],             the top-level keys of the process spec file that CRI-O gave to `exec` (file content is in the log), sorted
+      "evidence": {"container_id": "<64 hex>", "exec_args": ["/bench-app", "echo", "<token>"]}
+    }
+
+Requirements:
+
+1. Everything in contract.json is what this CRI-O did in your lifecycle: the commands and flags of the lifecycle only (not the probes `--version` and `features` that CRI-O runs against each handler when it starts, which
+   are not part of the lifecycle). evidence.container_id is the id of the container you created and exec_args is the process args of your exec; both must be found in your handler's log.
+2. The oracle checks that the log was not edited (hash chain), then runs three lifecycles of its own through its own handler and compares your contract with what they show. Do not change the recording
+   programs, the CRI-O drop-in /etc/crio/crio.conf.d/62-bench62874903.conf, the configs, or the log, and do not try to guess the oracle's handler.
+3. Tools: crictl, the log, python3 and the usual shell tools. Do not use docker, podman, containerd or ctr, and do not run the container with another tool.
+4. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need `sudo`.
+5. Your script must finish by itself: no interactive prompts, and no command that waits forever.
+
+Return the commands needed to complete the task.
