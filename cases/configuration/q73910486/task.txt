@@ -1,0 +1,42 @@
+This machine is a Kubernetes node as far as images go: its container runtime is containerd, and the kubelet pulls images through containerd's CRI plugin
+(no Kubernetes control plane is part of the exercise; `crictl pull` makes the same CRI call). containerd is this machine's own for the exercise (the machine's
+own services are not touched): it reads its configuration, /var/lib/bench73910486/etc/containerd.toml (owned by root), only when it starts, and is started and
+stopped with `sudo /var/lib/bench73910486/bin/containerdctl start|stop|restart|status`. Two wrappers save typing (they call sudo themselves):
+
+    /tmp/bench73910486/bin/node-crictl ...   # crictl connected to this containerd: pull, images, rmi, runp, create, start...
+    /tmp/bench73910486/bin/ctr ...            # ctr connected to this containerd (ctr's own default namespace is "default"; the CRI uses k8s.io)
+
+(Adaptation: the thread has no configuration beyond the hosts.toml below, no log and no registry product. The registry here is a small stand-in that logs every request
+with its authentication, at the address 10.66.73.10 (a loopback alias of this machine) and port 15000 in place of the thread's my_registry:5000; its request log is
+/var/lib/bench73910486/registry/requests.log. The thread does not establish the cause of what follows, so this machine has one specific cause, which the task asks you to find.)
+
+A private registry runs on this machine at 10.66.73.10:15000, plain HTTP. Its repositories below bench73910486/ and its /v2/ endpoint need the account `benchuser`
+(HTTP Basic authentication): the account's "user:password" line is in the root-only file /var/lib/bench73910486/registry/account. Without it the registry answers 401, as
+`docker pull` would be told to log in. It holds an application image, 10.66.73.10:15000/bench73910486/hello-world:latest (and a second tag, verify). As in the thread, the engineer
+wrote the registry's hosts file for containerd, /var/lib/bench73910486/etc/certs.d/10.66.73.10:15000/hosts.toml (the directory is the config_path of containerd.toml):
+
+    server = "http://10.66.73.10:15000"
+    [host."http://10.66.73.10:15000"]
+      capabilities = ["pull", "resolve"]
+
+and gave no account to anything on the node: not in crictl's command line, not in a crictl configuration file, not in the hosts file. Yet
+
+    $ /tmp/bench73910486/bin/node-crictl pull 10.66.73.10:15000/bench73910486/hello-world:latest
+    Image is up to date for sha256:...
+
+succeeds, with no account and no password, although the registry requires one. The engineer asks why that happens.
+
+Your task: find out through which path the pull is authorized, and make the node stop presenting credentials on its own: the registry must be reached with an account only when the caller
+supplies one (`crictl pull --creds benchuser:<password> ...`, which is what a kubelet does with a pull secret), and a pull without an account must be refused with the registry's 401.
+Nothing else is wanted changed.
+
+Requirements:
+
+1. The check removes both tags of the image (latest and verify) from the node and pulls each one WITHOUT an account (crictl pull, no --creds): both pulls must fail, and the registry's log must show that
+   containerd presented no account of its own (its requests there are unauthenticated and answered 401).
+2. The check then pulls each tag WITH the account given explicitly (crictl pull --creds): both must succeed and be the images the registry holds (the check compares the image id and the repository digest); the
+   registry's log must show containerd fetching the manifest and both blobs with that account; a container created from each runs and prints the token of its image.
+3. The account given for those pulls must not be kept: after the images are removed once more, a pull without an account is refused again.
+4. The registry stays as it is: the same running process, its files, its account and its content unchanged, and it still needs the account (no writes to it; no listener of another kind in its place; no
+   packet-forwarding or NAT rule for its address or port). The containerd that answers must be the one started from /var/lib/bench73910486/etc/containerd.toml, and the registry's hosts.toml must keep working
+   for the pulls with the account (so the image names and the hosts file stay as they are).

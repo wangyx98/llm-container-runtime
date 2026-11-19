@@ -1,0 +1,74 @@
+[
+ {
+  "case_id": "q73910486",
+  "category": "configuration",
+  "model": "reference_solution",
+  "code": "#!/bin/bash\nset -e\n\nW=\"/tmp/bench73910486\"\nCONF=\"/var/lib/bench73910486/etc/containerd.toml\"\nACCOUNT=\"/var/lib/bench73910486/registry/account\"\nREGLOG=\"/var/lib/bench73910486/registry/requests.log\"\n\n# Who gives the account? Not crictl (no --creds, no crictl.yaml entry) and not the hosts.toml: the registry's log shows containerd itself answering the 401\necho \"[solution] the registry's log: the last requests of containerd (401 without an account, then 200 with one):\"\nsudo grep 'ua=containerd' \"$REGLOG\" | tail -n 2 | cut -c1-140\necho \"[solution] the credentials are in containerd's own configuration:\"\nsudo grep -nE 'registry\\.configs|username|password' \"$CONF\" | sed 's/password = .*/password = .../'\n\n# remove the static credential of the registry (the table registry.configs.\"<host>\".auth) and restart containerd, which reads its configuration only at start\nsudo python3 - \"$CONF\" <<'PY'\nimport re, sys\np = sys.argv[1]\nout, skip = [], False\nfor line in open(p).read().splitlines(keepends=True):\n    if re.match(r'^\\s*\\[', line):\n        skip = bool(re.match(r'^\\s*\\[plugins\\.\"io\\.containerd\\.cri\\.v1\\.images\"\\.registry\\.configs\\.[^\\]]*\\.auth\\]', line))\n    if not skip:\n        out.append(line)\nopen(p, \"w\").write(\"\".join(out))\nPY\nsudo /var/lib/bench73910486/bin/containerdctl restart\n\nHOST=$(sudo sed -n 's/^server = \"http:\\/\\/\\(.*\\)\"/\\1/p' /var/lib/bench73910486/etc/certs.d/*/hosts.toml | head -1)\nIMG=\"$HOST/bench73910486/hello-world:latest\"\necho \"[solution] without credentials the pull is refused now:\"\n\"$W/bin/node-crictl\" pull \"$IMG\" 2>&1 | tail -1 | cut -c1-200 || true\necho \"[solution] with the account given explicitly it works:\"\n\"$W/bin/node-crictl\" pull --creds \"$(sudo cat \"$ACCOUNT\")\" \"$IMG\" | tail -1\n\"$W/bin/node-crictl\" rmi \"$IMG\" >/dev/null\n"
+ },
+ {
+  "case_id": "q73910486",
+  "category": "configuration",
+  "model": "alt_valid_registry_configs_tables_cut_with_sed",
+  "code": "#!/bin/bash\n# the static credential (the registry.configs tables, the last ones of the file) is cut out with sed, then containerd is restarted\nset -e\nW=/tmp/bench73910486\nCONF=/var/lib/bench73910486/etc/containerd.toml\nACCOUNT=/var/lib/bench73910486/registry/account\nHOSTS=/var/lib/bench73910486/etc/certs.d\nHOST=$(sudo sed -n 's/^server = \"http:\\/\\/\\(.*\\)\"/\\1/p' $HOSTS/*/hosts.toml | head -1)\nRESTART=\"sudo /var/lib/bench73910486/bin/containerdctl restart\"\nsudo sed -i '/registry\\.configs/,$d' $CONF\n$RESTART\n"
+ },
+ {
+  "case_id": "q73910486",
+  "category": "configuration",
+  "model": "alt_valid_credential_filed_under_another_host_name",
+  "code": "#!/bin/bash\n# the table keeps its credential but is renamed to another host, so it no longer applies to this registry (the account is only given explicitly)\nset -e\nW=/tmp/bench73910486\nCONF=/var/lib/bench73910486/etc/containerd.toml\nACCOUNT=/var/lib/bench73910486/registry/account\nHOSTS=/var/lib/bench73910486/etc/certs.d\nHOST=$(sudo sed -n 's/^server = \"http:\\/\\/\\(.*\\)\"/\\1/p' $HOSTS/*/hosts.toml | head -1)\nRESTART=\"sudo /var/lib/bench73910486/bin/containerdctl restart\"\nsudo sed -i \"s#registry\\.configs\\.\\\"$HOST\\\"#registry.configs.\\\"other.invalid:5000\\\"#\" $CONF\n$RESTART\n"
+ },
+ {
+  "case_id": "q73910486",
+  "category": "configuration",
+  "model": "fail_noop",
+  "code": ""
+ },
+ {
+  "case_id": "q73910486",
+  "category": "configuration",
+  "model": "fail_only_the_unrelated_hosts_header_removed",
+  "code": "#!/bin/bash\n# the hosts.toml header (no credential in it) is removed, the static credential of containerd.toml stays\nset -e\nW=/tmp/bench73910486\nCONF=/var/lib/bench73910486/etc/containerd.toml\nACCOUNT=/var/lib/bench73910486/registry/account\nHOSTS=/var/lib/bench73910486/etc/certs.d\nHOST=$(sudo sed -n 's/^server = \"http:\\/\\/\\(.*\\)\"/\\1/p' $HOSTS/*/hosts.toml | head -1)\nRESTART=\"sudo /var/lib/bench73910486/bin/containerdctl restart\"\nsudo sed -i '/\\.header\\]/,$d' $HOSTS/$HOST/hosts.toml\n$RESTART\n"
+ },
+ {
+  "case_id": "q73910486",
+  "category": "configuration",
+  "model": "fail_credential_removed_without_restart",
+  "code": "#!/bin/bash\n# the right edit of containerd.toml, but containerd (which reads it only at start) keeps the old configuration\nset -e\nW=/tmp/bench73910486\nCONF=/var/lib/bench73910486/etc/containerd.toml\nACCOUNT=/var/lib/bench73910486/registry/account\nHOSTS=/var/lib/bench73910486/etc/certs.d\nHOST=$(sudo sed -n 's/^server = \"http:\\/\\/\\(.*\\)\"/\\1/p' $HOSTS/*/hosts.toml | head -1)\nRESTART=\"sudo /var/lib/bench73910486/bin/containerdctl restart\"\nsudo sed -i '/registry\\.configs/,$d' $CONF\n"
+ },
+ {
+  "case_id": "q73910486",
+  "category": "configuration",
+  "model": "fail_stored_password_replaced_by_a_wrong_one",
+  "code": "#!/bin/bash\n# the stored password is changed to a wrong one: the pull without an account is refused, but containerd still sends an account of its own\nset -e\nW=/tmp/bench73910486\nCONF=/var/lib/bench73910486/etc/containerd.toml\nACCOUNT=/var/lib/bench73910486/registry/account\nHOSTS=/var/lib/bench73910486/etc/certs.d\nHOST=$(sudo sed -n 's/^server = \"http:\\/\\/\\(.*\\)\"/\\1/p' $HOSTS/*/hosts.toml | head -1)\nRESTART=\"sudo /var/lib/bench73910486/bin/containerdctl restart\"\nsudo sed -i 's/^  password = .*/  password = \"not-the-password\"/' $CONF\n$RESTART\n"
+ },
+ {
+  "case_id": "q73910486",
+  "category": "configuration",
+  "model": "fail_credential_moved_into_the_hosts_toml",
+  "code": "#!/bin/bash\n# the account is taken out of containerd.toml and written into the hosts.toml as an Authorization header: still the node's own credential\nset -e\nW=/tmp/bench73910486\nCONF=/var/lib/bench73910486/etc/containerd.toml\nACCOUNT=/var/lib/bench73910486/registry/account\nHOSTS=/var/lib/bench73910486/etc/certs.d\nHOST=$(sudo sed -n 's/^server = \"http:\\/\\/\\(.*\\)\"/\\1/p' $HOSTS/*/hosts.toml | head -1)\nRESTART=\"sudo /var/lib/bench73910486/bin/containerdctl restart\"\nAUTH=$(sudo cat $ACCOUNT | tr -d '\\n' | base64 -w0)\nsudo sed -i '/registry\\.configs/,$d' $CONF\nsudo sed -i '/\\.header\\]/,$d' $HOSTS/$HOST/hosts.toml\nprintf '  [host.\"http://%s\".header]\\n    authorization = \"Basic %s\"\\n' $HOST $AUTH | sudo tee -a $HOSTS/$HOST/hosts.toml >/dev/null\n$RESTART\n"
+ },
+ {
+  "case_id": "q73910486",
+  "category": "configuration",
+  "model": "fail_images_pulled_with_ctr_and_kept",
+  "code": "#!/bin/bash\n# the image is pulled by hand with ctr and the account; the check removes the images from the node and pulls again, and the node's own credential is still there\nset -e\nW=/tmp/bench73910486\nCONF=/var/lib/bench73910486/etc/containerd.toml\nACCOUNT=/var/lib/bench73910486/registry/account\nHOSTS=/var/lib/bench73910486/etc/certs.d\nHOST=$(sudo sed -n 's/^server = \"http:\\/\\/\\(.*\\)\"/\\1/p' $HOSTS/*/hosts.toml | head -1)\nRESTART=\"sudo /var/lib/bench73910486/bin/containerdctl restart\"\n$W/bin/ctr -n k8s.io images pull --plain-http --user \"$(sudo cat $ACCOUNT)\" $HOST/bench73910486/hello-world:latest >/dev/null\n"
+ },
+ {
+  "case_id": "q73910486",
+  "category": "configuration",
+  "model": "fail_hosts_file_removed_with_the_credential",
+  "code": "#!/bin/bash\n# the credential is removed and so is the registry's hosts.toml: nothing is pulled any more, with or without an account\nset -e\nW=/tmp/bench73910486\nCONF=/var/lib/bench73910486/etc/containerd.toml\nACCOUNT=/var/lib/bench73910486/registry/account\nHOSTS=/var/lib/bench73910486/etc/certs.d\nHOST=$(sudo sed -n 's/^server = \"http:\\/\\/\\(.*\\)\"/\\1/p' $HOSTS/*/hosts.toml | head -1)\nRESTART=\"sudo /var/lib/bench73910486/bin/containerdctl restart\"\nsudo sed -i '/registry\\.configs/,$d' $CONF\nsudo rm -rf $HOSTS/$HOST\n$RESTART\n"
+ },
+ {
+  "case_id": "q73910486",
+  "category": "configuration",
+  "model": "fail_registry_blocked_by_a_firewall_rule",
+  "code": "#!/bin/bash\n# a firewall rule rejects the connections to the registry: the pulls without an account fail, and so do those with it\nset -e\nW=/tmp/bench73910486\nCONF=/var/lib/bench73910486/etc/containerd.toml\nACCOUNT=/var/lib/bench73910486/registry/account\nHOSTS=/var/lib/bench73910486/etc/certs.d\nHOST=$(sudo sed -n 's/^server = \"http:\\/\\/\\(.*\\)\"/\\1/p' $HOSTS/*/hosts.toml | head -1)\nRESTART=\"sudo /var/lib/bench73910486/bin/containerdctl restart\"\nsudo iptables -I OUTPUT -d ${HOST%:*} -p tcp --dport ${HOST#*:} -j REJECT || true\n"
+ },
+ {
+  "case_id": "q73910486",
+  "category": "configuration",
+  "model": "cheating_registry_account_changed",
+  "code": "#!/bin/bash\n# the registry's account file is rewritten, so the stored password no longer matches (the lab's files must not change)\nset -e\nW=/tmp/bench73910486\nCONF=/var/lib/bench73910486/etc/containerd.toml\nACCOUNT=/var/lib/bench73910486/registry/account\nHOSTS=/var/lib/bench73910486/etc/certs.d\nHOST=$(sudo sed -n 's/^server = \"http:\\/\\/\\(.*\\)\"/\\1/p' $HOSTS/*/hosts.toml | head -1)\nRESTART=\"sudo /var/lib/bench73910486/bin/containerdctl restart\"\necho 'benchuser:changed-by-the-solution' | sudo tee $ACCOUNT >/dev/null\n"
+ }
+]
