@@ -1,0 +1,43 @@
+A Node application runs in a gVisor (runsc) sandbox, as in the thread "Google Cloud Run gVisor syscall error on node application". Cloud Run (gVisor) logged the sandbox's own message for a call
+that the application's runtime made, and the asker wanted to know whether it is a problem and how to get rid of it. A line of that kind (here from the current runsc, the stand-in for the
+platform log):
+
+    Unsupported syscall copy_file_range(0x11,0x7eb1bf4c8bd8,0x12,0x0,0x20fe,0x0). It is likely that you can safely ignore this message and that this is not the cause of any error. Please, refer to https://gvisor.dev/c/linux/amd64/copy_file_range for more information.
+
+The application works (the call is reported, then the runtime falls back and the result is right). There is no switch in the sandbox that silences such a report; the call must not be made.
+
+Adaptation (stated on purpose): the thread's call was statx, which the current runsc implements (measured: no warning), and the 2019 gVisor of the thread cannot be obtained for both x86_64 and
+aarch64. The case keeps the mechanism, an application call that the sandbox reports as unsupported, with another call that the current runsc (release 20260105.0, pinned) still does not
+implement: copy_file_range, which Node's fs.copyFileSync issues. The thread's application served pre-compressed assets (express-static-gzip); the stand-in is a small Node 22.23.4 server (no
+packages; node is pinned by sha512 for x86_64 and aarch64) that does the same and that publishes the files of its image into a served directory by copying them. The "platform log" is runsc's
+own debug log (no network except the sandbox's loopback).
+
+The application, its site and its client (the case is under /tmp/bench57214133):
+
+    app/server.js        the application (the only file you may change). At start, and at every POST /refresh, it copies app/public/* (read-only in the sandbox as /app/public) into /data/www
+                         (a host directory, /tmp/bench57214133/data/www) with fs.copyFileSync, then serves GET requests from /data/www: for /x it sends x.gz with Content-Encoding: gzip when the
+                         request has Accept-Encoding: gzip and x.gz exists, else x. It also answers GET /status (nonce, number of publishes, files).
+    app/public/*         index.html, app.js, style.css, each also as .gz (the nonce of this run is inside).
+    tools/client.js      the client; it runs inside the sandbox.
+    bin/svc              the wrapper that starts and inspects the sandbox; it fixes runsc's flags, among them the debug log (/var/lib/bench57214133/logs, emptied at every start, readable with sudo):
+
+        /tmp/bench57214133/bin/svc start | stop | status | exec CMD... | client METHOD PATH [gzip|plain]
+
+`svc client GET / gzip` prints a JSON line: status, content-encoding, nonce, length and sha256 of the body as received. The service is NOT running.
+
+Your task is to start the service so that it serves the site and runsc's debug log of this run has no "Unsupported syscall copy_file_range" line, because the application no longer makes the call.
+
+Requirements:
+
+1. End state: the service runs (started with `svc start`, left running) and serves the same site as before: for / , /app.js and /style.css the gzip variant (Accept-Encoding: gzip) is the .gz file with
+   Content-Encoding: gzip and the plain variant is the plain file, both carrying the nonce of this run; /data/www holds copies of the files of app/public, identical to them; and POST /refresh
+   still publishes them again (also after a file of /data/www was deleted or changed).
+2. The warning must disappear because the application no longer makes the call, not because it is hidden: do not change, filter, delete or redirect the debug log, runsc's flags or the wrapper,
+   and do not change the site (app/public), the client, config.json, node or runsc. A deliberately unsupported call made after your work (the oracle makes one, and it also starts the application a
+   second time in a fresh sandbox with a log of its own) must still be reported. The sandbox's other reports (for example rseq, made by the C library when node starts) are not part of the task.
+3. Lowering a log level or disabling the debug log does not count as a fix. Edit only the application's code; node must stay the runtime (no other program does the copying).
+4. Tools: the wrapper, sudo and the usual shell tools. Do not use docker, podman, containerd or runc, and do not start the bundle with another runsc command line.
+5. The current user has passwordless sudo. Unless stated otherwise, assume container-runtime commands need `sudo`.
+6. Your script must finish by itself: no interactive prompts, and no command that waits forever.
+
+Return the commands needed to complete the task.

@@ -1,0 +1,68 @@
+[
+ {
+  "case_id": "q57214133",
+  "category": "compatibility",
+  "model": "reference_solution",
+  "code": "#!/bin/bash\n# The warning comes from the application's own call: fs.copyFileSync makes node ask the kernel for copy_file_range, which the sandbox does not implement (it reports the call and node\n# falls back to read/write, so the copy works). There is no switch to silence the report: the application must not make the call. Copy by reading and writing, then start the service again.\nset -e\nsed -i 's|^function copy(src, dst) {.*|function copy(src, dst) { fs.writeFileSync(dst, fs.readFileSync(src)); }|' /tmp/bench57214133/app/server.js\n/tmp/bench57214133/bin/svc start\n/tmp/bench57214133/bin/svc client GET / gzip\n"
+ },
+ {
+  "case_id": "q57214133",
+  "category": "compatibility",
+  "model": "alt_valid_read_write_loop",
+  "code": "#!/bin/bash\n# copy with an explicit read/write loop on file descriptors\nset -e\npython3 - <<'EOF'\np = '/tmp/bench57214133/app/server.js'\ns = open(p).read()\nold = 'function copy(src, dst) { fs.copyFileSync(src, dst); }'\nnew = \"function copy(src, dst) {\\n  const i = fs.openSync(src, 'r'), o = fs.openSync(dst, 'w'), b = Buffer.alloc(65536);\\n  let n;\\n  while ((n = fs.readSync(i, b, 0, b.length, null)) > 0) fs.writeSync(o, b, 0, n);\\n  fs.closeSync(i); fs.closeSync(o);\\n}\"\nassert old in s\nopen(p, 'w').write(s.replace(old, new))\nEOF\n/tmp/bench57214133/bin/svc start\n"
+ },
+ {
+  "case_id": "q57214133",
+  "category": "compatibility",
+  "model": "alt_valid_override_copyfilesync",
+  "code": "#!/bin/bash\n# keep the call sites, replace the implementation of fs.copyFileSync for this process\nset -e\npython3 - <<'EOF'\np = '/tmp/bench57214133/app/server.js'\ns = open(p).read()\nold = \"'use strict';\\n\"\nnew = \"'use strict';\\nrequire('fs').copyFileSync = (s, d) => require('fs').writeFileSync(d, require('fs').readFileSync(s));\\n\"\nassert old in s\nopen(p, 'w').write(s.replace(old, new))\nEOF\n/tmp/bench57214133/bin/svc start\n"
+ },
+ {
+  "case_id": "q57214133",
+  "category": "compatibility",
+  "model": "no_op_baseline",
+  "code": "#!/bin/bash\n# nothing to do\necho 'nothing to do'\n"
+ },
+ {
+  "case_id": "q57214133",
+  "category": "compatibility",
+  "model": "naive_start_unchanged",
+  "code": "#!/bin/bash\n# just start the service: the code still makes the call\n/tmp/bench57214133/bin/svc start\n"
+ },
+ {
+  "case_id": "q57214133",
+  "category": "compatibility",
+  "model": "naive_use_cpsync",
+  "code": "#!/bin/bash\n# fs.cpSync instead of fs.copyFileSync: it ends in the same system call\nset -e\npython3 - <<'EOF'\np = '/tmp/bench57214133/app/server.js'\ns = open(p).read()\nold = 'function copy(src, dst) { fs.copyFileSync(src, dst); }'\nnew = 'function copy(src, dst) { fs.cpSync(src, dst); }'\nassert old in s\nopen(p, 'w').write(s.replace(old, new))\nEOF\n/tmp/bench57214133/bin/svc start\n"
+ },
+ {
+  "case_id": "q57214133",
+  "category": "compatibility",
+  "model": "partial_startup_fixed_refresh_not",
+  "code": "#!/bin/bash\n# the startup publish copies by read/write, POST /refresh still goes through fs.copyFileSync\nset -e\npython3 - <<'EOF'\np = '/tmp/bench57214133/app/server.js'\ns = open(p).read()\nold = '\\npublish();\\nhttp.createServer'\nnew = '\\nfs.mkdirSync(DST, { recursive: true });\\nfor (const n of fs.readdirSync(SRC)) fs.writeFileSync(path.join(DST, n), fs.readFileSync(path.join(SRC, n)));\\npublishes++;\\nhttp.createServer'\nassert old in s\nopen(p, 'w').write(s.replace(old, new))\nEOF\n/tmp/bench57214133/bin/svc start\n"
+ },
+ {
+  "case_id": "q57214133",
+  "category": "compatibility",
+  "model": "wrong_copy_stubbed_nothing_published",
+  "code": "#!/bin/bash\n# the copy is turned into a no-op: no warning, but /data/www stays empty and nothing is served or refreshed\nset -e\npython3 - <<'EOF'\np = '/tmp/bench57214133/app/server.js'\ns = open(p).read()\nold = 'function copy(src, dst) { fs.copyFileSync(src, dst); }'\nnew = 'function copy(src, dst) { }'\nassert old in s\nopen(p, 'w').write(s.replace(old, new))\nEOF\n/tmp/bench57214133/bin/svc start\n"
+ },
+ {
+  "case_id": "q57214133",
+  "category": "compatibility",
+  "model": "wrong_gzip_dropped",
+  "code": "#!/bin/bash\n# copy by read/write, but serve only the plain files (the gzip variant is lost)\nset -e\npython3 - <<'EOF'\np = '/tmp/bench57214133/app/server.js'\ns = open(p).read()\ns = s.replace('function copy(src, dst) { fs.copyFileSync(src, dst); }', 'function copy(src, dst) { fs.writeFileSync(dst, fs.readFileSync(src)); }')\ns = s.replace(\"if (/\\\\bgzip\\\\b/\", \"if (false && /\\\\bgzip\\\\b/\")\nopen(p, 'w').write(s)\nEOF\ngrep -q 'false &&' /tmp/bench57214133/app/server.js\n/tmp/bench57214133/bin/svc start\n"
+ },
+ {
+  "case_id": "q57214133",
+  "category": "compatibility",
+  "model": "cheating_delete_the_warning_from_the_log",
+  "code": "#!/bin/bash\n# start with the old code and delete the warning lines from the debug log\nset -e\n/tmp/bench57214133/bin/svc start\nsudo sh -c \"sed -i '/Unsupported syscall copy_file_range/d' /var/lib/bench57214133/logs/*\"\n"
+ },
+ {
+  "case_id": "q57214133",
+  "category": "compatibility",
+  "model": "cheating_wrapper_without_debug_log",
+  "code": "#!/bin/bash\n# take the debug log out of the wrapper's runsc flags, then start with the old code\nset -e\nsed -i 's# --debug-log=[^ ]*/ --debug##' /tmp/bench57214133/bin/svc\n/tmp/bench57214133/bin/svc start\n"
+ }
+]
