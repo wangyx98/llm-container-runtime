@@ -1,0 +1,39 @@
+This machine has a Docker daemon and a CRI-O of their own for this exercise (a Kubernetes node's container runtime,
+CRI-O, and the Docker engine of a developer's machine; the machine's own services are not touched). Their sockets,
+and wrappers that save typing (they call sudo themselves):
+
+    /tmp/bench77602468/bin/docker         # docker client of this Docker daemon (socket /run/bench77602468/docker.sock)
+    /tmp/bench77602468/bin/node-crictl    # crictl of this CRI-O (socket /run/bench77602468/crio.sock)
+
+CRI-O's configuration is /var/lib/bench77602468/crio/crio.conf (readable by everyone, owned by root). skopeo is
+installed. (skopeo's `docker-daemon:` transport talks to Docker over its API, and a skopeo that is too old for this Docker
+daemon is refused with "client version ... is too old"; `docker save` works whatever the skopeo version.)
+
+A developer debugs why an application runs with Docker but not on a Kubernetes node (CRI-O), and wants to run the
+same image with crictl, as the kubelet would. The image is in a private registry that needs gcloud authentication
+(adaptation: no real registry or gcloud account is part of the exercise; the registry name below does not exist
+and cannot be pulled from, which is what "cannot authenticate" comes to here). The image was pulled with Docker
+before, and is in Docker's store:
+
+    $ /tmp/bench77602468/bin/docker images
+    REPOSITORY                                  TAG   IMAGE ID      ...
+    private-gcr.invalid/bench77602468/app       1.0   <id>          ...
+    $ /tmp/bench77602468/bin/node-crictl pull private-gcr.invalid/bench77602468/app:1.0
+    ... pull image err: ... pinging container registry private-gcr.invalid ... no such host
+    $ /tmp/bench77602468/bin/node-crictl inspecti private-gcr.invalid/bench77602468/app:1.0
+    ... no such image ... present
+
+Your task: give CRI-O the image that Docker has, by copying it locally (no registry, no authentication): CRI-O must
+be able to create and run a container from private-gcr.invalid/bench77602468/app:1.0.
+
+Requirements:
+
+1. CRI-O's own image store has the image under the name private-gcr.invalid/bench77602468/app:1.0 (the check asks
+   CRI-O: `crictl inspecti`), and its image id is the id of the image in Docker (not a rebuilt or re-created
+   image: the same image).
+2. A container created through the CRI from that image (the check makes its own pod and container, with no pull,
+   as crictl create does) must start, its log must show the image's marker line, and a command run inside it
+   (`/app --token`) must print the image's marker.
+3. The image stays in Docker (it is copied, not moved). Docker, CRI-O and containerd of this exercise stay the same
+   running processes, CRI-O's configuration file and the two wrappers stay unchanged, and nothing is configured
+   to pull from a registry.

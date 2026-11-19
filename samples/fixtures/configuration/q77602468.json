@@ -1,0 +1,74 @@
+[
+ {
+  "case_id": "q77602468",
+  "category": "configuration",
+  "model": "reference_solution",
+  "code": "#!/bin/bash\nset -e\n\nW=\"/tmp/bench77602468\"\nIMG=\"private-gcr.invalid/bench77602468/app:1.0\"\nCONF=\"/var/lib/bench77602468/crio/crio.conf\"\n\n# where CRI-O keeps its images: the graph root, run root and driver of its configuration (a copy anywhere else is invisible to it)\nconf() { awk -F'\"' -v k=\"$1\" '$1 ~ \"^\"k\"[[:space:]]*=\" {print $2; exit}' \"$CONF\"; }\nROOT=$(conf root); RUNROOT=$(conf runroot); DRIVER=$(conf storage_driver)\necho \"[solution] CRI-O's storage: root $ROOT, run root $RUNROOT, driver $DRIVER\"\n\necho \"[solution] saving the image from Docker's store, and copying the archive into CRI-O's storage (same name)...\"\nT=$(mktemp -d)\n\"$W/bin/docker\" save -o \"$T/image.tar\" \"$IMG\"\nsudo skopeo copy \"docker-archive:$T/image.tar\" \"containers-storage:[$DRIVER@$ROOT+$RUNROOT]$IMG\"\nrm -rf \"$T\"\n\necho \"[solution] CRI-O sees it:\"\n\"$W/bin/node-crictl\" inspecti \"$IMG\" | grep -E '\"id\"|repoTags' | head -3\n"
+ },
+ {
+  "case_id": "q77602468",
+  "category": "configuration",
+  "model": "alt_valid_two_steps_through_a_dir_copy",
+  "code": "#!/bin/bash\n# docker save, then a skopeo `dir:` copy (the manifest and config kept as they are), then CRI-O's storage\nset -e\nW=/tmp/bench77602468\nIMG=private-gcr.invalid/bench77602468/app:1.0\nCONF=/var/lib/bench77602468/crio/crio.conf\nconf() { awk -F'\"' -v k=\"$1\" '$1 ~ \"^\"k\"[[:space:]]*=\" {print $2; exit}' $CONF; }\nROOT=$(conf root); RUNROOT=$(conf runroot)\nDEST=\"containers-storage:[overlay@$ROOT+$RUNROOT]\"\nT=$(mktemp -d)\n$W/bin/docker save -o $T/image.tar $IMG\nsudo skopeo copy docker-archive:$T/image.tar dir:$T/dir\nsudo skopeo copy dir:$T/dir \"$DEST$IMG\"\nsudo rm -rf $T\n"
+ },
+ {
+  "case_id": "q77602468",
+  "category": "configuration",
+  "model": "alt_valid_storage_conf_of_crio_in_the_environment",
+  "code": "#!/bin/bash\n# a storage.conf with CRI-O's graph root and run root, given to skopeo through CONTAINERS_STORAGE_CONF, so the destination needs no bracket syntax\nset -e\nW=/tmp/bench77602468\nIMG=private-gcr.invalid/bench77602468/app:1.0\nCONF=/var/lib/bench77602468/crio/crio.conf\nconf() { awk -F'\"' -v k=\"$1\" '$1 ~ \"^\"k\"[[:space:]]*=\" {print $2; exit}' $CONF; }\nROOT=$(conf root); RUNROOT=$(conf runroot)\nDEST=\"containers-storage:[overlay@$ROOT+$RUNROOT]\"\nT=$(mktemp -d)\n$W/bin/docker save -o $T/image.tar $IMG\nprintf '[storage]\\ndriver = \"overlay\"\\ngraphroot = \"%s\"\\nrunroot = \"%s\"\\n' \"$ROOT\" \"$RUNROOT\" > $T/storage.conf\nsudo env CONTAINERS_STORAGE_CONF=$T/storage.conf skopeo copy docker-archive:$T/image.tar containers-storage:$IMG\nrm -rf $T\n"
+ },
+ {
+  "case_id": "q77602468",
+  "category": "configuration",
+  "model": "fail_noop",
+  "code": ""
+ },
+ {
+  "case_id": "q77602468",
+  "category": "configuration",
+  "model": "fail_crictl_pull_with_the_registry_name",
+  "code": "#!/bin/bash\n# the asker's first try: crictl pull of the private name (no registry, no credentials)\nset -e\nW=/tmp/bench77602468\nIMG=private-gcr.invalid/bench77602468/app:1.0\nCONF=/var/lib/bench77602468/crio/crio.conf\nconf() { awk -F'\"' -v k=\"$1\" '$1 ~ \"^\"k\"[[:space:]]*=\" {print $2; exit}' $CONF; }\nROOT=$(conf root); RUNROOT=$(conf runroot)\nDEST=\"containers-storage:[overlay@$ROOT+$RUNROOT]\"\n$W/bin/node-crictl pull $IMG || true\n"
+ },
+ {
+  "case_id": "q77602468",
+  "category": "configuration",
+  "model": "fail_copy_into_another_storage_root",
+  "code": "#!/bin/bash\n# the right command with the wrong storage: a root of its own, which CRI-O does not read\nset -e\nW=/tmp/bench77602468\nIMG=private-gcr.invalid/bench77602468/app:1.0\nCONF=/var/lib/bench77602468/crio/crio.conf\nconf() { awk -F'\"' -v k=\"$1\" '$1 ~ \"^\"k\"[[:space:]]*=\" {print $2; exit}' $CONF; }\nROOT=$(conf root); RUNROOT=$(conf runroot)\nDEST=\"containers-storage:[overlay@$ROOT+$RUNROOT]\"\nT=$(mktemp -d)\n$W/bin/docker save -o $T/image.tar $IMG\nsudo skopeo copy docker-archive:$T/image.tar \"containers-storage:[overlay@/tmp/bench77602468-other/root+/tmp/bench77602468-other/run]$IMG\"\nrm -rf $T\n"
+ },
+ {
+  "case_id": "q77602468",
+  "category": "configuration",
+  "model": "fail_docker_save_only",
+  "code": "#!/bin/bash\n# the image is saved to a file, and never given to CRI-O\nset -e\nW=/tmp/bench77602468\nIMG=private-gcr.invalid/bench77602468/app:1.0\nCONF=/var/lib/bench77602468/crio/crio.conf\nconf() { awk -F'\"' -v k=\"$1\" '$1 ~ \"^\"k\"[[:space:]]*=\" {print $2; exit}' $CONF; }\nROOT=$(conf root); RUNROOT=$(conf runroot)\nDEST=\"containers-storage:[overlay@$ROOT+$RUNROOT]\"\n$W/bin/docker save -o /tmp/bench77602468-image.tar $IMG\n"
+ },
+ {
+  "case_id": "q77602468",
+  "category": "configuration",
+  "model": "fail_through_an_oci_archive_the_image_id_changes",
+  "code": "#!/bin/bash\n# docker save -> OCI archive -> CRI-O: the conversion rewrites the image's config, so CRI-O holds a different image (another id) under the right name\nset -e\nW=/tmp/bench77602468\nIMG=private-gcr.invalid/bench77602468/app:1.0\nCONF=/var/lib/bench77602468/crio/crio.conf\nconf() { awk -F'\"' -v k=\"$1\" '$1 ~ \"^\"k\"[[:space:]]*=\" {print $2; exit}' $CONF; }\nROOT=$(conf root); RUNROOT=$(conf runroot)\nDEST=\"containers-storage:[overlay@$ROOT+$RUNROOT]\"\nT=$(mktemp -d)\n$W/bin/docker save -o $T/image.tar $IMG\nsudo skopeo copy docker-archive:$T/image.tar oci-archive:$T/oci.tar:$IMG\nsudo skopeo copy oci-archive:$T/oci.tar \"$DEST$IMG\"\nrm -rf $T\n"
+ },
+ {
+  "case_id": "q77602468",
+  "category": "configuration",
+  "model": "fail_wrong_name_in_crio_store",
+  "code": "#!/bin/bash\n# copied into CRI-O's storage, but as localhost/...: the name the check (and the pod spec) asks for is missing\nset -e\nW=/tmp/bench77602468\nIMG=private-gcr.invalid/bench77602468/app:1.0\nCONF=/var/lib/bench77602468/crio/crio.conf\nconf() { awk -F'\"' -v k=\"$1\" '$1 ~ \"^\"k\"[[:space:]]*=\" {print $2; exit}' $CONF; }\nROOT=$(conf root); RUNROOT=$(conf runroot)\nDEST=\"containers-storage:[overlay@$ROOT+$RUNROOT]\"\nT=$(mktemp -d)\n$W/bin/docker save -o $T/image.tar $IMG\nsudo skopeo copy docker-archive:$T/image.tar \"${DEST}localhost/bench77602468/app:1.0\"\nrm -rf $T\n"
+ },
+ {
+  "case_id": "q77602468",
+  "category": "configuration",
+  "model": "fail_docker_image_removed_after_the_copy",
+  "code": "#!/bin/bash\n# the image is moved: it is copied, then removed from Docker\nset -e\nW=/tmp/bench77602468\nIMG=private-gcr.invalid/bench77602468/app:1.0\nCONF=/var/lib/bench77602468/crio/crio.conf\nconf() { awk -F'\"' -v k=\"$1\" '$1 ~ \"^\"k\"[[:space:]]*=\" {print $2; exit}' $CONF; }\nROOT=$(conf root); RUNROOT=$(conf runroot)\nDEST=\"containers-storage:[overlay@$ROOT+$RUNROOT]\"\nT=$(mktemp -d)\n$W/bin/docker save -o $T/image.tar $IMG\nsudo skopeo copy docker-archive:$T/image.tar \"$DEST$IMG\"\nrm -rf $T\n$W/bin/docker rmi $IMG\n"
+ },
+ {
+  "case_id": "q77602468",
+  "category": "configuration",
+  "model": "fail_crio_conf_root_pointed_at_the_copy",
+  "code": "#!/bin/bash\n# the image is copied into another storage root and CRI-O's configuration is edited to use it (the configuration must stay as it is)\nset -e\nW=/tmp/bench77602468\nIMG=private-gcr.invalid/bench77602468/app:1.0\nCONF=/var/lib/bench77602468/crio/crio.conf\nconf() { awk -F'\"' -v k=\"$1\" '$1 ~ \"^\"k\"[[:space:]]*=\" {print $2; exit}' $CONF; }\nROOT=$(conf root); RUNROOT=$(conf runroot)\nDEST=\"containers-storage:[overlay@$ROOT+$RUNROOT]\"\nT=$(mktemp -d)\n$W/bin/docker save -o $T/image.tar $IMG\nsudo skopeo copy docker-archive:$T/image.tar \"containers-storage:[overlay@/tmp/bench77602468-other/root+/tmp/bench77602468-other/run]$IMG\"\nrm -rf $T\nsudo sed -i \"s#^root = .*#root = \\\"/tmp/bench77602468-other/root\\\"#\" $CONF\n"
+ },
+ {
+  "case_id": "q77602468",
+  "category": "configuration",
+  "model": "cheating_rebuilt_from_the_files_of_the_image",
+  "code": "#!/bin/bash\n# the program is taken out of the image and a new image is built with the same name: a different image id, not the Docker image\nset -e\nW=/tmp/bench77602468\nIMG=private-gcr.invalid/bench77602468/app:1.0\nCONF=/var/lib/bench77602468/crio/crio.conf\nconf() { awk -F'\"' -v k=\"$1\" '$1 ~ \"^\"k\"[[:space:]]*=\" {print $2; exit}' $CONF; }\nROOT=$(conf root); RUNROOT=$(conf runroot)\nDEST=\"containers-storage:[overlay@$ROOT+$RUNROOT]\"\nT=$(mktemp -d)\nC=$($W/bin/docker create $IMG)\n$W/bin/docker cp $C:/app $T/app\n$W/bin/docker rm $C >/dev/null\nprintf 'FROM scratch\\nCOPY app /app\\nENTRYPOINT [\"/app\"]\\n' > $T/Dockerfile\n$W/bin/docker build -q -t rebuilt-bench77602468:1 $T >/dev/null\n$W/bin/docker save -o $T/rebuilt.tar rebuilt-bench77602468:1\nsudo skopeo copy docker-archive:$T/rebuilt.tar \"$DEST$IMG\"\nrm -rf $T\n"
+ }
+]
