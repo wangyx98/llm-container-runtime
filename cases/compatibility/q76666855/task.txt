@@ -1,0 +1,35 @@
+Months ago someone ran a JMeter load test on a workstation (Ubuntu 22.04) and forgot about it. Now the staging environment keeps receiving huge numbers of API requests, and they
+come from that workstation: the process is still running, below a containerd-shim. `kill -9` on it is useless (it comes back at once); `sudo systemctl stop containerd` stops it,
+but it is back as soon as Docker is started again; and `docker ps -a` and `docker images`, run without sudo, show nothing at all. The question: how to stop this JMeter and remove
+it completely. (The thread's answer: the container has a restart policy; take it away with `docker update --restart no <name>` and stop the container. The asker's comment: with sudo,
+`docker ps -a` does list the container.)
+
+Adaptation (stated on purpose): no JMeter, no Java and no /jmeter scripts here. The "load generator" is a small static program, the entrypoint of an image, that sends one request per
+second to a "staging API" stand-in at 127.0.0.1:18666 and tags every request with its own name; "jmeter-lp-endpoints" is the tag of the one to remove, and it stands in the command line
+of its process ("/jmeter/bin/run-lp-endpoint-tests 127.0.0.1 18666 jmeter-lp-endpoints"). The stand-in appends one line "<epoch seconds> <tag>" per request to
+/var/lib/bench76666855/endpoint/hits.log (readable by everybody; do not touch the stand-in, it is a running process of the lab). The services are not the machine's own: a containerd and a
+dockerd of the lab run with their own sockets and roots (the machine's own Docker, if there is one, is a different thing and must not be touched). The asker's sudo confusion is not part
+of the lab: the wrappers call sudo themselves.
+
+Next to the load generator, a healthy container "api-health-probe" (the same image, another tag) runs: it is a service that must go on.
+
+The tools of the job are small wrappers in /tmp/bench76666855/bin (run them as the current user):
+
+    stack CMD     the services of the lab, like `systemctl CMD containerd docker`: CMD is start, stop, restart or status (it starts containerd, then dockerd; it stops dockerd, then containerd)
+    docker ...    the docker client against the dockerd of the lab (use it, not a plain `docker`)
+    ctr ...       ctr against the containerd of the lab; it does not choose a namespace for you (ctr's default is "default")
+
+Your task is to get rid of the load generator for good.
+
+Requirements:
+
+1. Afterwards no process of the load generator ("jmeter-lp-endpoints") runs and the staging API receives no request carrying that tag. This has to hold after the services are
+   stopped and started again: the check restarts them itself, twice (`stack restart`), and watches for a few seconds after each restart.
+2. "Completely remove": the container of the load generator must be neither running nor configured to start again (removing it, or leaving it stopped with no restart policy at all,
+   are both fine). No other container may be left running or with a restart policy, except the one below.
+3. "api-health-probe" must stay exactly as it is: the same container (not re-created), the same restart policy, running now and after each restart of the services.
+4. The services keep running (containerd and dockerd of the lab, the same programs and configuration), the wrappers and the staging API stand-in are not changed, and nothing is downloaded.
+5. The current user has passwordless sudo. The names, ids, namespace and restart policy involved are not told here beyond the above: your commands must find them out.
+6. Your script must finish by itself: no interactive prompts, and no command that waits forever.
+
+Return the commands needed to complete the task.

@@ -1,0 +1,86 @@
+[
+ {
+  "case_id": "q76666855",
+  "category": "compatibility",
+  "model": "reference_solution",
+  "code": "#!/bin/bash\nset -e\nW=/tmp/bench76666855\n# The load generator's process hangs below a containerd-shim: the shim's command line names the namespace (moby) and the id of the container it keeps; that container's\n# restart policy (always) is what brings the process back whenever the services start, so the policy has to go before the container is stopped and removed.\nPID=$(pgrep -f '^/jmeter/bin/run-lp-endpoint-tests .*jmeter-lp-endpoints' | head -1)\nSHIM=$(awk '{print $4}' /proc/$PID/stat)\nID=$(tr '\\0' ' ' < /proc/$SHIM/cmdline | sed -n 's/.* -id \\([0-9a-f]\\{64\\}\\) .*/\\1/p')\necho \"process $PID, shim $SHIM, container $ID\"\n$W/bin/docker inspect -f '{{.Name}} policy={{.HostConfig.RestartPolicy.Name}}' \"$ID\"\n$W/bin/docker update --restart no \"$ID\"\n$W/bin/docker stop \"$ID\"\n$W/bin/docker rm \"$ID\"\n"
+ },
+ {
+  "case_id": "q76666855",
+  "category": "compatibility",
+  "model": "alt_valid_update_policy_no_and_stop",
+  "code": "#!/bin/bash\n# the thread's answer: take the restart policy away, then stop the container (it stays, stopped, with the policy no)\nset -e\nW=/tmp/bench76666855\nPID=$(pgrep -f '^/jmeter/bin/run-lp-endpoint-tests .*jmeter-lp-endpoints' | head -1)\nSHIM=$(awk '{print $4}' /proc/$PID/stat)\nID=$(tr '\\0' ' ' < /proc/$SHIM/cmdline | sed -n 's/.* -id \\([0-9a-f]\\{64\\}\\) .*/\\1/p')\n$W/bin/docker update --restart no \"$ID\"\n$W/bin/docker stop \"$ID\"\n"
+ },
+ {
+  "case_id": "q76666855",
+  "category": "compatibility",
+  "model": "alt_valid_rm_force",
+  "code": "#!/bin/bash\n# remove the container (its restart policy goes with it)\nset -e\nW=/tmp/bench76666855\nPID=$(pgrep -f '^/jmeter/bin/run-lp-endpoint-tests .*jmeter-lp-endpoints' | head -1)\nSHIM=$(awk '{print $4}' /proc/$PID/stat)\nID=$(tr '\\0' ' ' < /proc/$SHIM/cmdline | sed -n 's/.* -id \\([0-9a-f]\\{64\\}\\) .*/\\1/p')\n$W/bin/docker rm -f \"$ID\"\n"
+ },
+ {
+  "case_id": "q76666855",
+  "category": "compatibility",
+  "model": "alt_valid_policy_no_then_kill_the_process",
+  "code": "#!/bin/bash\n# policy no first, then the process is killed: the container ends up exited and is not restarted\nset -e\nW=/tmp/bench76666855\nPID=$(pgrep -f '^/jmeter/bin/run-lp-endpoint-tests .*jmeter-lp-endpoints' | head -1)\nSHIM=$(awk '{print $4}' /proc/$PID/stat)\nID=$(tr '\\0' ' ' < /proc/$SHIM/cmdline | sed -n 's/.* -id \\([0-9a-f]\\{64\\}\\) .*/\\1/p')\n$W/bin/docker update --restart no \"$ID\"\nkill -9 \"$PID\" 2>/dev/null || sudo kill -9 \"$PID\"\nsleep 2\n"
+ },
+ {
+  "case_id": "q76666855",
+  "category": "compatibility",
+  "model": "fail_kill_9_only",
+  "code": "#!/bin/bash\n# what the asker tried: kill -9 the process (dockerd starts it again)\nset -e\nW=/tmp/bench76666855\nPID=$(pgrep -f '^/jmeter/bin/run-lp-endpoint-tests .*jmeter-lp-endpoints' | head -1)\nSHIM=$(awk '{print $4}' /proc/$PID/stat)\nID=$(tr '\\0' ' ' < /proc/$SHIM/cmdline | sed -n 's/.* -id \\([0-9a-f]\\{64\\}\\) .*/\\1/p')\nsudo kill -9 \"$PID\"\nsleep 2\n"
+ },
+ {
+  "case_id": "q76666855",
+  "category": "compatibility",
+  "model": "fail_docker_stop_only",
+  "code": "#!/bin/bash\n# stop the container: it stays stopped until the services are restarted, then its policy always starts it again\nset -e\nW=/tmp/bench76666855\nPID=$(pgrep -f '^/jmeter/bin/run-lp-endpoint-tests .*jmeter-lp-endpoints' | head -1)\nSHIM=$(awk '{print $4}' /proc/$PID/stat)\nID=$(tr '\\0' ' ' < /proc/$SHIM/cmdline | sed -n 's/.* -id \\([0-9a-f]\\{64\\}\\) .*/\\1/p')\n$W/bin/docker stop \"$ID\"\n"
+ },
+ {
+  "case_id": "q76666855",
+  "category": "compatibility",
+  "model": "fail_update_policy_only_still_running",
+  "code": "#!/bin/bash\n# the policy is taken away but the container is left running\nset -e\nW=/tmp/bench76666855\nPID=$(pgrep -f '^/jmeter/bin/run-lp-endpoint-tests .*jmeter-lp-endpoints' | head -1)\nSHIM=$(awk '{print $4}' /proc/$PID/stat)\nID=$(tr '\\0' ' ' < /proc/$SHIM/cmdline | sed -n 's/.* -id \\([0-9a-f]\\{64\\}\\) .*/\\1/p')\n$W/bin/docker update --restart no \"$ID\"\n"
+ },
+ {
+  "case_id": "q76666855",
+  "category": "compatibility",
+  "model": "fail_ctr_task_kill_behind_dockers_back",
+  "code": "#!/bin/bash\n# kill the task and delete the container with ctr, in namespace moby: dockerd still keeps the container and its policy\nset -e\nW=/tmp/bench76666855\nPID=$(pgrep -f '^/jmeter/bin/run-lp-endpoint-tests .*jmeter-lp-endpoints' | head -1)\nSHIM=$(awk '{print $4}' /proc/$PID/stat)\nID=$(tr '\\0' ' ' < /proc/$SHIM/cmdline | sed -n 's/.* -id \\([0-9a-f]\\{64\\}\\) .*/\\1/p')\n$W/bin/ctr -n moby tasks kill -s KILL \"$ID\" || true\nsleep 2\n$W/bin/ctr -n moby containers rm \"$ID\" || true\nsleep 2\n"
+ },
+ {
+  "case_id": "q76666855",
+  "category": "compatibility",
+  "model": "fail_shim_killed",
+  "code": "#!/bin/bash\n# kill the containerd-shim that holds the process: dockerd sees the container exit and applies its policy\nset -e\nW=/tmp/bench76666855\nPID=$(pgrep -f '^/jmeter/bin/run-lp-endpoint-tests .*jmeter-lp-endpoints' | head -1)\nSHIM=$(awk '{print $4}' /proc/$PID/stat)\nID=$(tr '\\0' ' ' < /proc/$SHIM/cmdline | sed -n 's/.* -id \\([0-9a-f]\\{64\\}\\) .*/\\1/p')\nsudo kill -9 \"$SHIM\"\nsudo kill -9 \"$PID\" 2>/dev/null || true\nsleep 2\n"
+ },
+ {
+  "case_id": "q76666855",
+  "category": "compatibility",
+  "model": "fail_every_container_policy_no_and_target_stopped",
+  "code": "#!/bin/bash\n# policy no for every container, then stop the load generator: the neighbour loses its policy and is not back after a restart of the services\nset -e\nW=/tmp/bench76666855\nPID=$(pgrep -f '^/jmeter/bin/run-lp-endpoint-tests .*jmeter-lp-endpoints' | head -1)\nSHIM=$(awk '{print $4}' /proc/$PID/stat)\nID=$(tr '\\0' ' ' < /proc/$SHIM/cmdline | sed -n 's/.* -id \\([0-9a-f]\\{64\\}\\) .*/\\1/p')\n$W/bin/docker update --restart no $($W/bin/docker ps -aq)\n$W/bin/docker stop \"$ID\"\n"
+ },
+ {
+  "case_id": "q76666855",
+  "category": "compatibility",
+  "model": "fail_remove_every_container",
+  "code": "#!/bin/bash\n# remove every container of the lab: the neighbour is gone too\nset -e\nW=/tmp/bench76666855\nPID=$(pgrep -f '^/jmeter/bin/run-lp-endpoint-tests .*jmeter-lp-endpoints' | head -1)\nSHIM=$(awk '{print $4}' /proc/$PID/stat)\nID=$(tr '\\0' ' ' < /proc/$SHIM/cmdline | sed -n 's/.* -id \\([0-9a-f]\\{64\\}\\) .*/\\1/p')\n$W/bin/docker rm -f $($W/bin/docker ps -aq)\n"
+ },
+ {
+  "case_id": "q76666855",
+  "category": "compatibility",
+  "model": "fail_policy_on_failure_and_stop",
+  "code": "#!/bin/bash\n# the policy is changed to on-failure instead of no, the container is stopped\nset -e\nW=/tmp/bench76666855\nPID=$(pgrep -f '^/jmeter/bin/run-lp-endpoint-tests .*jmeter-lp-endpoints' | head -1)\nSHIM=$(awk '{print $4}' /proc/$PID/stat)\nID=$(tr '\\0' ' ' < /proc/$SHIM/cmdline | sed -n 's/.* -id \\([0-9a-f]\\{64\\}\\) .*/\\1/p')\n$W/bin/docker update --restart on-failure:1 \"$ID\"\n$W/bin/docker stop \"$ID\"\n"
+ },
+ {
+  "case_id": "q76666855",
+  "category": "compatibility",
+  "model": "fail_services_left_stopped",
+  "code": "#!/bin/bash\n# stop the services: nothing runs any more (the neighbour is down as well)\nset -e\nW=/tmp/bench76666855\nPID=$(pgrep -f '^/jmeter/bin/run-lp-endpoint-tests .*jmeter-lp-endpoints' | head -1)\nSHIM=$(awk '{print $4}' /proc/$PID/stat)\nID=$(tr '\\0' ' ' < /proc/$SHIM/cmdline | sed -n 's/.* -id \\([0-9a-f]\\{64\\}\\) .*/\\1/p')\n$W/bin/stack stop\n"
+ },
+ {
+  "case_id": "q76666855",
+  "category": "compatibility",
+  "model": "fail_noop",
+  "code": "#!/bin/bash\n# nothing to do\necho 'nothing to do'\n"
+ }
+]
