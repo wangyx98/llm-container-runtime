@@ -1,0 +1,50 @@
+This machine runs a single-node Kubernetes (k3s, node bench72183367-node) on CRI-O (the container runtime of the node;
+no Docker engine is installed, so there is no `docker login` and no ~/.docker/config.json). CRI-O, the registry and k3s
+were started by the case's setup; k3s is started and stopped with `sudo /var/lib/bench72183367/bin/k3sctl
+start|stop|restart|status`, and reads its options from /etc/rancher/k3s/config.yaml. Two wrappers, in
+/tmp/bench72183367/bin, save typing (they call sudo themselves):
+
+    /tmp/bench72183367/bin/k ...             # kubectl of this Kubernetes
+    /tmp/bench72183367/bin/node-crictl ...   # crictl connected to the node's CRI-O
+
+(Adaptation: the thread has no error text and no configuration; this is a single-node stand-in for the asker's
+cluster, and its registry is a small stand-in too. Its repositories below bench72183367/secure/ and its /v2/ endpoint
+need HTTP Basic authentication, as the asker's private registry does.)
+
+A private image registry runs on this machine, plain HTTP, at 127.0.0.1:15183 (CRI-O is configured to accept that
+address over plain HTTP). It holds the image of an application, 127.0.0.1:15183/bench72183367/secure/app:1.0. The
+registry's username and password are in /tmp/bench72183367/registry.cred (lines username=... and password=...). The
+engineer started the pod of /tmp/bench72183367/pod.yaml, which asks for that image (pod app, namespace default), and
+it does not start:
+
+    $ /tmp/bench72183367/bin/k get pod app
+    NAME   READY   STATUS             RESTARTS   AGE
+    app    0/1     ErrImagePull       0          12s
+    $ /tmp/bench72183367/bin/k describe pod app | grep -i 'Failed to pull'
+    ... reading manifest 1.0 in 127.0.0.1:15183/bench72183367/secure/app: unauthorized ...
+
+With Docker one would run `docker login`. CRI-O does not read Kubernetes Secrets by itself, and the engineer wants
+the credentials to be a Kubernetes object, handed to CRI-O by the kubelet when it pulls the image of a pod.
+
+Your task: make a pod that asks for 127.0.0.1:15183/bench72183367/secure/app:1.0 run, pulling the image with the
+registry's credentials taken from a Kubernetes Secret, so that any pod that uses the Secret can pull from the
+registry.
+
+Requirements:
+
+1. At the end a pod (any namespace, any name; pod app of namespace default is the natural one) is Running and Ready,
+   without container restarts, whose container asks for 127.0.0.1:15183/bench72183367/secure/app:1.0 (or for the same
+   image by its digest). The check reads the image id the pod reports (it must be the digest of the registry's
+   image) and the log of the container.
+2. The spec of that pod has imagePullSecrets, and at least one of those Secrets is a registry Secret (type
+   kubernetes.io/dockerconfigjson or kubernetes.io/dockercfg) for the server 127.0.0.1:15183 with the registry's
+   username and password. (Hint: imagePullSecrets of an existing pod cannot be changed; a ServiceAccount's
+   imagePullSecrets are added to the pods that are created afterwards.)
+3. The credentials must not be configured node-wide: do not put them in an auth file of CRI-O or containers/image
+   (/run/containers/0/auth.json, ~/.config/containers/auth.json, a global auth file, ~/.docker/config.json, the
+   kubelet's directory), and do not pre-pull the image with `crictl pull --creds` as a replacement. The check
+   verifies that CRI-O cannot pull from the registry without credentials, and then creates its own pod, with the
+   same imagePullSecrets as the pod it found, for a second image of the same repository that the node has never
+   held: that pod must reach Running, and the registry's log must show CRI-O fetching it with credentials.
+4. The registry, CRI-O and k3s stay as they are (the same processes, configuration and registry content, and the
+   registry still requires credentials). The check waits up to about 100 seconds for its own pod.

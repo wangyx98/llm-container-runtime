@@ -1,0 +1,74 @@
+[
+ {
+  "case_id": "q72183367",
+  "category": "configuration",
+  "model": "reference_solution",
+  "code": "#!/bin/bash\nset -e\n\nWORK_DIR=\"/tmp/bench72183367\"\nK=\"$WORK_DIR/bin/k\"\nREG_HOST=\"127.0.0.1:15183\"\nNS=\"default\"\n\n# the credentials of the registry: what an engineer would do with 'docker login', but as a Kubernetes Secret, which is what\n# the kubelet hands to CRI-O when it pulls (CRI-O does not read Kubernetes Secrets itself)\n. <(sed 's/^/CRED_/' \"$WORK_DIR/registry.cred\")\n\necho \"[solution] creating the Secret regcred (type kubernetes.io/dockerconfigjson) with the credentials of $REG_HOST in namespace $NS...\"\n\"$K\" -n \"$NS\" delete secret regcred --ignore-not-found >/dev/null\n\"$K\" -n \"$NS\" create secret docker-registry regcred \\\n    --docker-server=\"$REG_HOST\" --docker-username=\"$CRED_username\" --docker-password=\"$CRED_password\"\n\necho \"[solution] imagePullSecrets of a pod cannot be changed once it exists: recreating the pod app with the Secret...\"\n\"$K\" -n \"$NS\" delete pod app --wait=true --ignore-not-found >/dev/null\n{ cat \"$WORK_DIR/pod.yaml\"; printf '  imagePullSecrets:\\n  - name: regcred\\n'; } | \"$K\" apply -f - >/dev/null\n\necho \"[solution] waiting for the pod app to run...\"\nfor _ in $(seq 1 40); do\n    [ \"$(\"$K\" -n \"$NS\" get pod app -o jsonpath='{.status.phase}' 2>/dev/null)\" = \"Running\" ] && break\n    sleep 2\ndone\n\"$K\" -n \"$NS\" get pod app\n"
+ },
+ {
+  "case_id": "q72183367",
+  "category": "configuration",
+  "model": "alt_valid_default_serviceaccount_imagepullsecrets",
+  "code": "#!/bin/bash\n# the Secret goes to the default ServiceAccount (the pods created afterwards get it injected), then the pod is recreated from the unchanged pod.yaml\nset -e\nW=/tmp/bench72183367\nK=$W/bin/k\nNODE_CRICTL=$W/bin/node-crictl\nREG=127.0.0.1:15183\n. <(sed 's/^/C_/' $W/registry.cred)    # C_username, C_password\nWAIT_APP() { for _ in $(seq 1 20); do [ \"$($K -n \"${1:-default}\" get pod app -o jsonpath='{.status.phase}' 2>/dev/null)\" = Running ] && break; sleep 2; done; }\n$K create secret docker-registry regcred --docker-server=$REG --docker-username=\"$C_username\" --docker-password=\"$C_password\"\n$K patch serviceaccount default -p '{\"imagePullSecrets\":[{\"name\":\"regcred\"}]}'\n$K delete pod app --wait=true >/dev/null\n$K apply -f $W/pod.yaml >/dev/null\nWAIT_APP\n"
+ },
+ {
+  "case_id": "q72183367",
+  "category": "configuration",
+  "model": "alt_valid_dockerconfigjson_secret_from_file",
+  "code": "#!/bin/bash\n# the config.json an engineer would get from docker login, written by hand and stored as a Secret of type kubernetes.io/dockerconfigjson\nset -e\nW=/tmp/bench72183367\nK=$W/bin/k\nNODE_CRICTL=$W/bin/node-crictl\nREG=127.0.0.1:15183\n. <(sed 's/^/C_/' $W/registry.cred)    # C_username, C_password\nWAIT_APP() { for _ in $(seq 1 20); do [ \"$($K -n \"${1:-default}\" get pod app -o jsonpath='{.status.phase}' 2>/dev/null)\" = Running ] && break; sleep 2; done; }\nAUTH=$(printf '%s:%s' \"$C_username\" \"$C_password\" | base64 -w0)\nprintf '{\"auths\":{\"%s\":{\"auth\":\"%s\"}}}\\n' \"$REG\" \"$AUTH\" > $W/dockerconfig.json\n$K create secret generic regcred --type=kubernetes.io/dockerconfigjson --from-file=.dockerconfigjson=$W/dockerconfig.json\nrm -f $W/dockerconfig.json\n$K delete pod app --wait=true --ignore-not-found >/dev/null\n{ cat $W/pod.yaml; printf '  imagePullSecrets:\\n  - name: regcred\\n'; } | $K apply -f - >/dev/null\nWAIT_APP\n"
+ },
+ {
+  "case_id": "q72183367",
+  "category": "configuration",
+  "model": "alt_valid_new_namespace_and_pod",
+  "code": "#!/bin/bash\n# a namespace of its own with the Secret and a second pod (pod app of default is left as it is)\nset -e\nW=/tmp/bench72183367\nK=$W/bin/k\nNODE_CRICTL=$W/bin/node-crictl\nREG=127.0.0.1:15183\n. <(sed 's/^/C_/' $W/registry.cred)    # C_username, C_password\nWAIT_APP() { for _ in $(seq 1 20); do [ \"$($K -n \"${1:-default}\" get pod app -o jsonpath='{.status.phase}' 2>/dev/null)\" = Running ] && break; sleep 2; done; }\n$K create namespace apps\n$K -n apps create secret docker-registry regcred --docker-server=$REG --docker-username=\"$C_username\" --docker-password=\"$C_password\"\n{ cat $W/pod.yaml | sed 's/namespace: default/namespace: apps/'; printf '  imagePullSecrets:\\n  - name: regcred\\n'; } | $K apply -f - >/dev/null\nWAIT_APP apps\n"
+ },
+ {
+  "case_id": "q72183367",
+  "category": "configuration",
+  "model": "fail_secret_created_pod_unchanged",
+  "code": "#!/bin/bash\n# the Secret exists, but the pod app is the old one: a pod gets its imagePullSecrets when it is created\nset -e\nW=/tmp/bench72183367\nK=$W/bin/k\nNODE_CRICTL=$W/bin/node-crictl\nREG=127.0.0.1:15183\n. <(sed 's/^/C_/' $W/registry.cred)    # C_username, C_password\nWAIT_APP() { for _ in $(seq 1 20); do [ \"$($K -n \"${1:-default}\" get pod app -o jsonpath='{.status.phase}' 2>/dev/null)\" = Running ] && break; sleep 2; done; }\n$K create secret docker-registry regcred --docker-server=$REG --docker-username=\"$C_username\" --docker-password=\"$C_password\"\nsleep 5\n"
+ },
+ {
+  "case_id": "q72183367",
+  "category": "configuration",
+  "model": "fail_wrong_password",
+  "code": "#!/bin/bash\n# the Secret has a wrong password: the registry answers 401 to the kubelet's pull\nset -e\nW=/tmp/bench72183367\nK=$W/bin/k\nNODE_CRICTL=$W/bin/node-crictl\nREG=127.0.0.1:15183\n. <(sed 's/^/C_/' $W/registry.cred)    # C_username, C_password\nWAIT_APP() { for _ in $(seq 1 20); do [ \"$($K -n \"${1:-default}\" get pod app -o jsonpath='{.status.phase}' 2>/dev/null)\" = Running ] && break; sleep 2; done; }\n$K create secret docker-registry regcred --docker-server=$REG --docker-username=\"$C_username\" --docker-password=\"not-$C_password\"\n$K delete pod app --wait=true --ignore-not-found >/dev/null\n{ cat $W/pod.yaml; printf '  imagePullSecrets:\\n  - name: regcred\\n'; } | $K apply -f - >/dev/null\nWAIT_APP\n"
+ },
+ {
+  "case_id": "q72183367",
+  "category": "configuration",
+  "model": "fail_secret_in_another_namespace",
+  "code": "#!/bin/bash\n# the Secret is in namespace kube-system, the pod in default: imagePullSecrets are looked up in the pod's namespace\nset -e\nW=/tmp/bench72183367\nK=$W/bin/k\nNODE_CRICTL=$W/bin/node-crictl\nREG=127.0.0.1:15183\n. <(sed 's/^/C_/' $W/registry.cred)    # C_username, C_password\nWAIT_APP() { for _ in $(seq 1 20); do [ \"$($K -n \"${1:-default}\" get pod app -o jsonpath='{.status.phase}' 2>/dev/null)\" = Running ] && break; sleep 2; done; }\n$K -n kube-system create secret docker-registry regcred --docker-server=$REG --docker-username=\"$C_username\" --docker-password=\"$C_password\"\n$K delete pod app --wait=true --ignore-not-found >/dev/null\n{ cat $W/pod.yaml; printf '  imagePullSecrets:\\n  - name: regcred\\n'; } | $K apply -f - >/dev/null\nWAIT_APP\n"
+ },
+ {
+  "case_id": "q72183367",
+  "category": "configuration",
+  "model": "fail_wrong_server_in_secret",
+  "code": "#!/bin/bash\n# the Secret is for another registry host (localhost:15183, while the image names 127.0.0.1:15183): the kubelet matches the credentials by the image's registry\nset -e\nW=/tmp/bench72183367\nK=$W/bin/k\nNODE_CRICTL=$W/bin/node-crictl\nREG=127.0.0.1:15183\n. <(sed 's/^/C_/' $W/registry.cred)    # C_username, C_password\nWAIT_APP() { for _ in $(seq 1 20); do [ \"$($K -n \"${1:-default}\" get pod app -o jsonpath='{.status.phase}' 2>/dev/null)\" = Running ] && break; sleep 2; done; }\n$K create secret docker-registry regcred --docker-server=registry.example.com --docker-username=\"$C_username\" --docker-password=\"$C_password\"\n$K delete pod app --wait=true --ignore-not-found >/dev/null\n{ cat $W/pod.yaml; printf '  imagePullSecrets:\\n  - name: regcred\\n'; } | $K apply -f - >/dev/null\nWAIT_APP\n"
+ },
+ {
+  "case_id": "q72183367",
+  "category": "configuration",
+  "model": "fail_generic_secret_not_a_registry_secret",
+  "code": "#!/bin/bash\n# a generic Secret with username and password keys is referenced as imagePullSecret: the kubelet only reads dockerconfigjson/dockercfg Secrets\nset -e\nW=/tmp/bench72183367\nK=$W/bin/k\nNODE_CRICTL=$W/bin/node-crictl\nREG=127.0.0.1:15183\n. <(sed 's/^/C_/' $W/registry.cred)    # C_username, C_password\nWAIT_APP() { for _ in $(seq 1 20); do [ \"$($K -n \"${1:-default}\" get pod app -o jsonpath='{.status.phase}' 2>/dev/null)\" = Running ] && break; sleep 2; done; }\n$K create secret generic regcred --from-literal=username=\"$C_username\" --from-literal=password=\"$C_password\"\n$K delete pod app --wait=true --ignore-not-found >/dev/null\n{ cat $W/pod.yaml; printf '  imagePullSecrets:\\n  - name: regcred\\n'; } | $K apply -f - >/dev/null\nWAIT_APP\n"
+ },
+ {
+  "case_id": "q72183367",
+  "category": "configuration",
+  "model": "fail_crictl_pull_with_creds_then_pod_without_secret",
+  "code": "#!/bin/bash\n# the image is pulled on the node by hand with crictl pull --creds (what the kubelet would do), the pod has no Secret: it runs from the node's store, nothing is configured for other pods\nset -e\nW=/tmp/bench72183367\nK=$W/bin/k\nNODE_CRICTL=$W/bin/node-crictl\nREG=127.0.0.1:15183\n. <(sed 's/^/C_/' $W/registry.cred)    # C_username, C_password\nWAIT_APP() { for _ in $(seq 1 20); do [ \"$($K -n \"${1:-default}\" get pod app -o jsonpath='{.status.phase}' 2>/dev/null)\" = Running ] && break; sleep 2; done; }\n$NODE_CRICTL pull --creds \"$C_username:$C_password\" $REG/bench72183367/secure/app:1.0\n$K delete pod app --wait=true --ignore-not-found >/dev/null\n$K apply -f $W/pod.yaml >/dev/null\nWAIT_APP\n"
+ },
+ {
+  "case_id": "q72183367",
+  "category": "configuration",
+  "model": "fail_node_wide_auth_file_pod_without_secret",
+  "code": "#!/bin/bash\n# a node-wide auth file for containers/image (the substitute of docker login): the pod runs without any Secret\nset -e\nW=/tmp/bench72183367\nK=$W/bin/k\nNODE_CRICTL=$W/bin/node-crictl\nREG=127.0.0.1:15183\n. <(sed 's/^/C_/' $W/registry.cred)    # C_username, C_password\nWAIT_APP() { for _ in $(seq 1 20); do [ \"$($K -n \"${1:-default}\" get pod app -o jsonpath='{.status.phase}' 2>/dev/null)\" = Running ] && break; sleep 2; done; }\nAUTH=$(printf '%s:%s' \"$C_username\" \"$C_password\" | base64 -w0)\nsudo mkdir -p /run/containers/0\nprintf '{\"auths\":{\"%s\":{\"auth\":\"%s\"}}}\\n' \"$REG\" \"$AUTH\" | sudo tee /run/containers/0/auth.json >/dev/null\n$K delete pod app --wait=true --ignore-not-found >/dev/null\n$K apply -f $W/pod.yaml >/dev/null\nWAIT_APP\n"
+ },
+ {
+  "case_id": "q72183367",
+  "category": "configuration",
+  "model": "fail_noop",
+  "code": ""
+ }
+]
