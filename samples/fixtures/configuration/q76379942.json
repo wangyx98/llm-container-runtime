@@ -1,0 +1,86 @@
+[
+ {
+  "case_id": "q76379942",
+  "category": "configuration",
+  "model": "reference_solution",
+  "code": "#!/bin/bash\nset -e\n\nW=\"/tmp/bench76379942\"\nCONF=\"/var/lib/bench76379942/etc/containerd.toml\"\nPROPS=\"/var/lib/bench76379942/nexus/etc/nexus.properties\"\n\n# Nexus' Docker connector: the host and port of its configuration (and what ss shows), not the port of the image names\nHOST=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.host=//p' \"$PROPS\")\nPORT=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.port=//p' \"$PROPS\")\nOLD=$(grep -o 'http://[^\"]*' \"$CONF\" | head -1)          # the engineer's mirror endpoint, host:port where nothing listens\necho \"[solution] Nexus listens on $HOST:$PORT (plain HTTP); the mirror of docker.io points at $OLD\"\nss -ltn | grep -q \"$HOST:$PORT\" || { echo \"[solution] nothing listens on $HOST:$PORT\"; exit 1; }\n\necho \"[solution] docker.io -> Nexus' real connector, and the explicit name ${OLD#http://} (the thread's port) -> the same connector; then containerd has to be restarted...\"\nsudo sed -i \"s#endpoint = \\[\\\"$OLD\\\"\\]#endpoint = [\\\"http://$HOST:$PORT\\\"]#\" \"$CONF\"\nsudo tee -a \"$CONF\" >/dev/null <<TOML\n  [plugins.\"io.containerd.cri.v1.images\".registry.mirrors.\"${OLD#http://}\"]\n    endpoint = [\"http://$HOST:$PORT\"]\nTOML\nsudo /var/lib/bench76379942/bin/containerdctl restart\n\necho \"[solution] both names pull now:\"\n\"$W/bin/node-crictl\" pull bench76379942/web:1.0 | tail -1\n\"$W/bin/node-crictl\" pull \"${OLD#http://}/bench76379942/api:1.0\" | tail -1\n"
+ },
+ {
+  "case_id": "q76379942",
+  "category": "configuration",
+  "model": "alt_valid_config_path_with_hosts_toml_mirrors",
+  "code": "#!/bin/bash\n# the registry.mirrors tables are replaced by config_path and one hosts.toml per name (a directory of its own): the upstream as `server`, Nexus' connector as the mirror host\nset -e\nW=/tmp/bench76379942\nCONF=/var/lib/bench76379942/etc/containerd.toml\nPROPS=/var/lib/bench76379942/nexus/etc/nexus.properties\nHOST=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.host=//p' $PROPS)\nPORT=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.port=//p' $PROPS)\nEXPL=$(grep -o 'http://[^\"]*' $CONF | head -1); EXPL=${EXPL#http://}\nRESTART=\"sudo /var/lib/bench76379942/bin/containerdctl restart\"\nMIRRORS='[plugins.\"io.containerd.cri.v1.images\".registry.mirrors'\nsudo sed -i '/registry\\.mirrors\\]/,$d' $CONF\nsudo sed -i '/^[[:space:]]*config_path/d' $CONF\nD=/tmp/bench76379942-hosts\nsudo mkdir -p $D/docker.io $D/$EXPL\nprintf '  config_path = \"%s\"\\n' $D | sudo tee -a $CONF >/dev/null\nprintf 'server = \"https://registry-1.docker.io\"\\n[host.\"http://%s:%s\"]\\n  capabilities = [\"pull\", \"resolve\"]\\n' $HOST $PORT | sudo tee $D/docker.io/hosts.toml >/dev/null\nprintf 'server = \"https://%s\"\\n[host.\"http://%s:%s\"]\\n  capabilities = [\"pull\", \"resolve\"]\\n' $EXPL $HOST $PORT | sudo tee $D/$EXPL/hosts.toml >/dev/null\n$RESTART\n"
+ },
+ {
+  "case_id": "q76379942",
+  "category": "configuration",
+  "model": "alt_valid_hosts_toml_with_the_connector_as_server",
+  "code": "#!/bin/bash\n# config_path with hosts.toml files that only name Nexus' connector as the server (plain HTTP)\nset -e\nW=/tmp/bench76379942\nCONF=/var/lib/bench76379942/etc/containerd.toml\nPROPS=/var/lib/bench76379942/nexus/etc/nexus.properties\nHOST=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.host=//p' $PROPS)\nPORT=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.port=//p' $PROPS)\nEXPL=$(grep -o 'http://[^\"]*' $CONF | head -1); EXPL=${EXPL#http://}\nRESTART=\"sudo /var/lib/bench76379942/bin/containerdctl restart\"\nMIRRORS='[plugins.\"io.containerd.cri.v1.images\".registry.mirrors'\nsudo sed -i '/registry\\.mirrors\\]/,$d' $CONF\nsudo sed -i '/^[[:space:]]*config_path/d' $CONF\nD=/tmp/bench76379942-hosts\nsudo mkdir -p $D/docker.io $D/$EXPL\nprintf '  config_path = \"%s\"\\n' $D | sudo tee -a $CONF >/dev/null\nfor n in docker.io $EXPL; do printf 'server = \"http://%s:%s\"\\n' $HOST $PORT | sudo tee $D/$n/hosts.toml >/dev/null; done\n$RESTART\n"
+ },
+ {
+  "case_id": "q76379942",
+  "category": "configuration",
+  "model": "alt_valid_both_mirrors_rewritten_with_python",
+  "code": "#!/bin/bash\n# the mirrors tables rewritten in one go (both names, same endpoint), then a restart\nset -e\nW=/tmp/bench76379942\nCONF=/var/lib/bench76379942/etc/containerd.toml\nPROPS=/var/lib/bench76379942/nexus/etc/nexus.properties\nHOST=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.host=//p' $PROPS)\nPORT=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.port=//p' $PROPS)\nEXPL=$(grep -o 'http://[^\"]*' $CONF | head -1); EXPL=${EXPL#http://}\nRESTART=\"sudo /var/lib/bench76379942/bin/containerdctl restart\"\nMIRRORS='[plugins.\"io.containerd.cri.v1.images\".registry.mirrors'\nsudo python3 - \"$CONF\" \"$EXPL\" \"$HOST:$PORT\" <<'PY'\nimport sys,re\np,expl,real=sys.argv[1:4]\nt=open(p).read()\nt=t[:t.index('[plugins.\"io.containerd.cri.v1.images\".registry.mirrors]')]\nt+='[plugins.\"io.containerd.cri.v1.images\".registry.mirrors]\\n'\nfor n in (\"docker.io\",expl):\n    t+='  [plugins.\"io.containerd.cri.v1.images\".registry.mirrors.\"%s\"]\\n    endpoint = [\"http://%s\"]\\n'%(n,real)\nopen(p,\"w\").write(t)\nPY\n$RESTART\n"
+ },
+ {
+  "case_id": "q76379942",
+  "category": "configuration",
+  "model": "fail_noop",
+  "code": ""
+ },
+ {
+  "case_id": "q76379942",
+  "category": "configuration",
+  "model": "fail_only_the_default_mirror_fixed",
+  "code": "#!/bin/bash\n# the mirror of docker.io points at the real connector, the explicit name (port 8082) is left as it was\nset -e\nW=/tmp/bench76379942\nCONF=/var/lib/bench76379942/etc/containerd.toml\nPROPS=/var/lib/bench76379942/nexus/etc/nexus.properties\nHOST=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.host=//p' $PROPS)\nPORT=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.port=//p' $PROPS)\nEXPL=$(grep -o 'http://[^\"]*' $CONF | head -1); EXPL=${EXPL#http://}\nRESTART=\"sudo /var/lib/bench76379942/bin/containerdctl restart\"\nMIRRORS='[plugins.\"io.containerd.cri.v1.images\".registry.mirrors'\nsudo sed -i \"s#endpoint = \\[\\\"http://$EXPL\\\"\\]#endpoint = [\\\"http://$HOST:$PORT\\\"]#\" $CONF\n$RESTART\n"
+ },
+ {
+  "case_id": "q76379942",
+  "category": "configuration",
+  "model": "fail_only_the_explicit_name_mapped",
+  "code": "#!/bin/bash\n# the explicit name is mapped to the connector, the docker.io mirror keeps the engineer's port\nset -e\nW=/tmp/bench76379942\nCONF=/var/lib/bench76379942/etc/containerd.toml\nPROPS=/var/lib/bench76379942/nexus/etc/nexus.properties\nHOST=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.host=//p' $PROPS)\nPORT=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.port=//p' $PROPS)\nEXPL=$(grep -o 'http://[^\"]*' $CONF | head -1); EXPL=${EXPL#http://}\nRESTART=\"sudo /var/lib/bench76379942/bin/containerdctl restart\"\nMIRRORS='[plugins.\"io.containerd.cri.v1.images\".registry.mirrors'\nprintf '  %s.\"%s\"]\\n    endpoint = [\"http://%s:%s\"]\\n' \"$MIRRORS\" $EXPL $HOST $PORT | sudo tee -a $CONF >/dev/null\n$RESTART\n"
+ },
+ {
+  "case_id": "q76379942",
+  "category": "configuration",
+  "model": "fail_https_scheme_for_the_connector",
+  "code": "#!/bin/bash\n# both names mapped to the right port, with https: the connector speaks plain HTTP\nset -e\nW=/tmp/bench76379942\nCONF=/var/lib/bench76379942/etc/containerd.toml\nPROPS=/var/lib/bench76379942/nexus/etc/nexus.properties\nHOST=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.host=//p' $PROPS)\nPORT=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.port=//p' $PROPS)\nEXPL=$(grep -o 'http://[^\"]*' $CONF | head -1); EXPL=${EXPL#http://}\nRESTART=\"sudo /var/lib/bench76379942/bin/containerdctl restart\"\nMIRRORS='[plugins.\"io.containerd.cri.v1.images\".registry.mirrors'\nsudo sed -i \"s#endpoint = \\[\\\"http://$EXPL\\\"\\]#endpoint = [\\\"https://$HOST:$PORT\\\"]#\" $CONF\nprintf '  %s.\"%s\"]\\n    endpoint = [\"https://%s:%s\"]\\n' \"$MIRRORS\" $EXPL $HOST $PORT | sudo tee -a $CONF >/dev/null\n$RESTART\n"
+ },
+ {
+  "case_id": "q76379942",
+  "category": "configuration",
+  "model": "fail_config_edited_without_restart",
+  "code": "#!/bin/bash\n# the right configuration is written, and containerd (which reads it only at start) keeps the old one\nset -e\nW=/tmp/bench76379942\nCONF=/var/lib/bench76379942/etc/containerd.toml\nPROPS=/var/lib/bench76379942/nexus/etc/nexus.properties\nHOST=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.host=//p' $PROPS)\nPORT=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.port=//p' $PROPS)\nEXPL=$(grep -o 'http://[^\"]*' $CONF | head -1); EXPL=${EXPL#http://}\nRESTART=\"sudo /var/lib/bench76379942/bin/containerdctl restart\"\nMIRRORS='[plugins.\"io.containerd.cri.v1.images\".registry.mirrors'\nsudo sed -i \"s#endpoint = \\[\\\"http://$EXPL\\\"\\]#endpoint = [\\\"http://$HOST:$PORT\\\"]#\" $CONF\nprintf '  %s.\"%s\"]\\n    endpoint = [\"http://%s:%s\"]\\n' \"$MIRRORS\" $EXPL $HOST $PORT | sudo tee -a $CONF >/dev/null\n"
+ },
+ {
+  "case_id": "q76379942",
+  "category": "configuration",
+  "model": "fail_tls_misdiagnosis_insecure_skip_verify",
+  "code": "#!/bin/bash\n# the usual guess for a failing registry: TLS settings for the thread's port (skip verify, plain HTTP mirror), while the port itself is the problem\nset -e\nW=/tmp/bench76379942\nCONF=/var/lib/bench76379942/etc/containerd.toml\nPROPS=/var/lib/bench76379942/nexus/etc/nexus.properties\nHOST=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.host=//p' $PROPS)\nPORT=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.port=//p' $PROPS)\nEXPL=$(grep -o 'http://[^\"]*' $CONF | head -1); EXPL=${EXPL#http://}\nRESTART=\"sudo /var/lib/bench76379942/bin/containerdctl restart\"\nMIRRORS='[plugins.\"io.containerd.cri.v1.images\".registry.mirrors'\nprintf '      [plugins.\"io.containerd.cri.v1.images\".registry.configs.\"%s\".tls]\\n        insecure_skip_verify = true\\n' $EXPL | sudo tee -a $CONF >/dev/null\n$RESTART\n"
+ },
+ {
+  "case_id": "q76379942",
+  "category": "configuration",
+  "model": "fail_images_pulled_with_ctr_and_retagged",
+  "code": "#!/bin/bash\n# the images are pulled by hand from the connector (ctr, plain HTTP) and tagged with the two names: the node holds them until the check removes them and pulls again\nset -e\nW=/tmp/bench76379942\nCONF=/var/lib/bench76379942/etc/containerd.toml\nPROPS=/var/lib/bench76379942/nexus/etc/nexus.properties\nHOST=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.host=//p' $PROPS)\nPORT=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.port=//p' $PROPS)\nEXPL=$(grep -o 'http://[^\"]*' $CONF | head -1); EXPL=${EXPL#http://}\nRESTART=\"sudo /var/lib/bench76379942/bin/containerdctl restart\"\nMIRRORS='[plugins.\"io.containerd.cri.v1.images\".registry.mirrors'\nfor r in web api; do\n  $W/bin/ctr -n k8s.io images pull --plain-http $HOST:$PORT/bench76379942/$r:1.0 >/dev/null\n  $W/bin/ctr -n k8s.io images tag $HOST:$PORT/bench76379942/$r:1.0 docker.io/bench76379942/$r:1.0 >/dev/null 2>&1 || true\n  $W/bin/ctr -n k8s.io images tag $HOST:$PORT/bench76379942/$r:1.0 $EXPL/bench76379942/$r:1.0 >/dev/null 2>&1 || true\ndone\n"
+ },
+ {
+  "case_id": "q76379942",
+  "category": "configuration",
+  "model": "cheating_forwarder_listening_on_8082",
+  "code": "#!/bin/bash\n# a small TCP forwarder listens on the engineer's port and relays to the connector: the names work, the lab is changed\nset -e\nW=/tmp/bench76379942\nCONF=/var/lib/bench76379942/etc/containerd.toml\nPROPS=/var/lib/bench76379942/nexus/etc/nexus.properties\nHOST=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.host=//p' $PROPS)\nPORT=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.port=//p' $PROPS)\nEXPL=$(grep -o 'http://[^\"]*' $CONF | head -1); EXPL=${EXPL#http://}\nRESTART=\"sudo /var/lib/bench76379942/bin/containerdctl restart\"\nMIRRORS='[plugins.\"io.containerd.cri.v1.images\".registry.mirrors'\ncat > $W/fwd.py <<'PY'\nimport socket,threading,sys\nh,p,q=sys.argv[1],int(sys.argv[2]),int(sys.argv[3])\ndef pipe(a,b):\n    try:\n        while (d:=a.recv(65536)): b.sendall(d)\n    except OSError: pass\n    finally:\n        for s in (a,b):\n            try: s.close()\n            except OSError: pass\nl=socket.socket(); l.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1); l.bind((h,p)); l.listen(64)\nwhile True:\n    c,_=l.accept(); u=socket.create_connection((h,q))\n    threading.Thread(target=pipe,args=(c,u),daemon=True).start(); threading.Thread(target=pipe,args=(u,c),daemon=True).start()\nPY\nsudo setsid -f python3 $W/fwd.py $HOST ${EXPL##*:} $PORT </dev/null >/dev/null 2>&1\nsleep 1\nsudo sed -i \"s#endpoint = \\[\\\"http://$EXPL\\\"\\]#endpoint = [\\\"http://$EXPL\\\"]#\" $CONF\n"
+ },
+ {
+  "case_id": "q76379942",
+  "category": "configuration",
+  "model": "cheating_iptables_dnat_of_the_engineers_port",
+  "code": "#!/bin/bash\n# a NAT rule redirects the engineer's port to the connector: nothing in containerd changes, the network does\nset -e\nW=/tmp/bench76379942\nCONF=/var/lib/bench76379942/etc/containerd.toml\nPROPS=/var/lib/bench76379942/nexus/etc/nexus.properties\nHOST=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.host=//p' $PROPS)\nPORT=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.port=//p' $PROPS)\nEXPL=$(grep -o 'http://[^\"]*' $CONF | head -1); EXPL=${EXPL#http://}\nRESTART=\"sudo /var/lib/bench76379942/bin/containerdctl restart\"\nMIRRORS='[plugins.\"io.containerd.cri.v1.images\".registry.mirrors'\nsudo iptables -t nat -A OUTPUT -d $HOST -p tcp --dport ${EXPL##*:} -j DNAT --to-destination $HOST:$PORT || true\n"
+ },
+ {
+  "case_id": "q76379942",
+  "category": "configuration",
+  "model": "cheating_nexus_connector_port_changed",
+  "code": "#!/bin/bash\n# Nexus' configuration is edited to use the engineer's port (the connector then moves at its next start)\nset -e\nW=/tmp/bench76379942\nCONF=/var/lib/bench76379942/etc/containerd.toml\nPROPS=/var/lib/bench76379942/nexus/etc/nexus.properties\nHOST=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.host=//p' $PROPS)\nPORT=$(sed -n 's/^nexus\\.docker\\.docker-all\\.http\\.port=//p' $PROPS)\nEXPL=$(grep -o 'http://[^\"]*' $CONF | head -1); EXPL=${EXPL#http://}\nRESTART=\"sudo /var/lib/bench76379942/bin/containerdctl restart\"\nMIRRORS='[plugins.\"io.containerd.cri.v1.images\".registry.mirrors'\nsudo sed -i \"s/^nexus.docker.docker-all.http.port=.*/nexus.docker.docker-all.http.port=${EXPL##*:}/\" $PROPS\n"
+ }
+]

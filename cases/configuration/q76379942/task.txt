@@ -1,0 +1,50 @@
+This machine runs a Kubernetes node's container runtime, containerd (the kubelet pulls images through containerd's CRI
+plugin; no Kubernetes control plane is part of the exercise), and a Nexus repository manager. containerd is
+this machine's own for the exercise (the machine's own services are not touched): it reads its configuration,
+/var/lib/bench76379942/etc/containerd.toml (owned by root), only when it starts, and is started and stopped with
+`sudo /var/lib/bench76379942/bin/containerdctl start|stop|restart|status`. Two wrappers save typing (they call sudo
+themselves):
+
+    /tmp/bench76379942/bin/node-crictl ...   # crictl connected to this containerd: pull, images, runp, create, start...
+    /tmp/bench76379942/bin/ctr ...            # ctr connected to this containerd (ctr's own default namespace is "default";
+                                              # the CRI uses k8s.io)
+
+Nexus runs on this machine at 10.66.79.42, with its configuration in /var/lib/bench76379942/nexus/etc/nexus.properties
+(the web application, and the Docker connector of the repository docker-all, which holds the private images). Nexus is
+not to be changed. (Adaptation: Nexus is a small stand-in that serves the Docker registry API and logs every request;
+the thread's host name repo.mm.mm is the address 10.66.79.42.)
+
+An engineer wants Kubernetes to use this Nexus as its private repository by default, as the thread describes. The
+repository holds two applications, bench76379942/web and bench76379942/api. The engineer wrote a registry mirror for
+docker.io into containerd's configuration (it is there now), pointing at Nexus on port 8082. Pods name their images in
+two ways, and neither works:
+
+    1. without a registry (the default is docker.io):   bench76379942/web:1.0
+    2. with the Nexus address and port:                  10.66.79.42:8082/bench76379942/api:1.0
+
+    $ /tmp/bench76379942/bin/node-crictl pull bench76379942/web:1.0
+    ... failed to resolve reference "docker.io/bench76379942/web:1.0" ... dial tcp 10.66.79.42:8082: connect: connection refused
+    $ /tmp/bench76379942/bin/node-crictl pull 10.66.79.42:8082/bench76379942/api:1.0
+    ... failed to resolve reference ... Head "https://10.66.79.42:8082/v2/...": dial tcp 10.66.79.42:8082: connect: connection refused
+
+(In containerd's configuration the `mirrors` tables and `config_path` exclude each other: containerd refuses to load the CRI plugin when both are set, so the engineer's file has `config_path = ""` (in the new-style `io.containerd.cri.v1.images` tables of a version-3 file).)
+
+(The engineer can reach the machine: the address answers. On a machine with a network, the first name may also be tried
+against Docker Hub itself.) The pods' image names are in the pod specifications and are not to be changed.
+
+Your task: make containerd pull both names from Nexus, so that Kubernetes pulls images by their names, as the engineer
+wants.
+
+Requirements:
+
+1. The check removes both images from the node and pulls each name again through the CRI (crictl pull): the pulled
+   images must be the ones Nexus holds (the check compares the image id and the repository digest), a container
+   created from each must run and print the image's token in its log, and Nexus' log must show containerd fetching
+   the manifest from Nexus (a pull from anywhere else does not count).
+2. The names stay as they are, with the same ports. Nexus stays the same running process, with the same files and
+   content, and its port does not change; nothing may listen on port 8082, and no packet-forwarding or NAT rule may
+   be added for Nexus' address or ports.
+3. The check then pulls a second image of each repository (tag verify, which the node has never held) under the same
+   two kinds of names, and Nexus' log must show containerd fetching its manifest and both blobs. The containerd that
+   answers must be the one started from /var/lib/bench76379942/etc/containerd.toml (the same file the check reads
+   when it pulls).
