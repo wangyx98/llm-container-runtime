@@ -1,0 +1,74 @@
+[
+ {
+  "case_id": "q76836830",
+  "category": "compatibility",
+  "model": "reference_solution",
+  "code": "#!/bin/bash\n# The front sends a request to the Docker repository connector only when its User-Agent contains \"docker\" (what Docker's engine sends). containerd's requests carry\n# \"containerd/<version>\", so they went to the web application, which has no /v2/ (\"not found\"). Add containerd to the rule (the thread's answer adds a second `if` for it),\n# check the configuration and reload nginx (a reload keeps the master process).\nset -e\nW=/tmp/bench76836830\nsed -i 's/if (\\$http_user_agent ~ docker) {/if ($http_user_agent ~ \"docker|containerd\") {/' \"$W/nginx/nginx.conf\"\ngrep -q 'docker|containerd' \"$W/nginx/nginx.conf\"\n\"$W/bin/nginxctl\" test\n\"$W/bin/nginxctl\" reload\nsleep 1\n\"$W/bin/pull\"\n"
+ },
+ {
+  "case_id": "q76836830",
+  "category": "compatibility",
+  "model": "alt_valid_second_if_for_containerd",
+  "code": "#!/bin/bash\n# the thread's answer: a second rule for containerd next to the one for docker\nset -e\nW=/tmp/bench76836830\nCONF=$W/nginx/nginx.conf\nsed -i 's|^\\( *\\)proxy_pass http://127.0.0.1:18176;|\\1if ($http_user_agent ~ containerd) {\\n\\1    proxy_pass http://127.0.0.1:15076;\\n\\1}\\n\\1proxy_pass http://127.0.0.1:18176;|' \"$CONF\"\n$W/bin/nginxctl test\n$W/bin/nginxctl reload\nsleep 1\n$W/bin/pull\n"
+ },
+ {
+  "case_id": "q76836830",
+  "category": "compatibility",
+  "model": "alt_valid_route_v2_by_path",
+  "code": "#!/bin/bash\n# route by path instead of by User-Agent: the registry API (/v2/) goes to the Docker repository connector, the rest to the web application\nset -e\nW=/tmp/bench76836830\nCONF=$W/nginx/nginx.conf\npython3 - \"$CONF\" <<'PYEOF'\nimport re, sys\np = sys.argv[1]; s = open(p).read()\ns = re.sub(r\"        location / \\{.*?\\n        \\}\\n\", '''        location /v2/ {\n            proxy_pass http://127.0.0.1:15076;\n        }\n        location / {\n            proxy_pass http://127.0.0.1:18176;\n        }\n''', s, flags=re.S)\nopen(p, \"w\").write(s)\nPYEOF\n$W/bin/nginxctl test\n$W/bin/nginxctl reload\nsleep 1\n$W/bin/pull\n"
+ },
+ {
+  "case_id": "q76836830",
+  "category": "compatibility",
+  "model": "alt_valid_case_insensitive_rule_and_restart",
+  "code": "#!/bin/bash\n# a case-insensitive rule for both clients, and nginx restarted instead of reloaded\nset -e\nW=/tmp/bench76836830\nCONF=$W/nginx/nginx.conf\nsed -i 's/\\$http_user_agent ~ docker/$http_user_agent ~* \"docker|containerd\"/' \"$CONF\"\n$W/bin/nginxctl test\n$W/bin/nginxctl restart\nsleep 1\n$W/bin/pull\n"
+ },
+ {
+  "case_id": "q76836830",
+  "category": "compatibility",
+  "model": "fail_rule_for_containerd_misspelled",
+  "code": "#!/bin/bash\n# a rule for containerd, with a capital D (the match is case-sensitive: the User-Agent is containerd/...)\nset -e\nW=/tmp/bench76836830\nCONF=$W/nginx/nginx.conf\nsed -i 's/\\$http_user_agent ~ docker/$http_user_agent ~ \"docker|containerD\"/' \"$CONF\"\n$W/bin/nginxctl test\n$W/bin/nginxctl reload\nsleep 1\n$W/bin/pull || true\n"
+ },
+ {
+  "case_id": "q76836830",
+  "category": "compatibility",
+  "model": "fail_edited_but_nginx_not_reloaded",
+  "code": "#!/bin/bash\n# the right edit, but the running nginx is never told\nset -e\nW=/tmp/bench76836830\nCONF=$W/nginx/nginx.conf\nsed -i 's/\\$http_user_agent ~ docker/$http_user_agent ~ \"docker|containerd\"/' \"$CONF\"\n$W/bin/nginxctl test\n$W/bin/pull || true\n"
+ },
+ {
+  "case_id": "q76836830",
+  "category": "compatibility",
+  "model": "fail_everything_sent_to_the_registry",
+  "code": "#!/bin/bash\n# every request goes to the Docker repository connector: pulls work, the web application of Nexus is gone\nset -e\nW=/tmp/bench76836830\nCONF=$W/nginx/nginx.conf\npython3 - \"$CONF\" <<'PYEOF'\nimport re, sys\np = sys.argv[1]; s = open(p).read()\ns = re.sub(r\"        location / \\{.*?\\n        \\}\\n\", '''        location / {\n            proxy_pass http://127.0.0.1:15076;\n        }\n''', s, flags=re.S)\nopen(p, \"w\").write(s)\nPYEOF\n$W/bin/nginxctl test\n$W/bin/nginxctl reload\nsleep 1\n$W/bin/pull\n"
+ },
+ {
+  "case_id": "q76836830",
+  "category": "compatibility",
+  "model": "fail_image_pulled_straight_from_the_registry",
+  "code": "#!/bin/bash\n# pull from the registry's own port with ctr and give the image the front's name: the front is bypassed\nset -e\nW=/tmp/bench76836830\nCONF=$W/nginx/nginx.conf\nS=\"sudo ctr -a /run/bench76836830/containerd.sock -n k8s.io\"\n$S images pull --plain-http 127.0.0.1:15076/bench76836830/app:1.0 >/dev/null 2>&1\n$S images tag 127.0.0.1:15076/bench76836830/app:1.0 127.0.0.1:18076/bench76836830/app:1.0 >/dev/null 2>&1\n$W/bin/pull || true\n"
+ },
+ {
+  "case_id": "q76836830",
+  "category": "compatibility",
+  "model": "fail_registry_mirror_configured_around_nginx",
+  "code": "#!/bin/bash\n# tell the node's containerd that the front's name is served by the registry's port (a hosts.toml), and restart containerd to read it\nset -e\nW=/tmp/bench76836830\nCONF=$W/nginx/nginx.conf\nR=/run/bench76836830\nsudo mkdir -p $W/certs.d/127.0.0.1:18076\nprintf 'server = \"http://127.0.0.1:15076\"\\n[host.\"http://127.0.0.1:15076\"]\\n  capabilities = [\"pull\", \"resolve\"]\\n' | sudo tee $W/certs.d/127.0.0.1:18076/hosts.toml >/dev/null\nprintf '[plugins.\"io.containerd.grpc.v1.cri\".registry]\\n  config_path = \"%s\"\\n' $W/certs.d | sudo tee -a $R/config.toml >/dev/null\nsudo kill $(cat $R/containerd.pid)\nsleep 2\nsudo setsid -f containerd --config $R/config.toml >$R/containerd.log 2>&1 </dev/null\nfor _ in $(seq 1 30); do sudo ctr -a $R/containerd.sock version >/dev/null 2>&1 && break; sleep 1; done\n$W/bin/pull || true\n"
+ },
+ {
+  "case_id": "q76836830",
+  "category": "compatibility",
+  "model": "fail_nginx_replaced_by_a_python_front",
+  "code": "#!/bin/bash\n# stop nginx and put a small proxy on its port: the registry API to the registry, the rest to the web application\nset -e\nW=/tmp/bench76836830\nCONF=$W/nginx/nginx.conf\ncat > $W/front.py <<'PYEOF'\nimport http.client, http.server\n\nclass H(http.server.BaseHTTPRequestHandler):\n    protocol_version = \"HTTP/1.0\"\n    def go(self):\n        port = 15076 if self.path.startswith(\"/v2/\") else 18176\n        c = http.client.HTTPConnection(\"127.0.0.1\", port)\n        c.request(self.command, self.path, headers={k: v for k, v in self.headers.items() if k.lower() not in (\"host\", \"connection\")})\n        r = c.getresponse(); body = r.read()\n        self.send_response(r.status)\n        for k, v in r.getheaders():\n            if k.lower() not in (\"transfer-encoding\", \"connection\", \"content-length\"): self.send_header(k, v)\n        self.send_header(\"Content-Length\", str(len(body))); self.end_headers()\n        if self.command != \"HEAD\": self.wfile.write(body)\n    do_GET = do_HEAD = go\n    def log_message(self, *a): pass\n\nhttp.server.ThreadingHTTPServer((\"127.0.0.1\", 18076), H).serve_forever()\nPYEOF\n$W/bin/nginxctl stop\nsleep 1\nsudo setsid -f python3 $W/front.py >/dev/null 2>&1 </dev/null\nsleep 1\n$W/bin/pull\n"
+ },
+ {
+  "case_id": "q76836830",
+  "category": "compatibility",
+  "model": "fail_pull_wrapper_replaced",
+  "code": "#!/bin/bash\n# make the job's pull step report success\nset -e\nW=/tmp/bench76836830\nCONF=$W/nginx/nginx.conf\nprintf '#!/bin/sh\\necho \"Image is up to date for sha256:0000\"\\n' > $W/bin/pull\nchmod +x $W/bin/pull\n$W/bin/pull\n"
+ },
+ {
+  "case_id": "q76836830",
+  "category": "compatibility",
+  "model": "fail_noop",
+  "code": "#!/bin/bash\n# nothing to do\necho 'nothing to do'\n"
+ }
+]

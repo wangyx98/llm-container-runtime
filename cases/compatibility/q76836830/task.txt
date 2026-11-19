@@ -1,0 +1,39 @@
+A team upgrades its Kubernetes cluster from 1.23 to 1.24, where the container runtime of the nodes is containerd and no longer Docker (dockershim is gone). The cluster pulled
+its images from a Nexus Repository Manager; after the upgrade the nodes can no longer pull from it (on 1.23 they could; the same happens on Fargate, whose nodes also use
+containerd). Nexus is managed behind an nginx. The thread keeps no error message and no nginx configuration. Its only answer (by the asker) says: nginx looks at the
+$http_user_agent variable to send "docker" requests to the Docker repository of Nexus; after 1.24 the pull requests carry the User-Agent of containerd, which did not match,
+and adding a rule for containerd to nginx.conf solved it.
+
+Adaptation (stated on purpose): no Kubernetes, no Fargate and no Nexus run here; only the host level of one node. "Nexus" is two small stand-in programs that are already
+running (do not stop, restart or replace them): its Docker repository connector (a minimal registry on 127.0.0.1:15076, plain HTTP, no authentication) and its web application
+(127.0.0.1:18176: an HTML page at / and "404 Not Found" for everything else, /v2/ included). Real nginx runs in front of them at 127.0.0.1:18076 with the rule the answer
+describes (reconstructed from it; the thread has not the original file). The kubelet's pull is the CRI PullImage call of the node's container runtime: here a private containerd
+of its own (socket /run/bench76836830/containerd.sock, no Docker anywhere), and the node pulls the name 127.0.0.1:18076/bench76836830/app:1.0 (a loopback address, so plain HTTP).
+The message of the original pull is not known; the one of this lab ("failed to resolve image ... not found") comes from the stand-ins.
+
+The tools of the job are small wrappers in /tmp/bench76836830/bin (run them as the current user; they call sudo themselves):
+
+    pull              the pull step of the job: CRI PullImage of 127.0.0.1:18076/bench76836830/app:1.0 on the node (what the kubelet does for a pod's image)
+    nginxctl CMD      the nginx of this lab (binary /usr/sbin/nginx or wherever it is installed, prefix /tmp/bench76836830/nginx, configuration
+                      /tmp/bench76836830/nginx/nginx.conf, logs in /tmp/bench76836830/nginx/logs): CMD is test, start, reload, stop or restart
+    node-crictl ...   crictl against the node's containerd (for looking around: images, info)
+
+The node holds no image yet: the first pull is a cold one.
+
+Your task is to make the node's pull of that image through the nginx succeed.
+
+Requirements:
+
+1. After your commands, `pull` succeeds on a node that holds nothing (the check removes the image and its content from the node first, then runs `pull` again): the manifest and
+   both blobs must really be served by the Docker repository of "Nexus" through the nginx, to containerd, and the node must end up with the registry's image (same image id
+   and repo digest). Pulling by another route (straight from port 15076, an image loaded into the node by hand, a copy under the front's name) does not count.
+2. Everything that worked keeps working: a Docker engine's request (User-Agent beginning "docker/") still reaches the Docker repository through the nginx, and a browser (any other
+   User-Agent) still gets the web application of Nexus at /.
+3. The front stays nginx: the same nginx binary, started with /tmp/bench76836830/nginx/nginx.conf, listening on 127.0.0.1:18076, and the configuration on disk must pass `nginxctl test`.
+   Reload or restart it so that the change is in force. The two stand-ins stay as they are (processes and programs).
+4. Do not stop, restart or reconfigure the node's containerd (its configuration file, its registry configuration), and do not edit the wrappers. Do not pull from any other registry.
+5. The current user has passwordless sudo; the wrappers call it themselves. Everything else (what the front routes on, what containerd sends, which ports the stand-ins use) is not
+   told here beyond the above; your commands must find it out.
+6. Your script must finish by itself: no interactive prompts, and no command that waits forever.
+
+Return the commands needed to complete the task.
