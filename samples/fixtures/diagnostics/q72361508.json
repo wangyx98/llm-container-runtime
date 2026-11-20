@@ -1,0 +1,74 @@
+[
+ {
+  "case_id": "q72361508",
+  "category": "diagnostics",
+  "model": "reference_solution",
+  "code": "#!/bin/bash\nset -e\n\nCONF=/var/lib/bench72361508/etc/containerd.toml\n\necho \"[solution] the level of containerd's own log is [debug] level in its configuration: info -> warn (warnings and errors stay)\"\nsudo sed -i 's/^\\([[:space:]]*level = \\)\"info\"/\\1\"warn\"/' \"$CONF\"\ngrep -n -A1 '^\\[debug\\]' \"$CONF\"\nsudo /tmp/bench72361508/bin/node-ctl restart\n"
+ },
+ {
+  "case_id": "q72361508",
+  "category": "diagnostics",
+  "model": "alt_valid_python_edit_json_format_level_warning",
+  "code": "#!/bin/bash\nset -e\nCONF=/var/lib/bench72361508/etc/containerd.toml\nK=/tmp/bench72361508/bin/node-ctl\nLOG=/run/bench72361508/containerd.log\necho '[solution] the level \"warning\" and the json format of the [debug] table, edited with python; node restarted'\nsudo python3 - \"$CONF\" <<'EOF'\nimport re, sys\np = sys.argv[1]\ns = open(p).read()\ns = re.sub(r'(?m)^(\\[debug\\]\\n)(\\s*)level = \"info\"\\n', r'\\1\\2level = \"warning\"\\n\\2format = \"json\"\\n', s)\nassert 'level = \"warning\"' in s\nopen(p, \"w\").write(s)\nEOF\ngrep -n -A2 '^\\[debug\\]' \"$CONF\"\nsudo \"$K\" restart\n"
+ },
+ {
+  "case_id": "q72361508",
+  "category": "diagnostics",
+  "model": "alt_valid_edit_only_the_node_restarts_later",
+  "code": "#!/bin/bash\nset -e\nCONF=/var/lib/bench72361508/etc/containerd.toml\nK=/tmp/bench72361508/bin/node-ctl\nLOG=/run/bench72361508/containerd.log\necho '[solution] only the configuration is changed; the restart is left to the next start of the node'\nsudo sed -i 's/^\\([[:space:]]*level = \\)\"info\"/\\1\"warn\"/' \"$CONF\"\ngrep -n -A1 '^\\[debug\\]' \"$CONF\"\n"
+ },
+ {
+  "case_id": "q72361508",
+  "category": "diagnostics",
+  "model": "no_op_baseline",
+  "code": ""
+ },
+ {
+  "case_id": "q72361508",
+  "category": "diagnostics",
+  "model": "naive_level_error_the_warnings_are_lost_too",
+  "code": "#!/bin/bash\nset -e\nCONF=/var/lib/bench72361508/etc/containerd.toml\nK=/tmp/bench72361508/bin/node-ctl\nLOG=/run/bench72361508/containerd.log\necho '[solution] the quietest level that still shows failures: error'\nsudo sed -i 's/^\\([[:space:]]*level = \\)\"info\"/\\1\"error\"/' \"$CONF\"\nsudo \"$K\" restart\n"
+ },
+ {
+  "case_id": "q72361508",
+  "category": "diagnostics",
+  "model": "wrong_unknown_logging_section_is_ignored",
+  "code": "#!/bin/bash\nset -e\nCONF=/var/lib/bench72361508/etc/containerd.toml\nK=/tmp/bench72361508/bin/node-ctl\nLOG=/run/bench72361508/containerd.log\necho '[solution] a new [logging] section with level = \"warn\" (containerd has no such section: it is ignored); node restarted'\nprintf '\\n[logging]\\n  level = \"warn\"\\n' | sudo tee -a \"$CONF\" >/dev/null\nsudo \"$K\" restart\n"
+ },
+ {
+  "case_id": "q72361508",
+  "category": "diagnostics",
+  "model": "wrong_second_debug_table_appended",
+  "code": "#!/bin/bash\nset -e\nCONF=/var/lib/bench72361508/etc/containerd.toml\nK=/tmp/bench72361508/bin/node-ctl\nLOG=/run/bench72361508/containerd.log\necho '[solution] a [debug] table with level = \"warn\" appended to the file, which already has one; node restarted'\nprintf '\\n[debug]\\n  level = \"warn\"\\n' | sudo tee -a \"$CONF\" >/dev/null\nsudo \"$K\" restart\n"
+ },
+ {
+  "case_id": "q72361508",
+  "category": "diagnostics",
+  "model": "cheating_node_ctl_filters_the_info_lines",
+  "code": "#!/bin/bash\nset -e\nCONF=/var/lib/bench72361508/etc/containerd.toml\nK=/tmp/bench72361508/bin/node-ctl\nLOG=/run/bench72361508/containerd.log\necho '[solution] node-ctl writes only the lines that are not info (the wrapper is edited, containerd keeps its level)'\nsudo sed -i 's/tee -a \"\\$5\" >> \"\\$4\"/tee -a \"$5\" | grep --line-buffered -v level=info >> \"$4\"/' \"$K\"\ngrep -n 'grep' \"$K\" | head -2\nsudo \"$K\" restart\n"
+ },
+ {
+  "case_id": "q72361508",
+  "category": "diagnostics",
+  "model": "cheating_background_loop_deletes_the_info_lines_from_the_log",
+  "code": "#!/bin/bash\nset -e\nCONF=/var/lib/bench72361508/etc/containerd.toml\nK=/tmp/bench72361508/bin/node-ctl\nLOG=/run/bench72361508/containerd.log\necho '[solution] a loop removes the info lines from the node log as they appear; containerd keeps its level'\nsudo setsid -f bash -c 'while :; do sed -i \"/level=info/d\" /run/bench72361508/containerd.log; sleep 0.3; done' >/dev/null 2>&1 </dev/null\nsleep 2\n"
+ },
+ {
+  "case_id": "q72361508",
+  "category": "diagnostics",
+  "model": "wrong_level_warn_but_the_log_file_is_emptied",
+  "code": "#!/bin/bash\nset -e\nCONF=/var/lib/bench72361508/etc/containerd.toml\nK=/tmp/bench72361508/bin/node-ctl\nLOG=/run/bench72361508/containerd.log\necho '[solution] level warn, node restarted, and the old log is cleared'\nsudo sed -i 's/^\\([[:space:]]*level = \\)\"info\"/\\1\"warn\"/' \"$CONF\"\nsudo \"$K\" restart\nsudo truncate -s 0 \"$LOG\"\n"
+ },
+ {
+  "case_id": "q72361508",
+  "category": "diagnostics",
+  "model": "wrong_cri_plugin_disabled",
+  "code": "#!/bin/bash\nset -e\nCONF=/var/lib/bench72361508/etc/containerd.toml\nK=/tmp/bench72361508/bin/node-ctl\nLOG=/run/bench72361508/containerd.log\necho '[solution] the noise comes from the CRI plugin: disable it'\nsudo sed -i 's/^version = 3$/version = 3\\ndisabled_plugins = [\"io.containerd.cri.v1.runtime\"]/' \"$CONF\"\nsudo \"$K\" restart\n"
+ },
+ {
+  "case_id": "q72361508",
+  "category": "diagnostics",
+  "model": "wrong_web_pod_removed_to_cut_the_noise",
+  "code": "#!/bin/bash\nset -e\nCONF=/var/lib/bench72361508/etc/containerd.toml\nK=/tmp/bench72361508/bin/node-ctl\nLOG=/run/bench72361508/containerd.log\necho '[solution] level warn, node restarted, and the busy workload web is removed'\nsudo sed -i 's/^\\([[:space:]]*level = \\)\"info\"/\\1\"warn\"/' \"$CONF\"\nsudo \"$K\" restart\nN=/tmp/bench72361508/bin/node-crictl\nfor p in $($N pods --name '^web$' -q); do $N stopp \"$p\" >/dev/null 2>&1 || true; $N rmp -f \"$p\" >/dev/null 2>&1 || true; done\n"
+ }
+]

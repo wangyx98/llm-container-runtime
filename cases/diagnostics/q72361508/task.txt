@@ -1,0 +1,36 @@
+This machine runs a Kubernetes-style node of its own for this exercise: a containerd (the container runtime of the node, with its CRI) with its own socket, root
+and log; the machine's own services (its containerd) are not touched. Its pods use the node's network. Two wrappers that save typing (both call sudo themselves):
+
+    /tmp/bench72361508/bin/node-ctl start|stop|restart|status   # the node's containerd, like `systemctl restart containerd` on a node
+    /tmp/bench72361508/bin/node-crictl                          # crictl of this containerd (socket /run/bench72361508/containerd.sock)
+
+(Adaptation: the question is about a GKE node, where the node image is managed and containerd's configuration is not the user's to edit; the user's options there
+are the logging exclusion filters of the cloud, which is a different layer. This exercise is the self-managed version: a node whose operator owns the configuration
+file of its containerd, and the volume of the runtime's own log, which is what the cloud log service of the question bills, has to come down.)
+
+containerd writes its own log (not the logs of the containers) to /run/bench72361508/containerd.log, one line per record, with a level (level=info, level=warning,
+level=error ...). Its configuration is /var/lib/bench72361508/etc/containerd.toml; containerd reads it when it starts (node-ctl restart). Every pod and container
+operation of the node is logged at level info, dozens of lines for the life of one pod, and the node has many pods:
+
+    $ sudo grep -c 'level=info' /run/bench72361508/containerd.log
+    108
+
+The node runs one workload, the pod web (its container prints a numbered line every second; its output goes to the CRI log file below /var/log/bench72361508/pods/,
+which is a different log from the one above).
+
+Your task: bring the volume of the runtime's own log down, so that containerd no longer writes its info records while the node works, without losing what matters:
+warnings and errors must still be logged (a failing operation has to show in the log), and the change has to stay in force for a containerd that starts later.
+
+Requirements:
+
+1. While the node works (pods and containers created, run and removed, images pulled), containerd writes no info (and no debug) lines. A failed operation still
+   logs its error; the warnings that containerd logs when it starts are still logged. A few info lines that containerd writes at the very start, before it has read
+   its configuration, are not counted.
+2. It holds after `node-ctl restart` and after `node-ctl stop` followed by `node-ctl start`: the check does both and watches what containerd writes (the check reads
+   the stream of containerd itself, not the file as you left it: do not filter, rewrite, rotate or delete the log file; it has to be what containerd wrote).
+3. The workload web stays as it is: the same container, running, and its CRI log file untouched, with every one of its lines. node-ctl and node-crictl stay as
+   they are; the pods and the node's containerd are not removed or replaced (a second containerd is not a solution), and the node's configuration still starts
+   containerd (the CRI, the socket and the sandbox image stay as they are).
+4. No download. A command you start with a shell keeps the pipes of that shell open unless you redirect its output.
+
+Use sudo (or the wrappers) for the node's containerd and its files.
