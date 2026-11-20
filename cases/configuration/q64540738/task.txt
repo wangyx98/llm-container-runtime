@@ -1,0 +1,45 @@
+This machine runs faasd (OpenFaaS without Kubernetes) the way the thread's Raspberry Pi does: two daemons, containerd and faasd's own provider, `/usr/local/bin/faasd provider` (the program of release 0.10.0),
+whose API (port 8081, basic authentication, user admin, the password is in /var/lib/faasd/secrets/basic-auth-password) is what the gateway of a faasd installation forwards `faas-cli deploy` to. The gateway is not
+part of the exercise: the wrapper `faas-deploy NAME IMAGE [USER:PASSWORD]` sends the provider the same request (POST /system/functions; the optional account goes into the body as "registryAuth", as faas-cli sends the
+registry login it finds in its docker config), `fn-call NAME` calls a function through the provider (GET /function/NAME), and `ctr` is ctr against this containerd (the functions live in its namespace openfaas-fn):
+
+    /tmp/bench64540738/bin/faas-deploy NAME IMAGE [USER:PASSWORD]
+    /tmp/bench64540738/bin/fn-call NAME
+    /tmp/bench64540738/bin/ctr ...
+
+The two daemons are this machine's own for the exercise (the machine's own containerd, CNI plugins and CNI configuration are not touched: they run in a mount namespace in which /run/containerd, /opt/cni/bin,
+/etc/cni/net.d and /var/lib/cni are directories of the exercise; /usr/local/bin/faasd and /var/lib/faasd are the machine's own paths, as in a faasd installation). They read their configuration, their
+binary and their environment only when they start, and are started and stopped with `sudo /var/lib/bench64540738/bin/faasdctl start|stop|restart|status [containerd|provider]`
+(without a name it means both; the provider trusts the registry's certificate authority, /var/lib/bench64540738/certs/ca.pem, through its environment). Their logs: /run/bench64540738/containerd.log and
+/run/bench64540738/provider.log.
+
+(Adaptation: the thread's registry is not available. A private registry runs on this machine at https://10.66.54.40:15064 (an alias of the loopback interface) in place of the thread's registry: HTTPS with the
+certificate of the lab's authority, token authentication as docker registries have it: /v2/ and the repositories below bench64540738/ answer 401 with `WWW-Authenticate: Bearer realm="https://10.66.54.40:15064/token",service="bench-registry"`
+(the challenge names no scope), the token service at that realm gives a token for `scope=repository:<name>:pull` only to the account `benchuser` (HTTP Basic authentication; the account's "user:password" line is in the root-only file
+/var/lib/bench64540738/registry/account), and every request is logged with its authentication in /var/lib/bench64540738/registry/requests.log. It holds two images of a small function, 10.66.54.40:15064/bench64540738/fn:1.0
+and 10.66.54.40:15064/bench64540738/fn:verify (each answers an HTTP request on port 8080 with a line holding a token of its own). The release 0.13.0 of faasd for this architecture, which the engineer downloaded later,
+lies at /var/lib/bench64540738/releases/faasd-0.13.0; it is not installed. Whatever fix the thread's answer gives is part of what is needed here, but on this machine it is not all of it; the reference solution differs from it.)
+
+On this machine, as in the thread:
+
+    $ /tmp/bench64540738/bin/faas-deploy fn1 10.66.54.40:15064/bench64540738/fn:1.0 benchuser:<password>
+    unable to pull image 10.66.54.40:15064/bench64540738/fn:1.0: cannot pull: failed to resolve reference "10.66.54.40:15064/bench64540738/fn:1.0": no scope specified for token auth challenge
+
+    HTTP 400
+
+The deployment of an image of the private registry is refused, though the engineer has the registry's account, and the registry itself works (it serves the account's token to `docker pull`-style clients). The thread
+does not say what is wrong with the provider; the engineer asks how to make faasd deploy from the private registry.
+
+Your task: make faasd's provider deploy functions from this registry, with nothing changed at the registry (its challenge, its account and its content stay as they are: the registry is not to be touched).
+
+Requirements:
+
+1. The check removes the image 10.66.54.40:15064/bench64540738/fn:1.0 from containerd and deploys it as a new function through the provider's API, with the registry login in the body as faas-cli sends it
+   (`faas-deploy` does the same): the deployment must succeed (HTTP 2xx), the function must answer `GET /function/NAME` through the provider with the token line of the image, and its container must have been created
+   from that image. The same check follows for the second tag, 10.66.54.40:15064/bench64540738/fn:verify, as a second function.
+2. The registry's log must show how containerd of the provider got the images: a request to the token service with the account (Basic) for the scope `repository:bench64540738/fn:pull`, then the manifest of the
+   tag and by digest, and both blobs, fetched with the token it was given (the registry's own log is the check: the images are really pulled, not found already in containerd).
+3. The registry stays as it is: the same running process, its files, its account and its content unchanged (nothing is written to it), it still answers requests without a token with 401 and the same challenge
+   (no scope), the token service still refuses requests without the account, and no packet-forwarding or NAT rule exists for its address or port.
+4. The daemons that answer are the ones of the lab: containerd started from /var/lib/bench64540738/etc/containerd.toml and the provider running as the program /usr/local/bin/faasd, both in the mount
+   namespace of the daemons (started with faasdctl); the exercise's files (the provider's secrets, the staged release, the CA, the wrappers, faasdctl, containerd's configuration) stay unchanged.
