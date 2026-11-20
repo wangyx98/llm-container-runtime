@@ -1,0 +1,40 @@
+This machine runs a Kubernetes-style node of its own for this exercise: a containerd (the container runtime of the node, with its CRI) with its own socket and
+root; the machine's own services (its containerd, its systemd-journald) are not touched. Its pods use the node's network. A wrapper that saves typing (it calls
+sudo itself):
+
+    /tmp/bench73971174/bin/node-crictl     # crictl of this containerd (socket /run/bench73971174/containerd.sock)
+
+(Adaptation: the question asks how to make containerd "forward logs to journald" without saying whose logs. Its only answer, `journalctl -u containerd`, is
+about the daemon's own messages. This exercise is about the other reading, the one a node operator needs: the output of the containers.)
+
+The node's containers write their stdout and stderr to files in the CRI log format, one file per container, below /var/log/bench73971174/pods/ in the layout of
+the kubelet:
+
+    /var/log/bench73971174/pods/<namespace>_<pod>_<uid>/<container>/<n>.log
+    2026-11-19T21:56:39.186094916Z stdout F web n1f2e3d4c5b6a out 1 1795146999     # <time> <stdout|stderr> <F|P> <text>
+
+(F ends a line; a line longer than the CRI's 16 KiB piece comes as P pieces and a last F piece.) Two workloads run now, the pods web and db, one container each;
+they print a numbered line every second or two, and to stderr every third time. containerd itself has no option that sends them to the journal. Today nothing of
+them is in the journal: `journalctl` shows no line of web or db.
+
+Your task: make the output of the node's containers appear in the systemd journal.
+
+Requirements:
+
+1. For every line a container writes there is one journal entry with these fields:
+     MESSAGE=<the line, without the CRI prefix and the newline>   (a line the CRI cut into pieces is ONE entry with the whole text, also when it is about 20 KB)
+     PRIORITY=6 for a line written to stdout, PRIORITY=3 for stderr
+     CONTAINER_ID_FULL=<the container's id, the 64 characters that `node-crictl ps -a` and the CRI use>
+   (journalctl CONTAINER_ID_FULL=<id> then returns the output of that container.) Other fields are up to you.
+2. It is live and not for the two workloads only: the lines of every container, also of pods that start after you are done, from their first line, are in the
+   journal within 15 seconds of being written. The check starts new pods (with new containers that you have not seen, two of them in one pod, and a pod a few
+   seconds later), has them print, and compares the journal with their CRI log files. The container for a log file is found by asking containerd.
+3. Every line once. (The lines the web and db workloads wrote before you were done may be forwarded or not, but none of them twice.)
+4. The CRI log files stay as containerd writes them: they are only read, never truncated, moved, rotated or deleted, and `node-crictl logs` keeps working. The
+   node's containerd, its configuration file, the wrapper, the web and db workloads, and the journald of the machine stay as they are.
+5. Whatever you start has to go on running after your commands end (the check runs later) and has to be your own: scripts and files go below
+   /tmp/bench73971174/forwarder/ (the directory exists), and a systemd unit, if you make one, is named bench73971174-<something>. Nothing is downloaded;
+   python3, bash, logger (util-linux, with --journald) and systemd-cat are installed, the python module `systemd` is not. A command you start with a shell
+   keeps the pipes of that shell open unless you redirect its output.
+
+Use sudo (or the wrapper) for the node's containerd and for the journal.
