@@ -1,0 +1,43 @@
+This machine runs a Kubernetes-style node of its own for this exercise: a CRI-O (the container runtime of the node) with its own socket and storage; the
+machine's own services are not touched. Its pods use the node's network. A wrapper that saves typing (it calls sudo itself):
+
+    /tmp/bench63515845/bin/node-crictl     # crictl of this CRI-O (socket /run/bench63515845/crio.sock)
+
+(Adaptation: the question is about an OpenShift 3.11 node. This node is a CRI-O with crictl-made pods, not an OpenShift cluster: its security-context
+rules are not part of the exercise. The question's second part, a Go build of cadvisor that fails on a Mac, is not either.)
+
+A developer wants a program that runs in a pod and reports the ID and the PID of the containers of the node (CRI-O). On the developer's Mac the
+program below works; in the pod on the node it prints nothing. The program (Go, his code; the command it runs comes from the first argument) is
+/tmp/bench63515845/app/main.go, and it is the entrypoint /app/cmdrun of the image localhost/bench63515845/reporter:1 (busybox for the shell it needs,
+and the program). The image is in CRI-O's store; nothing can be pulled. The node runs two workloads, the pods web and db, one container each.
+
+The reporter pod and its container were made from /tmp/bench63515845/reporter/pod.json and container.json (the container runs as a non-root user), and
+ran the program with the command that the question used:
+
+    $ /tmp/bench63515845/bin/node-crictl ps -a
+    CONTAINER      IMAGE                                CREATED         STATE     NAME      ...
+    ...            localhost/bench63515845/reporter:1   ...             Exited    reporter  ...
+    $ cat /tmp/bench63515845/reporter/logs/reporter.log
+    ... stdout P cmdStr is crictl ps --no-trunc -a --quiet
+    ... stdout P output is
+
+(The container's exit status is 0, and `output is` is followed by nothing.)
+
+Your task: make the reporter pod report the ID and the PID of the containers of the node, from inside the pod.
+
+Requirements:
+
+1. The pod named reporter gets a NEW container named reporter (same pod, or a new pod of that name), from the same image (it is not rebuilt or
+   replaced: the program or script that you change reaches the container by what you mount into it), whose log shows, for each RUNNING container of the node,
+   one line `<container id> <pid>` (the full 64-character id and the process id on the node, as CRI-O reports them), at least for the web and db
+   workloads. Every id and pid the log shows is checked against CRI-O and /proc; an empty output is not a report.
+2. The program runs once and finishes. When it cannot get the answer from CRI-O it must say why on stderr and exit with a non-zero status, not print an
+   empty output and succeed. (The check does it: it makes the container again with the CRI-O socket replaced by a dead one, and looks at the exit
+   status and at stderr.)
+3. The container is not privileged.
+4. The check makes a copy of your container from what it finds in its spec (command, arguments, environment, user, mounts), in a new pod, next to a NEW
+   workload that you have not seen, and expects the copy to report that workload too. So the report has to be asked from CRI-O when the container
+   runs, and every file it needs has to stay where it is (do not delete them). CRI-O (and its configuration), the web and db workloads and the wrapper
+   stay as they are; the node's crictl is whatever `command -v crictl` says (a static program).
+
+Go (`go`) is installed. Use sudo (or the wrapper) for the node's CRI-O.
