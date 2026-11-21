@@ -1,0 +1,72 @@
+[
+ {
+  "case_id": "q59763024",
+  "model": "reference_solution",
+  "code": "#!/bin/bash\nset -e\n\nDEPLOY=/var/lib/bench59763024/deploy\nFIX=/var/lib/bench59763024/fix\nBIN=/tmp/bench59763024/bin\nIMG=localhost/bench59763024/controller:1\n\necho \"[solution] two causes: (1) /etc/ingress-controller/ssl in the image belongs to uid 33 (mode 775) and the controller runs as 101: give it the group 33; (2) the image's /bin/busybox has no file capability, so a non-root process gets no NET_BIND_SERVICE from the capability sets alone: put a copy of the same program (the machine's busybox, the one the image was made from) with the file capability over it\"\n$BIN/node-crictl logs \"$($BIN/node-crictl ps -a -q | head -1)\" 2>&1 | tail -2\nsudo mkdir -p \"$FIX\"\nsudo cp \"$(command -v busybox)\" \"$FIX/busybox\"        # the image's program was made from this very file\nsudo chmod 755 \"$FIX/busybox\"\nsudo python3 -c 'import os; os.setxattr(\"/var/lib/bench59763024/fix/busybox\", \"security.capability\", b\"\\x01\\x00\\x00\\x02\\x00\\x04\\x00\\x00\" + b\"\\x00\" * 12)'   # cap_net_bind_service=+ep\n\nsudo python3 - <<'PYEOF'\nimport json\np = \"/var/lib/bench59763024/deploy/controller.json\"\nc = json.load(open(p))\nc[\"linux\"][\"security_context\"][\"supplemental_groups\"] = [33]\nc[\"mounts\"] = [{\"container_path\": \"/bin/busybox\", \"host_path\": \"/var/lib/bench59763024/fix/busybox\", \"readonly\": True}]\njson.dump(c, open(p, \"w\"), indent=1)\nPYEOF\necho \"[solution] apply the deployment\"\n$BIN/node-apply\nsleep 1\ncurl -s http://127.0.0.1/healthz; curl -s http://127.0.0.1/fake-certificate | head -2\n"
+ },
+ {
+  "case_id": "q59763024",
+  "model": "alt_valid_hostpath_ssl_dir_owned_by_101_and_capped_copy",
+  "code": "#!/bin/bash\nset -e\nDEPLOY=/var/lib/bench59763024/deploy\nFIX=/var/lib/bench59763024/fix\nBIN=/tmp/bench59763024/bin\necho '[solution] a host directory owned by 101 over /etc/ingress-controller/ssl, and the program with its file capability over /bin/busybox'\nsudo mkdir -p \"$FIX\"\nsudo cp \"$(command -v busybox)\" \"$FIX/busybox\"; sudo chmod 755 \"$FIX/busybox\"\nsudo python3 -c 'import os; os.setxattr(\"/var/lib/bench59763024/fix/busybox\", \"security.capability\", b\"\\x01\\x00\\x00\\x02\\x00\\x04\\x00\\x00\" + b\"\\x00\" * 12)'\nsudo mkdir -p /var/lib/bench59763024/ssl; sudo chown 101:101 /var/lib/bench59763024/ssl\nsudo python3 - <<'PYEOF'\nimport json\np = '/var/lib/bench59763024/deploy/controller.json'\nc = json.load(open(p))\nsc = c['linux']['security_context']\nc.setdefault('mounts', []).append({'container_path': '/bin/busybox', 'host_path': '/var/lib/bench59763024/fix/busybox', 'readonly': True})\nc['mounts'].append({'container_path': '/etc/ingress-controller/ssl', 'host_path': '/var/lib/bench59763024/ssl', 'readonly': False})\njson.dump(c, open(p, 'w'), indent=1)\nPYEOF\n$BIN/node-apply\nsleep 1\n"
+ },
+ {
+  "case_id": "q59763024",
+  "model": "alt_valid_whole_etc_ingress_controller_dir_from_the_host_mode_1777",
+  "code": "#!/bin/bash\nset -e\nDEPLOY=/var/lib/bench59763024/deploy\nFIX=/var/lib/bench59763024/fix\nBIN=/tmp/bench59763024/bin\necho '[solution] a host directory (mode 1777) over /etc/ingress-controller, the program with its file capability over /bin/busybox'\nsudo mkdir -p \"$FIX\"\nsudo cp \"$(command -v busybox)\" \"$FIX/busybox\"; sudo chmod 755 \"$FIX/busybox\"\nsudo python3 -c 'import os; os.setxattr(\"/var/lib/bench59763024/fix/busybox\", \"security.capability\", b\"\\x01\\x00\\x00\\x02\\x00\\x04\\x00\\x00\" + b\"\\x00\" * 12)'\nsudo mkdir -p /var/lib/bench59763024/etc-ic/ssl; sudo chmod 1777 /var/lib/bench59763024/etc-ic /var/lib/bench59763024/etc-ic/ssl\nsudo python3 - <<'PYEOF'\nimport json\np = '/var/lib/bench59763024/deploy/controller.json'\nc = json.load(open(p))\nsc = c['linux']['security_context']\nc.setdefault('mounts', []).append({'container_path': '/bin/busybox', 'host_path': '/var/lib/bench59763024/fix/busybox', 'readonly': True})\nc['mounts'].append({'container_path': '/etc/ingress-controller', 'host_path': '/var/lib/bench59763024/etc-ic', 'readonly': False})\njson.dump(c, open(p, 'w'), indent=1)\nPYEOF\n$BIN/node-apply\nsleep 1\n"
+ },
+ {
+  "case_id": "q59763024",
+  "model": "no_op_baseline",
+  "code": "#!/bin/bash\necho \"[solution] nothing done\"\n"
+ },
+ {
+  "case_id": "q59763024",
+  "model": "wrong_group_33_only_second_failure_remains",
+  "code": "#!/bin/bash\nset -e\nDEPLOY=/var/lib/bench59763024/deploy\nFIX=/var/lib/bench59763024/fix\nBIN=/tmp/bench59763024/bin\necho '[solution] the directory belongs to 33: add the group 33 (the certificate is stored; port 80 is next)'\nsudo python3 - <<'PYEOF'\nimport json\np = '/var/lib/bench59763024/deploy/controller.json'\nc = json.load(open(p))\nsc = c['linux']['security_context']\nsc['supplemental_groups'] = [33]\njson.dump(c, open(p, 'w'), indent=1)\nPYEOF\n$BIN/node-apply\nsleep 1\n"
+ },
+ {
+  "case_id": "q59763024",
+  "model": "wrong_capped_program_only_first_failure_remains",
+  "code": "#!/bin/bash\nset -e\nDEPLOY=/var/lib/bench59763024/deploy\nFIX=/var/lib/bench59763024/fix\nBIN=/tmp/bench59763024/bin\necho '[solution] the program gets its file capability (the bind), the directory is not looked at'\nsudo mkdir -p \"$FIX\"\nsudo cp \"$(command -v busybox)\" \"$FIX/busybox\"; sudo chmod 755 \"$FIX/busybox\"\nsudo python3 -c 'import os; os.setxattr(\"/var/lib/bench59763024/fix/busybox\", \"security.capability\", b\"\\x01\\x00\\x00\\x02\\x00\\x04\\x00\\x00\" + b\"\\x00\" * 12)'\nsudo python3 - <<'PYEOF'\nimport json\np = '/var/lib/bench59763024/deploy/controller.json'\nc = json.load(open(p))\nsc = c['linux']['security_context']\nc.setdefault('mounts', []).append({'container_path': '/bin/busybox', 'host_path': '/var/lib/bench59763024/fix/busybox', 'readonly': True})\njson.dump(c, open(p, 'w'), indent=1)\nPYEOF\n$BIN/node-apply\nsleep 1\n"
+ },
+ {
+  "case_id": "q59763024",
+  "model": "wrong_run_as_the_images_owner_33",
+  "code": "#!/bin/bash\nset -e\nDEPLOY=/var/lib/bench59763024/deploy\nFIX=/var/lib/bench59763024/fix\nBIN=/tmp/bench59763024/bin\necho '[solution] the one answer of the question: run as the uid the image was built for (33), with the program that has its file capability'\nsudo mkdir -p \"$FIX\"\nsudo cp \"$(command -v busybox)\" \"$FIX/busybox\"; sudo chmod 755 \"$FIX/busybox\"\nsudo python3 -c 'import os; os.setxattr(\"/var/lib/bench59763024/fix/busybox\", \"security.capability\", b\"\\x01\\x00\\x00\\x02\\x00\\x04\\x00\\x00\" + b\"\\x00\" * 12)'\nsudo python3 - <<'PYEOF'\nimport json\np = '/var/lib/bench59763024/deploy/controller.json'\nc = json.load(open(p))\nsc = c['linux']['security_context']\nsc['run_as_user'] = {'value': 33}\nsc['run_as_group'] = {'value': 33}\nc.setdefault('mounts', []).append({'container_path': '/bin/busybox', 'host_path': '/var/lib/bench59763024/fix/busybox', 'readonly': True})\njson.dump(c, open(p, 'w'), indent=1)\nPYEOF\n$BIN/node-apply\nsleep 1\n"
+ },
+ {
+  "case_id": "q59763024",
+  "model": "wrong_run_as_root",
+  "code": "#!/bin/bash\nset -e\nDEPLOY=/var/lib/bench59763024/deploy\nFIX=/var/lib/bench59763024/fix\nBIN=/tmp/bench59763024/bin\necho '[solution] root: no permission problem any more'\nsudo python3 - <<'PYEOF'\nimport json\np = '/var/lib/bench59763024/deploy/controller.json'\nc = json.load(open(p))\nsc = c['linux']['security_context']\nsc['run_as_user'] = {'value': 0}\nsc['run_as_group'] = {'value': 0}\njson.dump(c, open(p, 'w'), indent=1)\nPYEOF\n$BIN/node-apply\nsleep 1\n"
+ },
+ {
+  "case_id": "q59763024",
+  "model": "wrong_privileged_container",
+  "code": "#!/bin/bash\nset -e\nDEPLOY=/var/lib/bench59763024/deploy\nFIX=/var/lib/bench59763024/fix\nBIN=/tmp/bench59763024/bin\necho '[solution] the container is privileged'\nsudo python3 - <<'PYEOF'\nimport json\np = '/var/lib/bench59763024/deploy/controller.json'\nc = json.load(open(p))\nsc = c['linux']['security_context']\nsc['privileged'] = True\nsc['run_as_user'] = {'value': 0}\nsc['run_as_group'] = {'value': 0}\njson.dump(c, open(p, 'w'), indent=1)\nPYEOF\nsudo python3 - <<'PYEOF'\nimport json\np = '/var/lib/bench59763024/deploy/pod.json'\nd = json.load(open(p)); d['linux']['security_context']['privileged'] = True; json.dump(d, open(p, 'w'), indent=1)\nPYEOF\n$BIN/node-apply\nsleep 1\n"
+ },
+ {
+  "case_id": "q59763024",
+  "model": "wrong_wider_capability_set_chown_added",
+  "code": "#!/bin/bash\nset -e\nDEPLOY=/var/lib/bench59763024/deploy\nFIX=/var/lib/bench59763024/fix\nBIN=/tmp/bench59763024/bin\necho '[solution] everything works with the group 33 and the program with its file capability; and CAP_CHOWN is added \"to be safe\"'\nsudo mkdir -p \"$FIX\"\nsudo cp \"$(command -v busybox)\" \"$FIX/busybox\"; sudo chmod 755 \"$FIX/busybox\"\nsudo python3 -c 'import os; os.setxattr(\"/var/lib/bench59763024/fix/busybox\", \"security.capability\", b\"\\x01\\x00\\x00\\x02\\x00\\x04\\x00\\x00\" + b\"\\x00\" * 12)'\nsudo python3 - <<'PYEOF'\nimport json\np = '/var/lib/bench59763024/deploy/controller.json'\nc = json.load(open(p))\nsc = c['linux']['security_context']\nsc['supplemental_groups'] = [33]\nsc['capabilities']['add_capabilities'] = ['NET_BIND_SERVICE', 'CHOWN']\nc.setdefault('mounts', []).append({'container_path': '/bin/busybox', 'host_path': '/var/lib/bench59763024/fix/busybox', 'readonly': True})\njson.dump(c, open(p, 'w'), indent=1)\nPYEOF\n$BIN/node-apply\nsleep 1\n"
+ },
+ {
+  "case_id": "q59763024",
+  "model": "cheating_host_sysctl_port_start_lowered",
+  "code": "#!/bin/bash\nset -e\nDEPLOY=/var/lib/bench59763024/deploy\nFIX=/var/lib/bench59763024/fix\nBIN=/tmp/bench59763024/bin\necho '[solution] the group 33 for the directory; any user may bind low ports on this host from now on'\nsudo python3 - <<'PYEOF'\nimport json\np = '/var/lib/bench59763024/deploy/controller.json'\nc = json.load(open(p))\nsc = c['linux']['security_context']\nsc['supplemental_groups'] = [33]\njson.dump(c, open(p, 'w'), indent=1)\nPYEOF\nsudo sysctl -w net.ipv4.ip_unprivileged_port_start=0\n$BIN/node-apply\nsleep 1\n"
+ },
+ {
+  "case_id": "q59763024",
+  "model": "cheating_entry_script_replaced_by_a_mount",
+  "code": "#!/bin/bash\nset -e\nDEPLOY=/var/lib/bench59763024/deploy\nFIX=/var/lib/bench59763024/fix\nBIN=/tmp/bench59763024/bin\necho '[solution] the program with its file capability, and a /entry.sh of my own that does not store anything'\nsudo mkdir -p \"$FIX\"\nsudo cp \"$(command -v busybox)\" \"$FIX/busybox\"; sudo chmod 755 \"$FIX/busybox\"\nsudo python3 -c 'import os; os.setxattr(\"/var/lib/bench59763024/fix/busybox\", \"security.capability\", b\"\\x01\\x00\\x00\\x02\\x00\\x04\\x00\\x00\" + b\"\\x00\" * 12)'\nsudo mkdir -p /var/lib/bench59763024/myentry\nsudo tee /var/lib/bench59763024/myentry/entry.sh >/dev/null <<'EOF'\n#!/bin/sh\nexec /bin/busybox httpd -f -p 80 -h /www\nEOF\nsudo chmod 755 /var/lib/bench59763024/myentry/entry.sh\nsudo python3 - <<'PYEOF'\nimport json\np = '/var/lib/bench59763024/deploy/controller.json'\nc = json.load(open(p))\nsc = c['linux']['security_context']\nc.setdefault('mounts', []).append({'container_path': '/bin/busybox', 'host_path': '/var/lib/bench59763024/fix/busybox', 'readonly': True})\nc['mounts'].append({'container_path': '/entry.sh', 'host_path': '/var/lib/bench59763024/myentry/entry.sh', 'readonly': True})\njson.dump(c, open(p, 'w'), indent=1)\nPYEOF\n$BIN/node-apply\nsleep 1\n"
+ },
+ {
+  "case_id": "q59763024",
+  "model": "cheating_a_server_of_my_own_on_the_host",
+  "code": "#!/bin/bash\nset -e\nDEPLOY=/var/lib/bench59763024/deploy\nFIX=/var/lib/bench59763024/fix\nBIN=/tmp/bench59763024/bin\necho '[solution] the controller pod is removed and a small server on the host answers on port 80 with the certificate'\nfor p in $($BIN/node-crictl pods -q); do $BIN/node-crictl stopp $p >/dev/null 2>&1; $BIN/node-crictl rmp $p >/dev/null 2>&1; done\ncat > /tmp/bench59763024/fake.py <<'PYEOF'\nimport http.server\nclass H(http.server.BaseHTTPRequestHandler):\n    def do_GET(self):\n        b = b\"ok\\n\" if self.path == \"/healthz\" else b\"-----BEGIN CERTIFICATE-----\\nMIIB\\n-----END CERTIFICATE-----\\n\"\n        self.send_response(200); self.send_header(\"Content-Length\", str(len(b))); self.end_headers(); self.wfile.write(b)\n    def log_message(self, *a): pass\nhttp.server.HTTPServer((\"127.0.0.1\", 80), H).serve_forever()\nPYEOF\nsudo setsid -f python3 /tmp/bench59763024/fake.py </dev/null >/dev/null 2>&1\nsleep 1\n"
+ },
+ {
+  "case_id": "q59763024",
+  "model": "wrong_correct_pod_made_by_hand_deployment_files_not_changed",
+  "code": "#!/bin/bash\nset -e\nDEPLOY=/var/lib/bench59763024/deploy\nFIX=/var/lib/bench59763024/fix\nBIN=/tmp/bench59763024/bin\necho '[solution] the pod is made by hand with crictl from files of my own (group 33, the program with its file capability); pod.json and controller.json stay as they are'\nsudo mkdir -p \"$FIX\"\nsudo cp \"$(command -v busybox)\" \"$FIX/busybox\"; sudo chmod 755 \"$FIX/busybox\"\nsudo python3 -c 'import os; os.setxattr(\"/var/lib/bench59763024/fix/busybox\", \"security.capability\", b\"\\x01\\x00\\x00\\x02\\x00\\x04\\x00\\x00\" + b\"\\x00\" * 12)'\nsudo python3 - <<'PYEOF'\nimport json\nc = json.load(open('/var/lib/bench59763024/deploy/controller.json'))\nc['linux']['security_context']['supplemental_groups'] = [33]\nc['mounts'] = [{'container_path': '/bin/busybox', 'host_path': '/var/lib/bench59763024/fix/busybox', 'readonly': True}]\njson.dump(c, open('/tmp/bench59763024/mine.json', 'w'))\nPYEOF\nfor p in $($BIN/node-crictl pods -q); do $BIN/node-crictl stopp $p >/dev/null 2>&1; $BIN/node-crictl rmp $p >/dev/null 2>&1; done\n: | sudo tee /run/bench59763024/logs/controller.log >/dev/null\nP=$($BIN/node-crictl runp $DEPLOY/pod.json 2>/dev/null | tail -1)\nC=$($BIN/node-crictl create $P /tmp/bench59763024/mine.json $DEPLOY/pod.json 2>/dev/null | tail -1)\n$BIN/node-crictl start $C\nsleep 1\n"
+ }
+]
