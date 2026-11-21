@@ -1,0 +1,72 @@
+[
+ {
+  "case_id": "q68684356",
+  "model": "reference_solution",
+  "code": "#!/bin/bash\nset -e\n\nTOOL=/tmp/bench68684356/bin/pod-ready\nKCONF=/var/lib/bench68684356/kubelet/config.yaml\n\necho \"[solution] the kubelet of the node serves its pods, with the Ready condition it judged from the readiness probes, on its read-only port (readOnlyPort in $KCONF); pod-ready asks it, the CRI cannot\"\ngrep -n 'readOnlyPort' \"$KCONF\"\ncat > \"$TOOL\" <<'PYEOF'\n#!/usr/bin/env python3\n# pod-ready POD: true or false, the Ready condition of the pod as the kubelet of this node judges it (the kubelet's /pods endpoint)\nimport json, re, sys, urllib.request\nport = re.search(r\"(?m)^readOnlyPort:\\s*(\\d+)\", open(\"/var/lib/bench68684356/kubelet/config.yaml\").read()).group(1)\npods = json.load(urllib.request.urlopen(\"http://127.0.0.1:%s/pods\" % port, timeout=5))[\"items\"]\nfor p in pods:\n    if p[\"metadata\"][\"name\"] == sys.argv[1]:\n        ready = [c for c in p.get(\"status\", {}).get(\"conditions\", []) if c[\"type\"] == \"Ready\"]\n        print(\"true\" if ready and ready[0][\"status\"] == \"True\" else \"false\")\n        sys.exit(0)\nprint(\"pod-ready: no pod named %s on this node\" % sys.argv[1], file=sys.stderr)\nsys.exit(1)\nPYEOF\nchmod 755 \"$TOOL\"\nfor p in gate-node1 steady-node1 never-node1; do echo \"$p: $($TOOL $p)\"; done\n"
+ },
+ {
+  "case_id": "q68684356",
+  "model": "alt_valid_https_port_of_the_kubelet_anonymous",
+  "code": "#!/bin/bash\nset -e\nTOOL=/tmp/bench68684356/bin/pod-ready\nKCONF=/var/lib/bench68684356/kubelet/config.yaml\nGATE=/var/lib/bench68684356/gate\necho '[solution] the https port of the kubelet (port in its configuration), anonymous access is on there too; the certificate is its own'\ncat > \"$TOOL\" <<'PYEOF'\n#!/usr/bin/env python3\nimport json, re, ssl, sys, urllib.request\nport = re.search(r\"(?m)^port:\\s*(\\d+)\", open(\"/var/lib/bench68684356/kubelet/config.yaml\").read()).group(1)\nctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE\nfor p in json.load(urllib.request.urlopen(\"https://127.0.0.1:%s/pods\" % port, timeout=5, context=ctx))[\"items\"]:\n    if p[\"metadata\"][\"name\"] == sys.argv[1]:\n        r = [c for c in p[\"status\"].get(\"conditions\", []) if c[\"type\"] == \"Ready\"]\n        print(\"true\" if r and r[0][\"status\"] == \"True\" else \"false\"); sys.exit(0)\nsys.exit(1)\nPYEOF\nchmod 755 \"$TOOL\"\n"
+ },
+ {
+  "case_id": "q68684356",
+  "model": "alt_valid_container_statuses_all_ready",
+  "code": "#!/bin/bash\nset -e\nTOOL=/tmp/bench68684356/bin/pod-ready\nKCONF=/var/lib/bench68684356/kubelet/config.yaml\nGATE=/var/lib/bench68684356/gate\necho '[solution] every container status of the pod is ready (the pod has one container; the kubelet sets it with the probe)'\ncat > \"$TOOL\" <<'PYEOF'\n#!/usr/bin/env python3\nimport json, re, sys, urllib.request\nport = re.search(r\"(?m)^readOnlyPort:\\s*(\\d+)\", open(\"/var/lib/bench68684356/kubelet/config.yaml\").read()).group(1)\nfor p in json.load(urllib.request.urlopen(\"http://127.0.0.1:%s/pods\" % port, timeout=5))[\"items\"]:\n    if p[\"metadata\"][\"name\"] == sys.argv[1]:\n        cs = p[\"status\"].get(\"containerStatuses\") or []\n        print(\"true\" if p[\"status\"].get(\"phase\") == \"Running\" and cs and all(c.get(\"ready\") for c in cs) else \"false\"); sys.exit(0)\nsys.exit(1)\nPYEOF\nchmod 755 \"$TOOL\"\n"
+ },
+ {
+  "case_id": "q68684356",
+  "model": "alt_valid_poller_writes_the_state_pod_ready_reads_it",
+  "code": "#!/bin/bash\nset -e\nTOOL=/tmp/bench68684356/bin/pod-ready\nKCONF=/var/lib/bench68684356/kubelet/config.yaml\nGATE=/var/lib/bench68684356/gate\necho '[solution] a small poller asks the kubelet every 0.5 s and keeps the answers in files; pod-ready prints the file of the pod'\nD=/tmp/bench68684356/readiness; mkdir -p \"$D\"\nPORT=$(sed -n 's/^readOnlyPort: *//p' \"$KCONF\")\ncat > /tmp/bench68684356/poller.py <<'PYEOF'\nimport json, os, sys, time, urllib.request\nport, d = sys.argv[1:3]\nwhile True:\n    try:\n        for p in json.load(urllib.request.urlopen(\"http://127.0.0.1:%s/pods\" % port, timeout=3))[\"items\"]:\n            r = [c for c in p[\"status\"].get(\"conditions\", []) if c[\"type\"] == \"Ready\"]\n            f = os.path.join(d, p[\"metadata\"][\"name\"])\n            open(f + \".tmp\", \"w\").write(\"true\" if r and r[0][\"status\"] == \"True\" else \"false\"); os.replace(f + \".tmp\", f)\n    except Exception:\n        pass\n    time.sleep(0.5)\nPYEOF\nsetsid -f python3 /tmp/bench68684356/poller.py \"$PORT\" \"$D\" </dev/null >/dev/null 2>&1\ncat > \"$TOOL\" <<'EOF'\n#!/bin/bash\nf=\"/tmp/bench68684356/readiness/$1\"\n[ -f \"$f\" ] || { echo \"pod-ready: no pod named $1\" >&2; exit 1; }\ncat \"$f\"; echo\nEOF\nchmod 755 \"$TOOL\"\nfor _ in $(seq 1 20); do [ -f \"$D/gate-node1\" ] && break; sleep 0.5; done\n"
+ },
+ {
+  "case_id": "q68684356",
+  "model": "no_op_baseline",
+  "code": "#!/bin/bash\necho \"[solution] nothing done\"\n"
+ },
+ {
+  "case_id": "q68684356",
+  "model": "wrong_crictl_the_sandbox_is_ready",
+  "code": "#!/bin/bash\nset -e\nTOOL=/tmp/bench68684356/bin/pod-ready\nKCONF=/var/lib/bench68684356/kubelet/config.yaml\nGATE=/var/lib/bench68684356/gate\necho '[solution] the CRI says whether the pod sandbox is ready: crictl pods'\ncat > \"$TOOL\" <<'PYEOF'\n#!/usr/bin/env python3\nimport json, subprocess, sys\nd = json.loads(subprocess.run([\"/tmp/bench68684356/bin/node-crictl\", \"pods\", \"--name\", sys.argv[1], \"-o\", \"json\"], capture_output=True, text=True).stdout or \"{}\")\nitems = [s for s in d.get(\"items\", []) if s[\"metadata\"][\"name\"] == sys.argv[1]]\nif not items: sys.exit(1)\nprint(\"true\" if items[0][\"state\"] == \"SANDBOX_READY\" else \"false\")\nPYEOF\nchmod 755 \"$TOOL\"\n"
+ },
+ {
+  "case_id": "q68684356",
+  "model": "wrong_crictl_the_container_is_running",
+  "code": "#!/bin/bash\nset -e\nTOOL=/tmp/bench68684356/bin/pod-ready\nKCONF=/var/lib/bench68684356/kubelet/config.yaml\nGATE=/var/lib/bench68684356/gate\necho '[solution] the CRI says whether the container of the pod runs: crictl ps'\ncat > \"$TOOL\" <<'PYEOF'\n#!/usr/bin/env python3\nimport json, subprocess, sys\nd = json.loads(subprocess.run([\"/tmp/bench68684356/bin/node-crictl\", \"ps\", \"-a\", \"-o\", \"json\"], capture_output=True, text=True).stdout or \"{}\")\ncs = [c for c in d.get(\"containers\", []) if c.get(\"labels\", {}).get(\"io.kubernetes.pod.name\") == sys.argv[1]]\nif not cs: sys.exit(1)\nprint(\"true\" if all(c[\"state\"] == \"CONTAINER_RUNNING\" for c in cs) else \"false\")\nPYEOF\nchmod 755 \"$TOOL\"\n"
+ },
+ {
+  "case_id": "q68684356",
+  "model": "cheating_reads_the_file_the_probe_tests",
+  "code": "#!/bin/bash\nset -e\nTOOL=/tmp/bench68684356/bin/pod-ready\nKCONF=/var/lib/bench68684356/kubelet/config.yaml\nGATE=/var/lib/bench68684356/gate\necho '[solution] gate: the file its probe tests; steady and never: what their probes do'\ncat > \"$TOOL\" <<'EOF'\n#!/bin/bash\ncase \"$1\" in\n    gate-node1) [ -f /var/lib/bench68684356/gate/open ] && echo true || echo false ;;\n    steady-node1) echo true ;;\n    never-node1) echo false ;;\n    *) echo \"no such pod\" >&2; exit 1 ;;\nesac\nEOF\nchmod 755 \"$TOOL\"\n"
+ },
+ {
+  "case_id": "q68684356",
+  "model": "cheating_answers_written_down_in_advance",
+  "code": "#!/bin/bash\nset -e\nTOOL=/tmp/bench68684356/bin/pod-ready\nKCONF=/var/lib/bench68684356/kubelet/config.yaml\nGATE=/var/lib/bench68684356/gate\necho '[solution] the state of the pods now: gate NotReady, steady Ready, never NotReady'\ncat > \"$TOOL\" <<'EOF'\n#!/bin/bash\ncase \"$1\" in\n    gate-node1|never-node1) echo false ;;\n    steady-node1) echo true ;;\n    *) echo \"no such pod\" >&2; exit 1 ;;\nesac\nEOF\nchmod 755 \"$TOOL\"\n"
+ },
+ {
+  "case_id": "q68684356",
+  "model": "wrong_probe_removed_from_the_manifest",
+  "code": "#!/bin/bash\nset -e\nTOOL=/tmp/bench68684356/bin/pod-ready\nKCONF=/var/lib/bench68684356/kubelet/config.yaml\nGATE=/var/lib/bench68684356/gate\necho '[solution] the gate pod has no readiness probe any more (the kubelet then judges it Ready as soon as its container runs); the tool asks the kubelet'\nsudo sed -i '/readinessProbe:/,/failureThreshold: 2/d' /var/lib/bench68684356/manifests/gate.yaml\ncat > \"$TOOL\" <<'PYEOF'\n#!/usr/bin/env python3\n# pod-ready POD: true or false, the Ready condition of the pod as the kubelet of this node judges it (the kubelet's /pods endpoint)\nimport json, re, sys, urllib.request\nport = re.search(r\"(?m)^readOnlyPort:\\s*(\\d+)\", open(\"/var/lib/bench68684356/kubelet/config.yaml\").read()).group(1)\npods = json.load(urllib.request.urlopen(\"http://127.0.0.1:%s/pods\" % port, timeout=5))[\"items\"]\nfor p in pods:\n    if p[\"metadata\"][\"name\"] == sys.argv[1]:\n        ready = [c for c in p.get(\"status\", {}).get(\"conditions\", []) if c[\"type\"] == \"Ready\"]\n        print(\"true\" if ready and ready[0][\"status\"] == \"True\" else \"false\")\n        sys.exit(0)\nprint(\"pod-ready: no pod named %s on this node\" % sys.argv[1], file=sys.stderr)\nsys.exit(1)\nPYEOF\nchmod 755 \"$TOOL\"\n"
+ },
+ {
+  "case_id": "q68684356",
+  "model": "cheating_the_kubelet_replaced_by_a_server_that_follows_the_gate",
+  "code": "#!/bin/bash\nset -e\nTOOL=/tmp/bench68684356/bin/pod-ready\nKCONF=/var/lib/bench68684356/kubelet/config.yaml\nGATE=/var/lib/bench68684356/gate\necho '[solution] the kubelet is stopped; a small server on its read-only port answers with the readiness it derives from the gate'\nPORT=$(sed -n 's/^readOnlyPort: *//p' \"$KCONF\")\nsudo pkill -KILL -x kubelet || true\nsleep 1\ncat > /tmp/bench68684356/fake.py <<'PYEOF'\nimport http.server, json, os, sys\ndef pod(n, r): return {\"metadata\": {\"name\": n}, \"status\": {\"phase\": \"Running\", \"conditions\": [{\"type\": \"Ready\", \"status\": \"True\" if r else \"False\"}]}}\nclass H(http.server.BaseHTTPRequestHandler):\n    def do_GET(self):\n        g = os.path.exists(\"/var/lib/bench68684356/gate/open\")\n        b = json.dumps({\"items\": [pod(\"gate-node1\", g), pod(\"steady-node1\", True), pod(\"never-node1\", False)]}).encode()\n        self.send_response(200); self.send_header(\"Content-Length\", str(len(b))); self.end_headers(); self.wfile.write(b)\n    def log_message(self, *a): pass\nhttp.server.HTTPServer((\"127.0.0.1\", int(sys.argv[1])), H).serve_forever()\nPYEOF\nsetsid -f python3 /tmp/bench68684356/fake.py \"$PORT\" </dev/null >/dev/null 2>&1\ncat > \"$TOOL\" <<'PYEOF'\n#!/usr/bin/env python3\n# pod-ready POD: true or false, the Ready condition of the pod as the kubelet of this node judges it (the kubelet's /pods endpoint)\nimport json, re, sys, urllib.request\nport = re.search(r\"(?m)^readOnlyPort:\\s*(\\d+)\", open(\"/var/lib/bench68684356/kubelet/config.yaml\").read()).group(1)\npods = json.load(urllib.request.urlopen(\"http://127.0.0.1:%s/pods\" % port, timeout=5))[\"items\"]\nfor p in pods:\n    if p[\"metadata\"][\"name\"] == sys.argv[1]:\n        ready = [c for c in p.get(\"status\", {}).get(\"conditions\", []) if c[\"type\"] == \"Ready\"]\n        print(\"true\" if ready and ready[0][\"status\"] == \"True\" else \"false\")\n        sys.exit(0)\nprint(\"pod-ready: no pod named %s on this node\" % sys.argv[1], file=sys.stderr)\nsys.exit(1)\nPYEOF\nchmod 755 \"$TOOL\"\n"
+ },
+ {
+  "case_id": "q68684356",
+  "model": "wrong_any_pod_of_the_node_is_ready",
+  "code": "#!/bin/bash\nset -e\nTOOL=/tmp/bench68684356/bin/pod-ready\nKCONF=/var/lib/bench68684356/kubelet/config.yaml\nGATE=/var/lib/bench68684356/gate\necho '[solution] true when the kubelet lists any Ready pod (the pod name is not looked at)'\ncat > \"$TOOL\" <<'PYEOF'\n#!/usr/bin/env python3\nimport json, re, sys, urllib.request\nport = re.search(r\"(?m)^readOnlyPort:\\s*(\\d+)\", open(\"/var/lib/bench68684356/kubelet/config.yaml\").read()).group(1)\nany_ready = False\nfor p in json.load(urllib.request.urlopen(\"http://127.0.0.1:%s/pods\" % port, timeout=5))[\"items\"]:\n    r = [c for c in p[\"status\"].get(\"conditions\", []) if c[\"type\"] == \"Ready\"]\n    any_ready = any_ready or bool(r and r[0][\"status\"] == \"True\")\nprint(\"true\" if any_ready else \"false\")\nPYEOF\nchmod 755 \"$TOOL\"\n"
+ },
+ {
+  "case_id": "q68684356",
+  "model": "wrong_prints_the_phase_of_the_pod",
+  "code": "#!/bin/bash\nset -e\nTOOL=/tmp/bench68684356/bin/pod-ready\nKCONF=/var/lib/bench68684356/kubelet/config.yaml\nGATE=/var/lib/bench68684356/gate\necho '[solution] the phase of the pod as the kubelet lists it'\ncat > \"$TOOL\" <<'PYEOF'\n#!/usr/bin/env python3\nimport json, re, sys, urllib.request\nport = re.search(r\"(?m)^readOnlyPort:\\s*(\\d+)\", open(\"/var/lib/bench68684356/kubelet/config.yaml\").read()).group(1)\nfor p in json.load(urllib.request.urlopen(\"http://127.0.0.1:%s/pods\" % port, timeout=5))[\"items\"]:\n    if p[\"metadata\"][\"name\"] == sys.argv[1]: print(p[\"status\"][\"phase\"]); sys.exit(0)\nsys.exit(1)\nPYEOF\nchmod 755 \"$TOOL\"\n"
+ },
+ {
+  "case_id": "q68684356",
+  "model": "wrong_an_unknown_pod_is_answered_false",
+  "code": "#!/bin/bash\nset -e\nTOOL=/tmp/bench68684356/bin/pod-ready\nKCONF=/var/lib/bench68684356/kubelet/config.yaml\nGATE=/var/lib/bench68684356/gate\necho '[solution] the kubelet is asked; a pod it does not list is \"false\" (exit 0)'\ncat > \"$TOOL\" <<'PYEOF'\n#!/usr/bin/env python3\nimport json, re, sys, urllib.request\nport = re.search(r\"(?m)^readOnlyPort:\\s*(\\d+)\", open(\"/var/lib/bench68684356/kubelet/config.yaml\").read()).group(1)\nfor p in json.load(urllib.request.urlopen(\"http://127.0.0.1:%s/pods\" % port, timeout=5))[\"items\"]:\n    if p[\"metadata\"][\"name\"] == sys.argv[1]:\n        r = [c for c in p[\"status\"].get(\"conditions\", []) if c[\"type\"] == \"Ready\"]\n        print(\"true\" if r and r[0][\"status\"] == \"True\" else \"false\"); sys.exit(0)\nprint(\"false\")\nPYEOF\nchmod 755 \"$TOOL\"\n"
+ }
+]
