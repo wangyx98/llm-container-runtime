@@ -1,0 +1,67 @@
+[
+ {
+  "case_id": "q76134722",
+  "model": "reference_solution",
+  "code": "#!/bin/bash\nset -e\n\nCRI=/tmp/bench76134722/bin/node-crictl\nCTR=/tmp/bench76134722/bin/node-ctr\nKEEP=/var/lib/bench76134722/keep-images.txt\n\necho \"[solution] the idle images with a dev- tag that are not on the keep list: an image that carries only such names is removed through the CRI (all its names and its blobs go); an image that also carries another name only loses its dev- name (ctr removes one name); images in use and pinned images are left alone\"\n$CRI images -o json > /tmp/bench76134722/images.json\n$CRI ps -a -o json > /tmp/bench76134722/ctrs.json\npython3 - \"$KEEP\" <<'PYEOF'\nimport json, subprocess, sys\nCRI, CTR = \"/tmp/bench76134722/bin/node-crictl\", \"/tmp/bench76134722/bin/node-ctr\"\nkeep = {l.strip() for l in open(sys.argv[1]) if l.strip() and not l.startswith(\"#\")}\nused = {c[\"imageRef\"] for c in json.load(open(\"/tmp/bench76134722/ctrs.json\"))[\"containers\"]}\nfor img in json.load(open(\"/tmp/bench76134722/images.json\"))[\"images\"]:\n    if img[\"id\"] in used or img.get(\"pinned\"): continue\n    tags = img[\"repoTags\"]\n    gone = [t for t in tags if t.rsplit(\":\", 1)[1].startswith(\"dev-\") and t not in keep]\n    if not gone: continue\n    if len(gone) == len(tags):\n        print(\"rmi\", img[\"id\"][:19], tags); subprocess.run([CRI, \"rmi\", img[\"id\"]], check=True)\n    else:\n        for t in gone:\n            print(\"untag\", t); subprocess.run([CTR, \"-n\", \"k8s.io\", \"images\", \"rm\", t], check=True)\nPYEOF\nrm -f /tmp/bench76134722/images.json /tmp/bench76134722/ctrs.json\n$CRI images\n"
+ },
+ {
+  "case_id": "q76134722",
+  "model": "alt_valid_ctr_rm_the_names_then_the_id_refs",
+  "code": "#!/bin/bash\nset -e\nCRI=/tmp/bench76134722/bin/node-crictl\nCTR=/tmp/bench76134722/bin/node-ctr\nKEEP=/var/lib/bench76134722/keep-images.txt\necho '[solution] ctr only: the names of the idle dev- images; then the digest names (id refs) the CRI keeps of the images that have no tag left; the shared image loses only its dev- name'\n$CRI ps -a -o json > /tmp/bench76134722/c.json\nUSED=$(python3 -c 'import json; print(\" \".join(sorted({c[\"imageRef\"] for c in json.load(open(\"/tmp/bench76134722/c.json\"))[\"containers\"]})))')\nfor n in $($CTR -n k8s.io images ls -q | grep -E ':dev-[^:]*$' | grep -v '^sha256:'); do\n    grep -qxF \"$n\" \"$KEEP\" && continue\n    id=$($CRI inspecti -o json \"$n\" | python3 -c 'import json,sys; print(json.load(sys.stdin)[\"status\"][\"id\"])')\n    pinned=$($CRI inspecti -o json \"$n\" | python3 -c 'import json,sys; print(json.load(sys.stdin)[\"status\"].get(\"pinned\", False))')\n    case \" $USED \" in *\" $id \"*) continue ;; esac\n    [ \"$pinned\" = True ] && continue\n    $CTR -n k8s.io images rm \"$n\"\n    # the id ref (sha256:...) of an image that has no other tag\n    if ! $CRI images -o json | python3 -c 'import json,sys; sys.exit(0 if any(i[\"id\"]==\"'\"$id\"'\" and i[\"repoTags\"] for i in json.load(sys.stdin)[\"images\"]) else 1)'; then\n        $CTR -n k8s.io images rm \"$id\" || true\n    fi\ndone\nrm -f /tmp/bench76134722/c.json\n"
+ },
+ {
+  "case_id": "q76134722",
+  "model": "alt_valid_explicit_names_crictl_and_ctr",
+  "code": "#!/bin/bash\nset -e\nCRI=/tmp/bench76134722/bin/node-crictl\nCTR=/tmp/bench76134722/bin/node-ctr\nKEEP=/var/lib/bench76134722/keep-images.txt\necho '[solution] the idle dev- images named one by one (found by listing): crictl rmi for the ones with a single name, ctr images rm for the dev- name of the shared one'\nR=registry.bench.local; M=mirror.bench.local\n$CRI rmi $R/shop/web:dev-101 $R/shop/web:dev-102 $R/shop/api:dev-101 $R/shop/api:dev-102 $M/team/worker:dev-7\n$CTR -n k8s.io images rm $R/shop/web:dev-103\n$CRI images\n"
+ },
+ {
+  "case_id": "q76134722",
+  "model": "no_op_baseline",
+  "code": "#!/bin/bash\necho \"[solution] nothing done\"\n"
+ },
+ {
+  "case_id": "q76134722",
+  "model": "wrong_crictl_rmi_prune",
+  "code": "#!/bin/bash\necho \"[solution] the asker's own try: prune every image that no container uses\"\n/tmp/bench76134722/bin/node-crictl rmi --prune\n"
+ },
+ {
+  "case_id": "q76134722",
+  "model": "wrong_ctr_rm_every_name_with_dev",
+  "code": "#!/bin/bash\nset -e\nCRI=/tmp/bench76134722/bin/node-crictl\nCTR=/tmp/bench76134722/bin/node-ctr\nKEEP=/var/lib/bench76134722/keep-images.txt\necho '[solution] the grep of the question: every name of the namespace that contains dev-, removed with ctr'\nfor n in $($CTR -n k8s.io images ls -q | grep 'dev-' | grep -v '^sha256:'); do $CTR -n k8s.io images rm \"$n\"; done\n"
+ },
+ {
+  "case_id": "q76134722",
+  "model": "wrong_ctr_rm_dev_tags_except_the_keep_list",
+  "code": "#!/bin/bash\nset -e\nCRI=/tmp/bench76134722/bin/node-crictl\nCTR=/tmp/bench76134722/bin/node-ctr\nKEEP=/var/lib/bench76134722/keep-images.txt\necho '[solution] every dev- tag that is not on the keep list is removed with ctr (nothing looks at what is in use or pinned)'\nfor n in $($CTR -n k8s.io images ls -q | grep -E ':dev-[^:]*$' | grep -v '^sha256:'); do\n    grep -qxF \"$n\" \"$KEEP\" || $CTR -n k8s.io images rm \"$n\"\ndone\n"
+ },
+ {
+  "case_id": "q76134722",
+  "model": "wrong_crictl_rmi_by_image_id_of_the_dev_tags",
+  "code": "#!/bin/bash\nset -e\nCRI=/tmp/bench76134722/bin/node-crictl\nCTR=/tmp/bench76134722/bin/node-ctr\nKEEP=/var/lib/bench76134722/keep-images.txt\necho '[solution] the images whose tag starts with dev- (not on the keep list), removed by image id through the CRI'\n$CRI images | awk 'NR>1 && $2 ~ /^dev-/ {print $1\":\"$2, $3}' | while read name id; do\n    grep -qxF \"$name\" \"$KEEP\" || $CRI rmi \"$id\" || true\ndone\n"
+ },
+ {
+  "case_id": "q76134722",
+  "model": "wrong_ctr_rm_leaves_untagged_images",
+  "code": "#!/bin/bash\nset -e\nCRI=/tmp/bench76134722/bin/node-crictl\nCTR=/tmp/bench76134722/bin/node-ctr\nKEEP=/var/lib/bench76134722/keep-images.txt\necho '[solution] idle dev- names removed with ctr, but only the names; the used and the pinned images are skipped, the shared one loses its dev- name'\n$CRI ps -a -o json > /tmp/bench76134722/c.json\nUSED=$(python3 -c 'import json; print(\" \".join(sorted({c[\"imageRef\"] for c in json.load(open(\"/tmp/bench76134722/c.json\"))[\"containers\"]})))')\nfor n in $($CTR -n k8s.io images ls -q | grep -E ':dev-[^:]*$' | grep -v '^sha256:'); do\n    grep -qxF \"$n\" \"$KEEP\" && continue\n    id=$($CRI inspecti -o json \"$n\" | python3 -c 'import json,sys; print(json.load(sys.stdin)[\"status\"][\"id\"])')\n    case \" $USED \" in *\" $id \"*) continue ;; esac\n    [ \"$n\" = registry.bench.local/infra/pause:dev-3.9 ] && continue\n    $CTR -n k8s.io images rm \"$n\"\ndone\nrm -f /tmp/bench76134722/c.json\n"
+ },
+ {
+  "case_id": "q76134722",
+  "model": "wrong_crictl_rmi_of_the_shared_image_by_name",
+  "code": "#!/bin/bash\nset -e\nCRI=/tmp/bench76134722/bin/node-crictl\nCTR=/tmp/bench76134722/bin/node-ctr\nKEEP=/var/lib/bench76134722/keep-images.txt\necho '[solution] every idle dev- image not on the keep list is removed through the CRI by name (the shared image too)'\n$CRI ps -a -o json > /tmp/bench76134722/c.json\nUSED=$(python3 -c 'import json; print(\" \".join(sorted({c[\"imageRef\"] for c in json.load(open(\"/tmp/bench76134722/c.json\"))[\"containers\"]})))')\nfor n in $($CRI images | awk 'NR>1 && $2 ~ /^dev-/ {print $1\":\"$2}'); do\n    grep -qxF \"$n\" \"$KEEP\" && continue\n    id=$($CRI inspecti -o json \"$n\" | python3 -c 'import json,sys; print(json.load(sys.stdin)[\"status\"][\"id\"])')\n    case \" $USED \" in *\" $id \"*) continue ;; esac\n    [ \"$n\" = registry.bench.local/infra/pause:dev-3.9 ] && continue\n    $CRI rmi \"$n\"\ndone\nrm -f /tmp/bench76134722/c.json\n"
+ },
+ {
+  "case_id": "q76134722",
+  "model": "wrong_matches_dev_anywhere_in_the_name",
+  "code": "#!/bin/bash\nset -e\nCRI=/tmp/bench76134722/bin/node-crictl\nCTR=/tmp/bench76134722/bin/node-ctr\nKEEP=/var/lib/bench76134722/keep-images.txt\necho '[solution] the right images but the filter is dev- anywhere in the name, not the tag: the repository dev-tools/lint goes too'\nfor n in $($CRI images | awk 'NR>1 && ($1 ~ /dev-/ || $2 ~ /^dev-/) {print $1\":\"$2}'); do\n    grep -qxF \"$n\" \"$KEEP\" && continue\n    case \"$n\" in *infra/pause*|*shop/web:dev-100|*shop/api:dev-100) continue ;; esac\n    case \"$n\" in *web:dev-103) $CTR -n k8s.io images rm \"$n\" ;; *) $CRI rmi \"$n\" ;; esac\ndone\n"
+ },
+ {
+  "case_id": "q76134722",
+  "model": "wrong_all_namespaces",
+  "code": "#!/bin/bash\nset -e\n\nCRI=/tmp/bench76134722/bin/node-crictl\nCTR=/tmp/bench76134722/bin/node-ctr\nKEEP=/var/lib/bench76134722/keep-images.txt\n\necho \"[solution] the idle images with a dev- tag that are not on the keep list: an image that carries only such names is removed through the CRI (all its names and its blobs go); an image that also carries another name only loses its dev- name (ctr removes one name); images in use and pinned images are left alone\"\n$CRI images -o json > /tmp/bench76134722/images.json\n$CRI ps -a -o json > /tmp/bench76134722/ctrs.json\npython3 - \"$KEEP\" <<'PYEOF'\nimport json, subprocess, sys\nCRI, CTR = \"/tmp/bench76134722/bin/node-crictl\", \"/tmp/bench76134722/bin/node-ctr\"\nkeep = {l.strip() for l in open(sys.argv[1]) if l.strip() and not l.startswith(\"#\")}\nused = {c[\"imageRef\"] for c in json.load(open(\"/tmp/bench76134722/ctrs.json\"))[\"containers\"]}\nfor img in json.load(open(\"/tmp/bench76134722/images.json\"))[\"images\"]:\n    if img[\"id\"] in used or img.get(\"pinned\"): continue\n    tags = img[\"repoTags\"]\n    gone = [t for t in tags if t.rsplit(\":\", 1)[1].startswith(\"dev-\") and t not in keep]\n    if not gone: continue\n    if len(gone) == len(tags):\n        print(\"rmi\", img[\"id\"][:19], tags); subprocess.run([CRI, \"rmi\", img[\"id\"]], check=True)\n    else:\n        for t in gone:\n            print(\"untag\", t); subprocess.run([CTR, \"-n\", \"k8s.io\", \"images\", \"rm\", t], check=True)\nPYEOF\nrm -f /tmp/bench76134722/images.json /tmp/bench76134722/ctrs.json\n$CRI images\necho '[solution] and the same clean-up for every other namespace of the node: the dev- image of bench-other goes too'\nfor ns in $($CTR namespaces ls -q | grep -vx k8s.io); do\n    for n in $($CTR -n $ns images ls -q | grep -E ':dev-[^:]*$' | grep -v '^sha256:'); do $CTR -n $ns images rm \"$n\"; done\ndone\n"
+ },
+ {
+  "case_id": "q76134722",
+  "model": "cheating_blobs_deleted_names_kept",
+  "code": "#!/bin/bash\nset -e\nCRI=/tmp/bench76134722/bin/node-crictl\nCTR=/tmp/bench76134722/bin/node-ctr\nKEEP=/var/lib/bench76134722/keep-images.txt\necho '[solution] the space is \"reclaimed\" by deleting the manifest blobs of the idle dev- images from the content store; the names stay'\nfor n in $($CTR -n k8s.io images ls -q | grep -E ':dev-[^:]*$' | grep -v '^sha256:'); do\n    grep -qxF \"$n\" \"$KEEP\" && continue\n    case \"$n\" in *infra/pause*|*shop/web:dev-100|*shop/api:dev-100|*web:dev-103) continue ;; esac\n    $CTR -n k8s.io content rm $($CTR -n k8s.io images ls \"name==$n\" | awk 'NR>1 {print $3}') || true\ndone\n"
+ }
+]

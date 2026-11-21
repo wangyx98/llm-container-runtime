@@ -1,0 +1,28 @@
+This machine runs a small container node of its own for this exercise: a containerd (the node's container runtime, with its CRI; socket /run/bench76134722/containerd.sock) with one running
+pod. There is no Kubernetes cluster. The machine's own container tools are not touched. Two wrappers (both call sudo themselves):
+
+    /tmp/bench76134722/bin/node-crictl     # crictl of this containerd
+    /tmp/bench76134722/bin/node-ctr        # ctr of this containerd; the CRI's images are in the namespace k8s.io: node-ctr -n k8s.io images ls
+
+(Adaptation: the question is about an EKS 1.24 node with 139 images that carry the tag prefix dev-, some of them used by running containers, and a node that crashed when the asker ran
+crictl rmi --prune. This exercise is that clean-up on a node of its own, reduced to the runtime: it is not a reproduction of the EKS incident.)
+
+The node has 14 images with 15 names in the namespace k8s.io (images of two registries, registry.bench.local and mirror.bench.local); one more image lives in the namespace bench-other.
+Two of the images are used by the containers of the running pod shop (web and api, the tag dev-100 each); one image is the sandbox image of the node (it carries a dev- tag too, and it
+is pinned); the others are idle. The file /var/lib/bench76134722/keep-images.txt lists the images that must stay although they are idle and carry the dev- tag. One image carries two
+names (a dev- tag and a stable tag).
+
+    $ /tmp/bench76134722/bin/node-crictl images
+    $ /tmp/bench76134722/bin/node-crictl ps -a
+
+Your task: remove from the node every idle image that carries a tag starting with dev- (the tag, not the repository name: dev-tools/lint:2.1 is not such an image), except the ones on the
+keep list, and give back their space. Requirements:
+
+1. An idle dev- image is gone from the node, with all its names and its blobs in containerd's store (the image does not stay as an untagged image; the garbage collector of containerd
+   may take a few seconds). The image that carries a dev- name and another name loses only its dev- name and stays.
+2. Everything else stays as it is: the images on the keep list, the images used by the running containers, the sandbox image, the images without a dev- tag, the other names, and the
+   image of the namespace bench-other (only the CRI's namespace, k8s.io, is meant). After the clean-up the node must still make a new pod and new containers from every image that stays.
+3. The node stays as it is otherwise: the same containerd process, the same pod and containers (not recreated or restarted), the node's files, the keep list and the wrappers unchanged. No
+   pod or container is left behind by your commands. Nothing is downloaded or pulled.
+
+Use sudo for the node's files if you need it.
